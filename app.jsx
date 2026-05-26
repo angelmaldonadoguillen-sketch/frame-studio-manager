@@ -687,7 +687,7 @@ const App = () => {
         await batch.commit();
         // El listener disparará de nuevo con los datos sembrados
       } else {
-        const projects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const projects = snap.docs.map(d => ({ ...d.data(), id: d.id }));
         dispatch({ type: 'set_projects', projects });
       }
     }, (err) => {
@@ -704,7 +704,7 @@ const App = () => {
     const col = window.db.collection('frame_users');
     const unsub = col.onSnapshot((snap) => {
       // No seeding — only real registered users
-      const team = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const team = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       dispatch({ type: 'set_team', team });
     }, (err) => {
       console.error('Firestore team error:', err);
@@ -722,7 +722,7 @@ const App = () => {
         SEED_CLIENTS.forEach(c => batch.set(col.doc(c.id), c));
         await batch.commit();
       } else {
-        const clients = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const clients = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         dispatch({ type: 'set_clients', clients });
       }
     }, (err) => {
@@ -844,10 +844,29 @@ const App = () => {
   };
 
   // ── Escrituras a Firestore ──────────────────────────────────
-  const handleDeleteProject = (id) => {
+  const handleDeleteProject = async (id) => {
     dispatch({ type: 'delete_project', id });
-    window.db.collection('frame_projects').doc(id).delete()
-      .catch(err => console.error('Error al eliminar proyecto:', err));
+    const col = window.db.collection('frame_projects');
+    try {
+      // Verificar si existe el doc con ese ID exacto
+      const snap = await col.doc(id).get();
+      if (snap.exists) {
+        await col.doc(id).delete();
+        console.log('[FRAME] Proyecto eliminado por doc ID:', id);
+      } else {
+        // El proyecto fue creado con add() → doc ID ≠ campo id guardado en data
+        // Buscar por el campo id dentro del documento
+        const q = await col.where('id', '==', id).get();
+        if (!q.empty) {
+          await Promise.all(q.docs.map(d => d.ref.delete()));
+          console.log('[FRAME] Proyecto eliminado por query (add-legacy):', id);
+        } else {
+          console.warn('[FRAME] Proyecto no encontrado en Firestore (ya borrado?):', id);
+        }
+      }
+    } catch (err) {
+      console.error('[FRAME] Error al eliminar proyecto:', err);
+    }
   };
 
   const handleUpdateProject = (project) => {
