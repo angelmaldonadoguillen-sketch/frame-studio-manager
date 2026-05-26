@@ -408,7 +408,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
 
         {/* Filter dropdowns */}
         <FilterDropdown label="Estado"    icon="dot"   filterKey="status"   options={STATUSES}                                                               state={state} dispatch={dispatch} />
-        <FilterDropdown label="Tipo"      icon="film"  filterKey="type"     options={PROJECT_TYPES}                                                           state={state} dispatch={dispatch} />
+        <FilterDropdown label="Tipo"      icon="film"  filterKey="type"     options={state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES}    state={state} dispatch={dispatch} />
         <FilterDropdown label="Prioridad" icon="flag"  filterKey="priority" options={PRIORITIES}                                                              state={state} dispatch={dispatch} />
         <FilterDropdown label="Equipo"    icon="users" filterKey="assignee" options={(state.team || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
 
