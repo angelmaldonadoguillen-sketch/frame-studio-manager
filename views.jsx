@@ -438,9 +438,12 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
 };
 
 // ── CALENDAR VIEW ───────────────────────────────────────────────
-const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields = {} }) => {
+const CalendarView = ({ projects, onOpenProject, onDeleteProject, onUpdateProject, previewFields = {} }) => {
   const [refDate, setRefDate] = useState(new Date(TODAY));
   const [mode, setMode] = useState('month'); // month | week | day
+  const [dragging, setDragging]       = useState(null); // { id, kind }
+  const [dragOverDate, setDragOverDate] = useState(null);
+  const lastOverRef = useRef(null);
 
   const year = refDate.getFullYear();
   const month = refDate.getMonth();
@@ -479,6 +482,32 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields 
   const goPrev = () => setRefDate(new Date(year, month - 1, 1));
   const goNext = () => setRefDate(new Date(year, month + 1, 1));
   const goToday = () => setRefDate(new Date(TODAY));
+
+  // ── Drag handlers ─────────────────────────────────────────────
+  const handleDragStart = (e, p) => {
+    setDragging({ id: p.id, kind: p._kind });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', p.id); // needed for Firefox
+  };
+  const handleDragEnd = () => { setDragging(null); setDragOverDate(null); lastOverRef.current = null; };
+  const handleDragOver = (e, iso) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (lastOverRef.current !== iso) { lastOverRef.current = iso; setDragOverDate(iso); }
+  };
+  const handleDrop = (e, iso) => {
+    e.preventDefault();
+    if (!dragging) return;
+    const project = projects.find(p => p.id === dragging.id);
+    if (!project) return;
+    const currentDate = dragging.kind === 'deadline' ? project.deadline : project.sessionDate;
+    if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
+    const updated = dragging.kind === 'deadline'
+      ? { ...project, deadline: iso }
+      : { ...project, sessionDate: iso };
+    onUpdateProject && onUpdateProject(updated);
+    setDragging(null); setDragOverDate(null); lastOverRef.current = null;
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -526,17 +555,27 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields 
               const iso = dt.toISOString().slice(0, 10);
               const items = projectsByDate[iso] || [];
               const isToday = isSameDay(dt, todayDt);
+              const isDragOver = dragOverDate === iso;
               return (
                 <div
                   key={i}
-                  className={`relative border-r border-b border-app p-1.5 min-h-[110px] ${inMonth ? '' : 'opacity-40'}`}
-                  style={{ background: isToday ? 'var(--accent-soft)' : 'transparent' }}
+                  className={`relative border-r border-b p-1.5 min-h-[110px] transition-colors ${inMonth ? '' : 'opacity-40'}`}
+                  style={{
+                    background: isDragOver
+                      ? 'rgba(212,255,79,0.08)'
+                      : isToday ? 'var(--accent-soft)' : 'transparent',
+                    borderColor: isDragOver ? 'rgba(212,255,79,0.4)' : 'var(--border)',
+                  }}
+                  onDragOver={(e) => handleDragOver(e, iso)}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setDragOverDate(null); lastOverRef.current = null; } }}
+                  onDrop={(e) => handleDrop(e, iso)}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-[11px] font-mono ${isToday ? 'font-bold' : 'text-[var(--text-muted)]'}`} style={{ color: isToday ? 'var(--accent)' : undefined }}>
                       {dt.getDate()}
                     </span>
                     {isToday && <span className="text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>HOY</span>}
+                    {isDragOver && <span className="text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>SOLTAR</span>}
                   </div>
                   <div className="space-y-1">
                     {items.map(p => {
@@ -547,12 +586,20 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields 
                       const prog = progressOf(p);
                       const pf   = previewFields;
                       const showSecondLine = pf.cliente !== false || pf.responsables !== false;
+                      const isDraggingThis = dragging?.id === p.id && dragging?.kind === p._kind;
                       return (
                         <div
                           key={p.id + p._kind}
-                          onClick={() => onOpenProject(p.id)}
-                          className="cursor-pointer rounded overflow-hidden hover:brightness-125 transition-all"
-                          style={{ background: t.color + '22', borderLeft: `2px solid ${t.color}` }}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, p)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => !dragging && onOpenProject(p.id)}
+                          className="cursor-grab active:cursor-grabbing rounded overflow-hidden hover:brightness-125 transition-all select-none"
+                          style={{
+                            background: t.color + '22',
+                            borderLeft: `2px solid ${t.color}`,
+                            opacity: isDraggingThis ? 0.4 : 1,
+                          }}
                           title={`${p.title} — ${p._kind === 'deadline' ? 'Deadline' : 'Sesión'}`}
                         >
                           {/* Línea 1: ícono tipo + título + indicadores */}

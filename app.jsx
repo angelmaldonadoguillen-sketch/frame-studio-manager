@@ -1147,7 +1147,7 @@ const App = () => {
                   onReorderColumns={handleReorderColumns}
                   previewFields={state.previewFields}
                 />}
-                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} previewFields={state.previewFields} />}
+                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onUpdateProject={handleUpdateProject} previewFields={state.previewFields} />}
                 {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} previewFields={state.previewFields} />}
                 {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
               </>
