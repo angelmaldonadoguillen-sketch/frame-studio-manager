@@ -561,7 +561,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
 };
 
 // ── Client autocomplete (portal-based, used in ProjectModal) ────
-const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient }) => {
+const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fieldMode = false, placeholder = 'Buscar o escribir cliente…' }) => {
   const [query,  setQuery]  = useState(value || '');
   const [open,   setOpen]   = useState(false);
   const [pos,    setPos]    = useState({ top: 0, left: 0, width: 220 });
@@ -658,14 +658,21 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient }) =
     document.body
   );
 
+  // ── fieldMode = styled like a form input (NewProjectModal)
+  // ── default  = compact inline (PropRow inside ProjectModal)
+  const wrapCls = fieldMode
+    ? 'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-md border cursor-pointer transition-colors'
+    : 'flex items-center gap-2 px-2 py-1 -mx-2 rounded hover:bg-[var(--surface-2)] cursor-pointer transition-colors';
+  const wrapStyle = fieldMode
+    ? { background: 'var(--surface-2)', borderColor: open ? 'rgba(212,255,79,.5)' : 'var(--border)' }
+    : {};
+
   return (
     <>
-      <div ref={wrapRef} onClick={openDropdown}
-        className="flex items-center gap-2 px-2 py-1 -mx-2 rounded hover:bg-[var(--surface-2)] cursor-pointer transition-colors"
-      >
+      <div ref={wrapRef} onClick={openDropdown} className={wrapCls} style={wrapStyle}>
         {matched && !open && (
-          <div className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center text-[8px] font-bold"
-            style={{ background: matched.color + '22', color: matched.color }}>
+          <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center text-[8px] font-bold"
+            style={{ background: matched.color + '22', color: matched.color, border: `1px solid ${matched.color}44` }}>
             {matched.initials.slice(0, 1)}
           </div>
         )}
@@ -675,13 +682,18 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient }) =
               if (e.key === 'Enter') { if (filtered.length > 0) select(filtered[0].name); else if (showCreate) createAndSelect(); else { onChange(query.trim()); setOpen(false); } }
               if (e.key === 'Escape') setOpen(false);
             }}
-            className="flex-1 text-sm bg-transparent outline-none"
-            placeholder="Buscar o escribir cliente…"
+            className={`flex-1 bg-transparent outline-none ${fieldMode ? 'text-[13.5px]' : 'text-sm'}`}
+            placeholder={placeholder}
             style={{ minWidth: 0 }}
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="text-sm truncate">{value || <span className="text-[var(--text-muted)]">Sin cliente</span>}</span>
+          <span className={`truncate ${fieldMode ? 'text-[13.5px]' : 'text-sm'}`}>
+            {value || <span className="text-[var(--text-muted)]">{fieldMode ? placeholder : 'Sin cliente'}</span>}
+          </span>
+        )}
+        {fieldMode && !open && (
+          <Icon name="chevronDown" size={12} className="ml-auto flex-shrink-0 text-[var(--text-muted)]" />
         )}
       </div>
       {panel}

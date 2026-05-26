@@ -520,7 +520,7 @@ const StatusStatsBar = ({ projects }) => {
 };
 
 // ── New project quick form ──────────────────────────────────────
-const NewProjectModal = ({ onCreate, onClose }) => {
+const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient }) => {
   const [title, setTitle] = useState('');
   const [client, setClient] = useState('');
   const [type, setType] = useState('reel');
@@ -585,11 +585,13 @@ const NewProjectModal = ({ onCreate, onClose }) => {
           </div>
           <div>
             <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Cliente</label>
-            <input
+            <ClientAutocomplete
               value={client}
-              onChange={(e) => setClient(e.target.value)}
+              onChange={setClient}
+              clients={clients}
+              onCreateClient={onCreateClient}
+              fieldMode={true}
               placeholder="Ej: Volcán Activewear"
-              className="w-full px-3 py-2.5 rounded-md text-[13.5px] surface-2 border border-app focus:border-[var(--accent)]/60"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -982,6 +984,8 @@ const App = () => {
         <NewProjectModal
           onCreate={handleCreateProject}
           onClose={() => dispatch({ type: 'hide_new' })}
+          clients={state.clients}
+          onCreateClient={handleCreateClient}
         />
       )}
     </div>
