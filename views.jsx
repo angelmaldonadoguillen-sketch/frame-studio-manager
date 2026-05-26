@@ -86,20 +86,54 @@ const COL_COLORS = [
   '#F59E0B','#EC4899','#8B5CF6','#06B6D4','#38BDF8',
 ];
 
-// ── Column settings menu ─────────────────────────────────────────
-const ColumnMenu = ({ col, projectCount, onUpdate, onDelete, onClose }) => {
-  const [label, setLabel] = React.useState(col.label);
+// ── Column settings menu (rendered via portal to escape overflow clipping) ──
+const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
+  const [open, setOpen]   = useState(false);
+  const [pos, setPos]     = useState({ top: 0, right: 0 });
+  const [label, setLabel] = useState(col.label);
+  const btnRef  = useRef(null);
+  const panelRef = useRef(null);
 
-  const commitLabel = () => {
-    const trimmed = label.trim();
-    if (trimmed && trimmed !== col.label) onUpdate({ ...col, label: trimmed });
+  // sync label when col changes (e.g. after save)
+  useEffect(() => setLabel(col.label), [col.label]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => {
+      if (!btnRef.current?.contains(e.target) && !panelRef.current?.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setOpen(v => !v);
   };
 
-  return (
-    <div className="space-y-4 py-1">
+  const commitLabel = () => {
+    const t = label.trim();
+    if (t && t !== col.label) onUpdate({ ...col, label: t });
+  };
+
+  const panel = open && ReactDOM.createPortal(
+    <div
+      ref={panelRef}
+      className="anim-scale-in"
+      style={{
+        position: 'fixed', top: pos.top, right: pos.right,
+        width: 240, zIndex: 9999,
+        background: 'var(--surface-2)', borderRadius: 12,
+        border: '1px solid var(--border-2)',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+        padding: '12px',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Nombre */}
-      <div>
-        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1">Nombre</div>
+      <div className="mb-3">
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Nombre</div>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
@@ -111,8 +145,8 @@ const ColumnMenu = ({ col, projectCount, onUpdate, onDelete, onClose }) => {
       </div>
 
       {/* Color */}
-      <div>
-        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1">Color</div>
+      <div className="mb-3">
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Color</div>
         <div className="grid grid-cols-5 gap-1.5">
           {COL_COLORS.map(c => (
             <button
@@ -121,9 +155,7 @@ const ColumnMenu = ({ col, projectCount, onUpdate, onDelete, onClose }) => {
               className="w-8 h-8 rounded-md transition-all hover:scale-110"
               style={{
                 background: c,
-                boxShadow: col.color === c
-                  ? `0 0 0 2px var(--surface-2), 0 0 0 3.5px ${c}`
-                  : 'none',
+                boxShadow: col.color === c ? `0 0 0 2px var(--surface-2), 0 0 0 3.5px ${c}` : 'none',
               }}
             />
           ))}
@@ -133,15 +165,11 @@ const ColumnMenu = ({ col, projectCount, onUpdate, onDelete, onClose }) => {
       {/* Eliminar */}
       <div className="border-t border-app pt-2">
         <button
-          onClick={() => {
-            if (projectCount === 0) { onDelete(col.id); onClose(); }
-          }}
+          onClick={() => { if (projectCount === 0) { onDelete(col.id); setOpen(false); } }}
           disabled={projectCount > 0}
           title={projectCount > 0 ? `Mové los ${projectCount} proyectos antes de eliminar` : ''}
-          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] transition-colors disabled:opacity-35"
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] transition-colors disabled:opacity-35 hover:bg-[#FF6B6B14]"
           style={{ color: '#FF6B6B' }}
-          onMouseEnter={(e) => { if (projectCount === 0) e.currentTarget.style.background = '#FF6B6B14'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
           <Icon name="trash" size={13} />
           {projectCount > 0
@@ -149,23 +177,51 @@ const ColumnMenu = ({ col, projectCount, onUpdate, onDelete, onClose }) => {
             : 'Eliminar columna'}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
+  );
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={openMenu}
+        className={`p-1 rounded transition-colors ${open ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-2)]'}`}
+      >
+        <Icon name="more" size={14} />
+      </button>
+      {panel}
+    </>
   );
 };
 
 // ── KANBAN VIEW ─────────────────────────────────────────────────
-const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn }) => {
-  const [draggingId, setDraggingId]     = useState(null);
-  const [dragOverCol, setDragOverCol]   = useState(null);
-  const [addingCol, setAddingCol]       = useState(false);
-  const [newColLabel, setNewColLabel]   = useState('');
+const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns }) => {
+  const [draggingId,    setDraggingId]    = useState(null);   // card drag
+  const [draggingColId, setDraggingColId] = useState(null);   // column drag
+  const [dragOverCol,   setDragOverCol]   = useState(null);
+  const [addingCol,     setAddingCol]     = useState(false);
+  const [newColLabel,   setNewColLabel]   = useState('');
 
-  // Use passed columns if available, fallback to STATUSES
-  const visibleCols = (columns && columns.length > 0)
+  const baseCols = (columns && columns.length > 0)
     ? columns
     : STATUSES.filter(s => s.id !== 'archived');
 
-  const onDrop = (statusId) => (e) => {
+  // Live reorder preview while dragging a column
+  const reorder = (arr, fromId, toId) => {
+    const a = [...arr];
+    const fi = a.findIndex(c => c.id === fromId);
+    const ti = a.findIndex(c => c.id === toId);
+    if (fi < 0 || ti < 0) return a;
+    a.splice(ti, 0, a.splice(fi, 1)[0]);
+    return a;
+  };
+  const visibleCols = (draggingColId && dragOverCol && draggingColId !== dragOverCol)
+    ? reorder(baseCols, draggingColId, dragOverCol)
+    : baseCols;
+
+  // Card drop → change status
+  const onCardDrop = (statusId) => (e) => {
     e.preventDefault();
     if (!draggingId) return;
     const p = projects.find(x => x.id === draggingId);
@@ -174,62 +230,77 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
     setDragOverCol(null);
   };
 
+  // Column drop → commit reorder
+  const onColDrop = (e, targetId) => {
+    e.preventDefault();
+    if (draggingColId && draggingColId !== targetId && onReorderColumns) {
+      onReorderColumns(reorder(baseCols, draggingColId, targetId));
+    }
+    setDraggingColId(null);
+    setDragOverCol(null);
+  };
+
   const submitNewCol = () => {
-    const label = newColLabel.trim();
-    if (!label) return;
-    const id = 'col_' + Date.now();
-    const color = COL_COLORS[visibleCols.length % COL_COLORS.length];
-    onAddColumn({ id, label, color });
+    const lbl = newColLabel.trim();
+    if (!lbl) return;
+    const id    = 'col_' + Date.now();
+    const color = COL_COLORS[baseCols.length % COL_COLORS.length];
+    onAddColumn({ id, label: lbl, color });
     setNewColLabel('');
     setAddingCol(false);
   };
 
   return (
-    <div className="h-full overflow-x-auto overflow-y-hidden p-4">
-      <div className="flex gap-3 h-full items-start" style={{ minWidth: 'fit-content' }}>
+    <div className="h-full overflow-x-auto p-4" style={{ overflowY: 'visible' }}>
+      <div className="flex gap-3 h-full" style={{ minWidth: 'fit-content' }}>
 
         {visibleCols.map(s => {
-          const items = projects.filter(p => p.status === s.id);
-          const isOver = dragOverCol === s.id;
+          const items   = projects.filter(p => p.status === s.id);
+          const isOver  = dragOverCol === s.id && !!draggingId;
+          const isColOver = dragOverCol === s.id && !!draggingColId && draggingColId !== s.id;
+
           return (
             <div
               key={s.id}
-              className={`flex flex-col w-[280px] flex-shrink-0 rounded-xl border ${isOver ? 'drag-over' : ''}`}
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '100%' }}
+              className={`flex flex-col w-[280px] flex-shrink-0 rounded-xl border transition-all ${isOver ? 'drag-over' : ''} ${isColOver ? 'ring-2 ring-[var(--accent)]' : ''}`}
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', height: '100%' }}
               onDragOver={(e) => { e.preventDefault(); setDragOverCol(s.id); }}
-              onDragLeave={() => setDragOverCol(c => c === s.id ? null : c)}
-              onDrop={onDrop(s.id)}
+              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null); }}
+              onDrop={(e) => draggingColId ? onColDrop(e, s.id) : onCardDrop(s.id)(e)}
             >
-              <div className="flex items-center justify-between px-3 py-3 border-b border-app flex-shrink-0">
+              {/* Column header — draggable to reorder */}
+              <div
+                className="flex items-center justify-between px-3 py-3 border-b border-app flex-shrink-0 select-none"
+                draggable={!!onReorderColumns}
+                style={{ cursor: onReorderColumns ? 'grab' : 'default' }}
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  setDraggingColId(s.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragEnd={() => { setDraggingColId(null); setDragOverCol(null); }}
+              >
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ background: s.color }}></span>
+                  {onReorderColumns && (
+                    <Icon name="drag" size={12} className="text-[var(--text-muted)] opacity-40 flex-shrink-0" />
+                  )}
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }}></span>
                   <span className="text-[12px] font-semibold">{s.label}</span>
                   <span className="text-[11px] text-[var(--text-muted)] font-mono px-1.5 rounded" style={{ background: 'var(--surface-2)' }}>
                     {items.length}
                   </span>
                 </div>
                 {onUpdateColumn && (
-                  <Dropdown
-                    width={220}
-                    align="right"
-                    trigger={
-                      <button className="text-[var(--text-muted)] hover:text-white p-1 rounded hover:bg-[var(--surface-2)] transition-colors">
-                        <Icon name="more" size={14} />
-                      </button>
-                    }
-                  >
-                    {(close) => (
-                      <ColumnMenu
-                        col={s}
-                        projectCount={items.length}
-                        onUpdate={(col) => { onUpdateColumn(col); }}
-                        onDelete={(id) => { onDeleteColumn(id); close(); }}
-                        onClose={close}
-                      />
-                    )}
-                  </Dropdown>
+                  <ColMenuBtn
+                    col={s}
+                    projectCount={items.length}
+                    onUpdate={onUpdateColumn}
+                    onDelete={onDeleteColumn}
+                  />
                 )}
               </div>
+
+              {/* Cards */}
               <div className="flex-1 overflow-y-auto p-2 space-y-2">
                 {items.map(p => (
                   <ProjectCardMini
@@ -237,7 +308,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     project={p}
                     onClick={() => onOpenProject(p.id)}
                     draggable
-                    onDragStart={() => setDraggingId(p.id)}
+                    onDragStart={() => { setDraggingId(p.id); setDraggingColId(null); }}
                     onDragEnd={() => { setDraggingId(null); setDragOverCol(null); }}
                     dragging={draggingId === p.id}
                     onDelete={onDeleteProject}
@@ -256,12 +327,9 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
 
         {/* ── Agregar columna ── */}
         {onAddColumn && (
-          <div className="flex-shrink-0 w-[220px]">
+          <div className="flex-shrink-0 w-[220px] pt-0.5">
             {addingCol ? (
-              <div
-                className="rounded-xl border p-3 space-y-2"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-              >
+              <div className="rounded-xl border p-3 space-y-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
                 <input
                   autoFocus
                   value={newColLabel}
@@ -270,7 +338,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     if (e.key === 'Enter') submitNewCol();
                     if (e.key === 'Escape') { setAddingCol(false); setNewColLabel(''); }
                   }}
-                  placeholder="Nombre de la columna"
+                  placeholder="Nombre de la columna…"
                   className="w-full px-2.5 py-1.5 rounded-md text-[12.5px] border"
                   style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
                 />
@@ -280,16 +348,12 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     disabled={!newColLabel.trim()}
                     className="flex-1 py-1.5 rounded-md text-[12px] font-semibold disabled:opacity-40"
                     style={{ background: 'var(--accent)', color: '#0a0a0b' }}
-                  >
-                    Crear
-                  </button>
+                  >Crear</button>
                   <button
                     onClick={() => { setAddingCol(false); setNewColLabel(''); }}
                     className="px-2.5 py-1.5 rounded-md text-[var(--text-muted)] hover:text-white"
                     style={{ background: 'var(--surface-2)' }}
-                  >
-                    <Icon name="x" size={13} />
-                  </button>
+                  ><Icon name="x" size={13} /></button>
                 </div>
               </div>
             ) : (

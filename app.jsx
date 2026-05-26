@@ -791,6 +791,10 @@ const App = () => {
     dispatch({ type: 'delete_column', id });
     saveColumns(updated);
   };
+  const handleReorderColumns = (newOrder) => {
+    dispatch({ type: 'set_columns', columns: newOrder });
+    saveColumns(newOrder);
+  };
 
   // ── Firestore: notificaciones en tiempo real ────────────────
   useEffect(() => {
@@ -955,6 +959,7 @@ const App = () => {
                   onUpdateColumn={handleUpdateColumn}
                   onAddColumn={handleAddColumn}
                   onDeleteColumn={handleDeleteColumn}
+                  onReorderColumns={handleReorderColumns}
                 />}
                 {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
                 {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
