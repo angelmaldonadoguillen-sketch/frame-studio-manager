@@ -157,8 +157,9 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
         <NavItem icon="archive" label="Archivo"            count={counts.archived}  active={sf === 'archived'}  onClick={() => setFilter('archived')} />
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4">Trabajo</div>
-        <NavItem icon="briefcase" label="Clientes" active={state.section === 'clients'} onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
-        <NavItem icon="users"     label="Equipo"   active={state.section === 'team'}    onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
+        <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
+        <NavItem icon="users"     label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
+        <NavItem icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
         <NavItem icon="folder"    label="Archivos"  />
         <NavItem icon="settings"  label="Ajustes"   />
 
@@ -862,6 +863,13 @@ const App = () => {
           openMemberId={state.openMemberId}
           onOpenMember={(id) => dispatch({ type: 'open_member', id })}
           onCloseMember={() => dispatch({ type: 'close_member' })}
+        />
+      ) : state.section === 'analytics' ? (
+        <AnalyticsSection
+          projects={state.projects}
+          clients={state.clients}
+          team={state.team}
+          currentUserId={state.currentUserId}
         />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
