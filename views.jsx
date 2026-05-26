@@ -540,16 +540,61 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields 
                   </div>
                   <div className="space-y-1">
                     {items.slice(0, 3).map(p => {
-                      const t = getType(p.type);
+                      const t    = getType(p.type);
+                      const st   = getStatus(p.status);
+                      const days = daysUntil(p.deadline);
+                      const isUrgent = days >= 0 && days < 3 && p.status !== 'delivered' && p.status !== 'archived';
+                      const prog = progressOf(p);
+                      const pf   = previewFields;
+                      const showSecondLine = pf.cliente !== false || pf.responsables !== false;
                       return (
                         <div
                           key={p.id + p._kind}
                           onClick={() => onOpenProject(p.id)}
-                          className="cursor-pointer text-[10.5px] px-1.5 py-1 rounded truncate flex items-center gap-1 hover:brightness-125"
-                          style={{ background: t.color + '22', color: t.color, borderLeft: `2px solid ${t.color}` }}
+                          className="cursor-pointer rounded overflow-hidden hover:brightness-125 transition-all"
+                          style={{ background: t.color + '22', borderLeft: `2px solid ${t.color}` }}
                           title={`${p.title} — ${p._kind === 'deadline' ? 'Deadline' : 'Sesión'}`}
                         >
-                          <span className="truncate">{p._kind === 'session' ? '📷 ' : ''}{p.title}</span>
+                          {/* Línea 1: ícono tipo + título + indicadores */}
+                          <div className="px-1.5 py-0.5 flex items-center gap-1">
+                            {pf.tipo !== false && <Icon name={t.icon} size={9} style={{ color: t.color, flexShrink: 0 }} />}
+                            <span className="text-[10.5px] truncate flex-1 font-medium" style={{ color: t.color }}>
+                              {p._kind === 'session' ? '📷 ' : ''}{p.title}
+                            </span>
+                            {pf.estado !== false && st && (
+                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: st.color }} title={st.label} />
+                            )}
+                            {pf.prioridad !== false && isUrgent && (
+                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#FF6B6B' }} title="Urgente" />
+                            )}
+                          </div>
+                          {/* Línea 2: cliente + responsables (solo si alguno activo) */}
+                          {showSecondLine && (
+                            <div className="px-1.5 pb-0.5 flex items-center justify-between gap-1">
+                              {pf.cliente !== false && (
+                                <span className="text-[9px] truncate flex-1" style={{ color: t.color + 'bb' }}>{p.client}</span>
+                              )}
+                              {pf.responsables !== false && p.assignees.length > 0 && (
+                                <div className="flex flex-shrink-0" style={{ gap: '-2px' }}>
+                                  {p.assignees.slice(0, 2).map(id => {
+                                    const u = getUser(id);
+                                    return u ? (
+                                      <div key={id}
+                                        className="w-3 h-3 rounded-full flex items-center justify-center font-bold"
+                                        style={{ fontSize: 6, background: u.color, color: '#0a0a0b', marginLeft: -2, border: `1px solid ${t.color}22` }}
+                                      >{u.initials[0]}</div>
+                                    ) : null;
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {/* Barra de progreso */}
+                          {pf.progreso !== false && (
+                            <div className="mx-1.5 mb-1 h-0.5 rounded-full overflow-hidden" style={{ background: t.color + '33' }}>
+                              <div style={{ width: prog + '%', height: '100%', background: t.color }} />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
