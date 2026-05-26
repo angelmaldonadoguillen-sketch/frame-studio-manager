@@ -855,15 +855,11 @@ const App = () => {
       .catch(err => console.error('Error al guardar proyecto:', err));
   };
 
-  const handleCreateProject = async (project) => {
-    try {
-      const ref = await window.db.collection('frame_projects').add(project);
-      dispatch({ type: 'create_project', project: { ...project, id: ref.id } });
-    } catch (err) {
-      console.error('Error al crear proyecto:', err);
-      // Fallback local
-      dispatch({ type: 'create_project', project });
-    }
+  const handleCreateProject = (project) => {
+    // Optimistic: dispatch first → snapshot replaces array (no duplicate)
+    dispatch({ type: 'create_project', project });
+    window.db.collection('frame_projects').doc(project.id).set(project)
+      .catch(err => console.error('Error al crear proyecto:', err));
   };
 
   const handleUpdateMember = (member) => {
@@ -872,14 +868,10 @@ const App = () => {
       .catch(err => console.error('Error al guardar integrante:', err));
   };
 
-  const handleCreateMember = async (member) => {
-    try {
-      const ref = await window.db.collection('frame_users').add(member);
-      dispatch({ type: 'create_member', member: { ...member, id: ref.id } });
-    } catch (err) {
-      console.error('Error al crear integrante:', err);
-      dispatch({ type: 'create_member', member });
-    }
+  const handleCreateMember = (member) => {
+    dispatch({ type: 'create_member', member });
+    window.db.collection('frame_users').doc(member.id).set(member)
+      .catch(err => console.error('Error al crear integrante:', err));
   };
 
   const handleDeleteClient = (id) => {
@@ -894,14 +886,10 @@ const App = () => {
       .catch(err => console.error('Error al guardar cliente:', err));
   };
 
-  const handleCreateClient = async (client) => {
-    try {
-      const ref = await window.db.collection('frame_clients').add(client);
-      dispatch({ type: 'create_client', client: { ...client, id: ref.id } });
-    } catch (err) {
-      console.error('Error al crear cliente:', err);
-      dispatch({ type: 'create_client', client });
-    }
+  const handleCreateClient = (client) => {
+    dispatch({ type: 'create_client', client });
+    window.db.collection('frame_clients').doc(client.id).set(client)
+      .catch(err => console.error('Error al crear cliente:', err));
   };
 
   if (!authChecked)  return <LoadingScreen />;
