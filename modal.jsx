@@ -288,8 +288,36 @@ const CoverEditor = ({ cover, onChange }) => {
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
 const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
-  const [tab, setTab] = useState('overview'); // overview | comments
-  const [newComment, setNewComment] = useState('');
+  const [tab, setTab]                         = useState('overview'); // overview | comments
+  const [newComment, setNewComment]           = useState('');
+  const [comments, setComments]               = useState(() => project?.comments || []);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+
+  // ── Listener de comentarios en tiempo real ────────────────────
+  useEffect(() => {
+    if (!project?.id) return;
+    const col = window.db
+      .collection('frame_projects')
+      .doc(project.id)
+      .collection('comments');
+    const unsub = col.orderBy('at', 'asc').onSnapshot(async (snap) => {
+      if (snap.empty && (project.comments || []).length > 0) {
+        // Primera vez: migrar array de comentarios a subcollection
+        const batch = window.db.batch();
+        (project.comments || []).forEach(c => batch.set(col.doc(c.id), c));
+        await batch.commit();
+        // El listener disparará de nuevo con los datos migrados
+      } else {
+        setComments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setCommentsLoading(false);
+      }
+    }, (err) => {
+      console.error('Comments listener error:', err);
+      setComments(project.comments || []);
+      setCommentsLoading(false);
+    });
+    return () => unsub();
+  }, [project?.id]);
 
   if (!project) return null;
 
@@ -312,15 +340,19 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
 
   const addComment = () => {
     if (!newComment.trim()) return;
-    const dt = new Date(TODAY);
-    dt.setHours(14, 0, 0, 0);
-    upd({
-      comments: [
-        ...project.comments,
-        { id: 'cm' + Date.now(), userId: currentUserId, text: newComment.trim(), at: dt.toISOString().slice(0, 16) },
-      ],
-    });
+    const comment = {
+      id:     'cm' + Date.now(),
+      userId: currentUserId,
+      text:   newComment.trim(),
+      at:     new Date().toISOString().slice(0, 16),
+    };
     setNewComment('');
+    window.db.collection('frame_projects').doc(project.id)
+      .collection('comments').doc(comment.id).set(comment)
+      .catch(err => {
+        console.error('Error al enviar comentario:', err);
+        setComments(prev => [...prev, comment]); // fallback optimista
+      });
   };
 
   const addTag = (text) => {
@@ -523,7 +555,7 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
           <div className="overflow-y-auto">
             {/* Tabs */}
             <div className="sticky top-0 z-10 surface border-b border-app px-6 flex items-center gap-1" style={{ background: 'var(--surface)' }}>
-              {[{id:'overview',label:'Visión general',icon:'list'}, {id:'comments',label:`Comentarios · ${project.comments.length}`,icon:'message'}].map(t => (
+              {[{id:'overview',label:'Visión general',icon:'list'}, {id:'comments',label:`Comentarios · ${comments.length}`,icon:'message'}].map(t => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
@@ -631,7 +663,8 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
 
             {tab === 'comments' && (
               <CommentsTab
-                project={project}
+                comments={comments}
+                commentsLoading={commentsLoading}
                 currentUserId={currentUserId}
                 newComment={newComment}
                 setNewComment={setNewComment}
@@ -875,7 +908,7 @@ const DescriptionEditor = ({ blocks, onChange }) => {
   );
 };
 
-const CommentsTab = ({ project, currentUserId, newComment, setNewComment, onSend }) => {
+const CommentsTab = ({ comments, commentsLoading, currentUserId, newComment, setNewComment, onSend }) => {
   const me = getUser(currentUserId);
   const [showMentions, setShowMentions] = useState(false);
   const inputRef = useRef(null);
@@ -889,7 +922,16 @@ const CommentsTab = ({ project, currentUserId, newComment, setNewComment, onSend
   return (
     <div className="p-6 flex flex-col h-full" style={{ minHeight: 'calc(100% - 0px)' }}>
       <div className="flex-1 space-y-5">
-        {project.comments.length === 0 && (
+        {commentsLoading && (
+          <div className="flex justify-center py-10">
+            <div className="flex gap-1.5">
+              {[0,1,2].map(i => (
+                <div key={i} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)', animationDelay: `${i * 200}ms`, opacity: 0.6 }}></div>
+              ))}
+            </div>
+          </div>
+        )}
+        {!commentsLoading && comments.length === 0 && (
           <div className="text-center py-12 text-[var(--text-muted)]">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full surface-2 mb-3">
               <Icon name="message" size={18} />
@@ -898,7 +940,7 @@ const CommentsTab = ({ project, currentUserId, newComment, setNewComment, onSend
             <div className="text-[12px] mt-1">Sé el primero en dejar un comentario en este proyecto</div>
           </div>
         )}
-        {project.comments.map(c => {
+        {comments.map(c => {
           const u = getUser(c.userId);
           return (
             <div key={c.id} className="flex gap-3">
