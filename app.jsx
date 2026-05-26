@@ -19,6 +19,7 @@ const initialState = {
   },
   openProjectId: null,
   showNewProject: false,
+  sidebarFilter: 'all',
 };
 
 function reducer(state, action) {
@@ -47,7 +48,8 @@ function reducer(state, action) {
     }
     case 'clear_filter':   return { ...state, filters: { ...state.filters, [action.key]: state.filters[action.key].filter(x => x !== action.value) } };
     case 'clear_all_filters': return { ...state, filters: { status: [], type: [], assignee: [], priority: [] }, search: '' };
-    case 'set_projects':  return { ...state, projects: action.projects, loading: false };
+    case 'set_projects':       return { ...state, projects: action.projects, loading: false };
+    case 'set_sidebar_filter': return { ...state, sidebarFilter: action.filter };
     default: return state;
   }
 }
@@ -58,14 +60,14 @@ const Sidebar = ({ state, dispatch }) => {
   const me = getUser(state.currentUserId);
 
   const counts = {
-    all: state.projects.length,
-    mine: state.projects.filter(p => p.assignees.includes(state.currentUserId)).length,
-    urgent: state.projects.filter(p => {
-      const d = daysUntil(p.deadline);
-      return d >= 0 && d < 3 && p.status !== 'delivered' && p.status !== 'archived';
-    }).length,
+    all:       state.projects.filter(p => p.status !== 'archived').length,
+    mine:      state.projects.filter(p => p.assignees.includes(state.currentUserId) && p.status !== 'archived').length,
+    urgent:    state.projects.filter(p => { const d = daysUntil(p.deadline); return d >= 0 && d < 3 && p.status !== 'delivered' && p.status !== 'archived'; }).length,
     delivered: state.projects.filter(p => p.status === 'delivered').length,
+    archived:  state.projects.filter(p => p.status === 'archived').length,
   };
+  const sf = state.sidebarFilter;
+  const setFilter = (f) => dispatch({ type: 'set_sidebar_filter', filter: f });
 
   return (
     <aside className="w-[240px] flex-shrink-0 border-r border-app flex flex-col" style={{ background: 'var(--surface)' }}>
@@ -118,11 +120,11 @@ const Sidebar = ({ state, dispatch }) => {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5">Espacios</div>
-        <NavItem icon="layers" label="Todos los proyectos" count={counts.all} active />
-        <NavItem icon="users" label="Asignados a mí" count={counts.mine} />
-        <NavItem icon="alert" label="Deadlines urgentes" count={counts.urgent} accent />
-        <NavItem icon="check" label="Entregados" count={counts.delivered} />
-        <NavItem icon="archive" label="Archivo" />
+        <NavItem icon="layers"  label="Todos los proyectos" count={counts.all}       active={sf === 'all'}       onClick={() => setFilter('all')} />
+        <NavItem icon="users"   label="Asignados a mí"     count={counts.mine}      active={sf === 'mine'}      onClick={() => setFilter('mine')} />
+        <NavItem icon="alert"   label="Deadlines urgentes" count={counts.urgent}    active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
+        <NavItem icon="check"   label="Entregados"         count={counts.delivered} active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
+        <NavItem icon="archive" label="Archivo"            count={counts.archived}  active={sf === 'archived'}  onClick={() => setFilter('archived')} />
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4">Trabajo</div>
         <NavItem icon="briefcase" label="Clientes" />
@@ -166,8 +168,9 @@ const Sidebar = ({ state, dispatch }) => {
   );
 };
 
-const NavItem = ({ icon, label, count, active, accent }) => (
+const NavItem = ({ icon, label, count, active, accent, onClick }) => (
   <button
+    onClick={onClick}
     className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[12.5px] transition-colors group ${active ? 'bg-[var(--surface-2)] text-white' : 'text-[var(--text-dim)] hover:text-white hover:bg-[var(--surface-2)]'}`}
   >
     <Icon name={icon} size={14} className={accent ? '' : ''} style={{ color: accent ? '#FF6B6B' : undefined }} />
@@ -230,9 +233,10 @@ const Header = ({ state, dispatch, filteredCount }) => {
         </div>
 
         {/* Filter dropdowns */}
-        <FilterDropdown label="Estado" icon="dot" filterKey="status" options={STATUSES} state={state} dispatch={dispatch} />
-        <FilterDropdown label="Tipo"   icon="film" filterKey="type"   options={PROJECT_TYPES} state={state} dispatch={dispatch} />
-        <FilterDropdown label="Equipo" icon="users" filterKey="assignee" options={USERS.map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
+        <FilterDropdown label="Estado"    icon="dot"   filterKey="status"   options={STATUSES}                                                               state={state} dispatch={dispatch} />
+        <FilterDropdown label="Tipo"      icon="film"  filterKey="type"     options={PROJECT_TYPES}                                                           state={state} dispatch={dispatch} />
+        <FilterDropdown label="Prioridad" icon="flag"  filterKey="priority" options={PRIORITIES}                                                              state={state} dispatch={dispatch} />
+        <FilterDropdown label="Equipo"    icon="users" filterKey="assignee" options={USERS.map(u => ({ id: u.id, label: u.name, color: u.color }))}           state={state} dispatch={dispatch} />
 
         <div className="flex-1"></div>
 
@@ -321,11 +325,23 @@ const FilterDropdown = ({ label, icon, filterKey, options, state, dispatch }) =>
 const applyFilters = (state) => {
   const q = state.search.trim().toLowerCase();
   return state.projects.filter(p => {
+    // ── Sidebar filter ──
+    if (state.sidebarFilter === 'mine' && !p.assignees.includes(state.currentUserId)) return false;
+    if (state.sidebarFilter === 'urgent') {
+      const d = daysUntil(p.deadline);
+      if (!(d >= 0 && d < 3 && p.status !== 'delivered' && p.status !== 'archived')) return false;
+    }
+    if (state.sidebarFilter === 'delivered' && p.status !== 'delivered') return false;
+    if (state.sidebarFilter === 'archived'  && p.status !== 'archived')  return false;
+    // En vista 'all' ocultar archivados salvo que se filtren explícitamente por estado
+    if (state.sidebarFilter === 'all' && p.status === 'archived' && !state.filters.status.includes('archived')) return false;
+    // ── Búsqueda ──
     if (q && !p.title.toLowerCase().includes(q) && !p.client.toLowerCase().includes(q) && !p.tags.some(t => t.toLowerCase().includes(q))) return false;
-    if (state.filters.status.length && !state.filters.status.includes(p.status)) return false;
-    if (state.filters.type.length && !state.filters.type.includes(p.type)) return false;
-    if (state.filters.priority.length && !state.filters.priority.includes(p.priority)) return false;
-    if (state.filters.assignee.length && !p.assignees.some(a => state.filters.assignee.includes(a))) return false;
+    // ── Filtros de cabecera ──
+    if (state.filters.status.length   && !state.filters.status.includes(p.status))                              return false;
+    if (state.filters.type.length     && !state.filters.type.includes(p.type))                                  return false;
+    if (state.filters.priority.length && !state.filters.priority.includes(p.priority))                          return false;
+    if (state.filters.assignee.length && !p.assignees.some(a => state.filters.assignee.includes(a)))            return false;
     return true;
   });
 };

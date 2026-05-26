@@ -200,6 +200,92 @@ const Cover = ({ cover, height = 180, className = '' }) => {
   return <div className={className} style={{ height, background: cover.value }}></div>;
 };
 
+// ── Cover editor ────────────────────────────────────────────────
+const COVER_PRESETS = [
+  '#0a0a0b', '#0f1923', '#1a0a2e', '#0a1628', '#1f0a14',
+  '#1a1200', '#0a2010', '#2a1000', '#111827', '#1a1016',
+];
+
+const CoverEditor = ({ cover, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [urlVal, setUrlVal] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    if (open) document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  const applyUrl = () => {
+    if (!urlVal.trim()) return;
+    onChange({ type: 'image', value: urlVal.trim() });
+    setUrlVal('');
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="absolute top-3 right-3 z-10">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium"
+        style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(6px)' }}
+      >
+        <Icon name="image" size={12} /> Portada
+      </button>
+      {open && (
+        <div
+          className="absolute top-full right-0 mt-2 rounded-xl border shadow-2xl p-4 anim-scale-in"
+          style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', width: 268 }}
+        >
+          <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Color de fondo</div>
+          <div className="grid grid-cols-5 gap-2 mb-4">
+            {COVER_PRESETS.map(c => (
+              <button
+                key={c}
+                onClick={() => { onChange({ type: 'color', value: c }); setOpen(false); }}
+                className="aspect-square rounded-lg border-2 transition-all hover:scale-105"
+                style={{
+                  background: c,
+                  borderColor: cover.type === 'color' && cover.value === c ? 'var(--accent)' : 'var(--border)',
+                  minHeight: 36,
+                }}
+              />
+            ))}
+          </div>
+          <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">URL de imagen</div>
+          <div className="flex gap-2">
+            <input
+              value={urlVal}
+              onChange={(e) => setUrlVal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyUrl(); }}
+              placeholder="https://…"
+              className="flex-1 px-2.5 py-1.5 rounded-md text-[12px] border"
+              style={{ background: 'var(--surface-3)', borderColor: 'var(--border-2)', color: 'var(--text)' }}
+            />
+            <button
+              onClick={applyUrl}
+              disabled={!urlVal.trim()}
+              className="px-3 py-1.5 rounded-md text-[12px] font-semibold disabled:opacity-40"
+              style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+            >
+              OK
+            </button>
+          </div>
+          {cover.type === 'image' && (
+            <button
+              onClick={() => { onChange({ type: 'color', value: '#0a0a0b' }); setOpen(false); }}
+              className="mt-3 w-full text-center text-[11px] text-[var(--text-muted)] hover:text-white border-t border-app pt-3"
+            >
+              Quitar imagen
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── PROJECT MODAL ───────────────────────────────────────────────
 const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
   const [tab, setTab] = useState('overview'); // overview | comments
@@ -246,6 +332,12 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
   const toggleDeliverable = (id) => {
     upd({ deliverables: project.deliverables.map(dv => dv.id === id ? { ...dv, status: dv.status === 'ready' ? 'pending' : 'ready' } : dv) });
   };
+  const addDeliverable    = (dv)  => upd({ deliverables: [...project.deliverables, dv] });
+  const removeDeliverable = (id)  => upd({ deliverables: project.deliverables.filter(dv => dv.id !== id) });
+
+  const addTimelineItem = (item) => upd({ timeline: [...project.timeline, item] });
+  const toggleTimeline  = (id)   => upd({ timeline: project.timeline.map(t => t.id === id ? { ...t, status: t.status === 'done' ? 'pending' : 'done' } : t) });
+  const removeTimeline  = (id)   => upd({ timeline: project.timeline.filter(t => t.id !== id) });
 
   const progress = progressOf(project);
   const days = daysUntil(project.deadline);
@@ -282,6 +374,7 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
         {/* Cover */}
         <div className="relative">
           <Cover cover={project.cover} height={180} />
+          <CoverEditor cover={project.cover} onChange={(cover) => upd({ cover })} />
           <div className="absolute bottom-4 left-6 right-6">
             <div className="flex items-center gap-2 mb-2">
               <TypePill type={project.type} size="md" />
@@ -447,7 +540,7 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
                 {/* Brief */}
                 <section>
                   <SectionTitle icon="edit">Brief / Descripción</SectionTitle>
-                  <DescriptionBlock blocks={project.description} onChange={updField('description')} />
+                  <DescriptionEditor blocks={project.description} onChange={updField('description')} />
                 </section>
 
                 {/* Checklist */}
@@ -478,12 +571,12 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
                   <SectionTitle icon="upload">Entregables</SectionTitle>
                   <div className="space-y-1">
                     {project.deliverables.map(dv => (
-                      <div key={dv.id} className="flex items-center gap-3 py-2 px-3 rounded-md border border-app surface-2">
+                      <div key={dv.id} className="group flex items-center gap-3 py-2 px-3 rounded-md border border-app surface-2">
                         <Icon name={dv.kind === 'video' ? 'film' : dv.kind === 'photos' ? 'camera' : 'mic'} size={14} className="text-[var(--text-dim)]" />
                         <span className="flex-1 text-[13px]">{dv.name}</span>
                         <button
                           onClick={() => toggleDeliverable(dv.id)}
-                          className="text-[11px] font-medium px-2 py-0.5 rounded-md"
+                          className="text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors"
                           style={{
                             background: dv.status === 'ready' ? '#7DD3C022' : '#9A9AA322',
                             color: dv.status === 'ready' ? '#7DD3C0' : '#9A9AA3',
@@ -491,8 +584,12 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
                         >
                           {dv.status === 'ready' ? '✓ Listo' : 'Pendiente'}
                         </button>
+                        <button onClick={() => removeDeliverable(dv.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B] transition-opacity">
+                          <Icon name="trash" size={13} />
+                        </button>
                       </div>
                     ))}
+                    <DeliverableAdd onAdd={addDeliverable} />
                   </div>
                 </section>
 
@@ -502,24 +599,31 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
                   <div className="relative pl-4">
                     <div className="absolute left-[5px] top-1 bottom-1 w-px bg-[var(--border-2)]"></div>
                     {project.timeline.map((t, i) => (
-                      <div key={t.id} className="relative flex items-start gap-3 py-2">
-                        <div
-                          className="absolute -left-[11px] top-3 w-2.5 h-2.5 rounded-full ring-4"
+                      <div key={t.id} className="group relative flex items-start gap-3 py-2">
+                        <button
+                          onClick={() => toggleTimeline(t.id)}
+                          title={t.status === 'done' ? 'Marcar pendiente' : 'Marcar como hecho'}
+                          className="absolute -left-[11px] top-3 w-2.5 h-2.5 rounded-full hover:scale-125 transition-transform"
                           style={{
                             background: t.status === 'done' ? 'var(--accent)' : 'var(--surface-3)',
-                            ringColor: 'var(--surface)',
                             boxShadow: '0 0 0 4px var(--surface)',
                           }}
-                        ></div>
+                        ></button>
                         <div className="ml-3 flex-1 flex items-center justify-between">
                           <div>
-                            <div className={`text-[13px] ${t.status === 'done' ? 'text-[var(--text-dim)]' : ''}`}>{t.label}</div>
+                            <div className={`text-[13px] ${t.status === 'done' ? 'line-through text-[var(--text-dim)]' : ''}`}>{t.label}</div>
                             <div className="text-[11px] text-[var(--text-muted)] font-mono">{fmtDateLong(t.date)}</div>
                           </div>
-                          {t.status === 'done' && <span className="text-[10px]" style={{ color: 'var(--accent)' }}>✓ HECHO</span>}
+                          <div className="flex items-center gap-2">
+                            {t.status === 'done' && <span className="text-[10px]" style={{ color: 'var(--accent)' }}>✓ HECHO</span>}
+                            <button onClick={() => removeTimeline(t.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B] transition-opacity">
+                              <Icon name="trash" size={12} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
+                    <TimelineAdd onAdd={addTimelineItem} />
                   </div>
                 </section>
               </div>
@@ -581,6 +685,93 @@ const ChecklistAdd = ({ onAdd }) => {
   );
 };
 
+// ── Deliverable add ─────────────────────────────────────────────
+const DeliverableAdd = ({ onAdd }) => {
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState('video');
+
+  const submit = () => {
+    if (!name.trim()) return;
+    onAdd({ id: 'dv' + Date.now(), name: name.trim(), kind, status: 'pending' });
+    setName('');
+  };
+
+  return (
+    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-app">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+        placeholder="Nuevo entregable…"
+        className="flex-1 px-2.5 py-1.5 rounded-md text-[12.5px] border"
+        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+      />
+      <select
+        value={kind}
+        onChange={(e) => setKind(e.target.value)}
+        className="px-2 py-1.5 rounded-md text-[12px] border cursor-pointer appearance-none"
+        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)', colorScheme: 'dark' }}
+      >
+        <option value="video">Video</option>
+        <option value="photos">Foto</option>
+        <option value="audio">Audio</option>
+      </select>
+      <button
+        onClick={submit}
+        disabled={!name.trim()}
+        className="p-1.5 rounded-md disabled:opacity-40 transition-all"
+        style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+      >
+        <Icon name="plus" size={14} strokeWidth={2.5} />
+      </button>
+    </div>
+  );
+};
+
+// ── Timeline add ────────────────────────────────────────────────
+const TimelineAdd = ({ onAdd }) => {
+  const [label, setLabel] = useState('');
+  const [date, setDate] = useState(() => new Date(TODAY).toISOString().slice(0, 10));
+
+  const submit = () => {
+    if (!label.trim()) return;
+    onAdd({ id: 'tl' + Date.now(), label: label.trim(), date, status: 'pending' });
+    setLabel('');
+  };
+
+  return (
+    <div className="relative flex items-center gap-2 py-2">
+      <div
+        className="absolute -left-[11px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-dashed flex-shrink-0"
+        style={{ borderColor: 'var(--border-2)' }}
+      ></div>
+      <input
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+        placeholder="Nuevo hito…"
+        className="flex-1 px-2.5 py-1.5 rounded-md text-[12.5px] border ml-3"
+        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+      />
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className="px-2 py-1.5 rounded-md text-[12px] border cursor-pointer"
+        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)', colorScheme: 'dark' }}
+      />
+      <button
+        onClick={submit}
+        disabled={!label.trim()}
+        className="p-1.5 rounded-md disabled:opacity-40 transition-all"
+        style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+      >
+        <Icon name="plus" size={14} strokeWidth={2.5} />
+      </button>
+    </div>
+  );
+};
+
 const DescriptionBlock = ({ blocks, onChange }) => {
   return (
     <div className="prose prose-invert max-w-none text-[14px] leading-relaxed text-[var(--text-dim)] space-y-2 pretty">
@@ -594,6 +785,92 @@ const DescriptionBlock = ({ blocks, onChange }) => {
         );
         return null;
       })}
+    </div>
+  );
+};
+
+// ── Description editor (click-to-edit) ─────────────────────────
+const DescriptionEditor = ({ blocks, onChange }) => {
+  const [editing, setEditing] = useState(false);
+
+  const blockToText = (bs) => (bs || []).map(b =>
+    b.type === 'ul' ? b.items.map(it => '• ' + it).join('\n') : (b.text || '')
+  ).join('\n\n');
+
+  const [draft, setDraft] = useState(() => blockToText(blocks));
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (!trimmed) { onChange([]); return; }
+    const paras = trimmed.split(/\n{2,}/);
+    const newBlocks = paras.map(para => {
+      const lines = para.split('\n');
+      if (lines.length > 1 && lines.every(l => /^[•\-]\s/.test(l))) {
+        return { type: 'ul', items: lines.map(l => l.replace(/^[•\-]\s+/, '')) };
+      }
+      return { type: 'p', text: para };
+    });
+    onChange(newBlocks);
+  };
+
+  if (editing) {
+    return (
+      <div>
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') { setDraft(blockToText(blocks)); setEditing(false); } }}
+          rows={7}
+          className="w-full rounded-lg px-3 py-2.5 text-[14px] leading-relaxed resize-none border"
+          style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', color: 'var(--text)' }}
+        />
+        <div className="flex items-center gap-2 mt-2">
+          <button
+            onClick={commit}
+            className="px-3 py-1 rounded-md text-[12px] font-semibold"
+            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+          >
+            Guardar
+          </button>
+          <button
+            onClick={() => { setDraft(blockToText(blocks)); setEditing(false); }}
+            className="px-3 py-1 rounded-md text-[12px] text-[var(--text-muted)] hover:text-white"
+          >
+            Cancelar
+          </button>
+          <span className="text-[10px] text-[var(--text-muted)] ml-auto">Doble enter = párrafo · • o - = lista</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={() => { setDraft(blockToText(blocks)); setEditing(true); }}
+      className="cursor-text group relative rounded-lg p-3 -mx-3 hover:bg-[var(--surface-2)] transition-colors"
+    >
+      <div className="prose prose-invert max-w-none text-[14px] leading-relaxed text-[var(--text-dim)] space-y-2 pretty">
+        {(!blocks || blocks.length === 0) && (
+          <p className="text-[var(--text-muted)] italic">Click para agregar una descripción…</p>
+        )}
+        {(blocks || []).map((b, i) => {
+          if (b.type === 'p') return <p key={i}>{b.text}</p>;
+          if (b.type === 'b') return <p key={i} className="text-white font-semibold">{b.text}</p>;
+          if (b.type === 'ul') return (
+            <ul key={i} className="list-disc pl-5 space-y-1">
+              {b.items.map((it, j) => <li key={j}>{it}</li>)}
+            </ul>
+          );
+          return null;
+        })}
+      </div>
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] rounded px-2 py-0.5" style={{ background: 'var(--surface-3)' }}>
+          <Icon name="edit" size={10} /> Editar
+        </span>
+      </div>
     </div>
   );
 };
