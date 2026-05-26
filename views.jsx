@@ -3,13 +3,18 @@
 // ─────────────────────────────────────────────────────────────────
 
 // ── Project mini card (used in calendar + kanban) ──────────────
-const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete }) => {
+const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete, previewFields = {} }) => {
+  const pf = previewFields;
   const t = getType(project.type);
   const days = daysUntil(project.deadline);
   const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
   const isOverdue = days < 0 && project.status !== 'delivered' && project.status !== 'archived';
   const progress = progressOf(project);
   const [confirmDel, setConfirmDel] = React.useState(false);
+
+  const showBottom = pf.responsables || pf.deadline;
+  const hasTags = pf.tags && project.tags && project.tags.length > 0;
+  const hasBudget = pf.presupuesto && project.budget > 0;
 
   return (
     <div
@@ -22,58 +27,85 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
     >
       <div className="h-1" style={{ background: t.color }}></div>
       <div className={compact ? 'p-2.5' : 'p-3'}>
+
+        {/* Fila superior: tipo + badges + acciones */}
         <div className="flex items-start justify-between gap-2 mb-1.5">
-          <TypePill type={project.type} />
-          <div className="flex items-center gap-1">
-            {isUrgent && (
+          <div className="flex items-center gap-1 flex-wrap">
+            {pf.tipo !== false && <TypePill type={project.type} />}
+            {pf.estado !== false && <StatusPill status={project.status} size="sm" />}
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {pf.prioridad !== false && isUrgent && (
               <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>
             )}
-            {isOverdue && (
+            {pf.prioridad !== false && isOverdue && (
               <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
             )}
-            {/* Delete button */}
             {onDelete && !confirmDel && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all"
-              >
+              <button onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all">
                 <Icon name="trash" size={11} />
               </button>
             )}
             {onDelete && confirmDel && (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <span className="text-[9px] font-semibold" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
-                  className="text-[9px] font-bold px-1.5 py-0.5 rounded transition-colors"
-                  style={{ background: '#FF6B6B', color: '#0a0a0b' }}
-                >Sí</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }}
-                  className="text-[9px] font-medium px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-white"
-                  style={{ background: 'var(--surface-3)' }}
-                >No</button>
+                <button onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>Sí</button>
+                <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }}
+                  className="text-[9px] font-medium px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>No</button>
               </div>
             )}
           </div>
         </div>
+
+        {/* Título (siempre) */}
         <div className={`font-display font-semibold balance leading-tight mb-1 ${compact ? 'text-[12.5px]' : 'text-[13.5px]'}`}>
           {project.title}
         </div>
-        <div className="text-[11px] text-[var(--text-muted)] mb-2.5">{project.client}</div>
 
-        {/* progress */}
-        <div className="h-1 rounded-full overflow-hidden mb-2.5" style={{ background: 'var(--surface-3)' }}>
-          <div className="h-full" style={{ width: progress + '%', background: t.color }}></div>
-        </div>
+        {/* Cliente */}
+        {pf.cliente !== false && (
+          <div className="text-[11px] text-[var(--text-muted)] mb-1.5">{project.client}</div>
+        )}
 
-        <div className="flex items-center justify-between">
-          <AvatarStack ids={project.assignees} size={18} max={3} />
-          <div className="flex items-center gap-1 text-[10.5px] text-[var(--text-muted)] font-mono">
-            <Icon name="calendar" size={10} />
-            {fmtDate(project.deadline)}
+        {/* Presupuesto */}
+        {hasBudget && (
+          <div className="text-[10.5px] font-mono mb-1.5" style={{ color: 'var(--text-dim)' }}>
+            {project.currency || 'USD'} {project.budget.toLocaleString()}
           </div>
-        </div>
+        )}
+
+        {/* Tags */}
+        {hasTags && (
+          <div className="flex flex-wrap gap-1 mb-1.5">
+            {project.tags.slice(0, 3).map(tag => (
+              <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
+            ))}
+          </div>
+        )}
+
+        {/* Barra de progreso */}
+        {pf.progreso !== false && (
+          <div className="h-1 rounded-full overflow-hidden mb-1.5" style={{ background: 'var(--surface-3)' }}>
+            <div className="h-full" style={{ width: progress + '%', background: t.color }}></div>
+          </div>
+        )}
+
+        {/* Fila inferior: responsables + deadline */}
+        {showBottom && (
+          <div className="flex items-center justify-between mt-1">
+            {pf.responsables !== false
+              ? <AvatarStack ids={project.assignees} size={18} max={3} />
+              : <span />}
+            {pf.deadline !== false && (
+              <div className="flex items-center gap-1 text-[10.5px] text-[var(--text-muted)] font-mono">
+                <Icon name="calendar" size={10} />
+                {fmtDate(project.deadline)}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -196,7 +228,7 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
 };
 
 // ── KANBAN VIEW ─────────────────────────────────────────────────
-const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns }) => {
+const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
   const [draggingId,    setDraggingId]    = useState(null);   // card drag
   const [draggingColId, setDraggingColId] = useState(null);   // column drag
   const [dragOverCol,   setDragOverCol]   = useState(null);
@@ -342,6 +374,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     onDragEnd={resetDrag}
                     dragging={draggingId === p.id}
                     onDelete={onDeleteProject}
+                    previewFields={previewFields}
                   />
                 ))}
                 {items.length === 0 && (
@@ -405,7 +438,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
 };
 
 // ── CALENDAR VIEW ───────────────────────────────────────────────
-const CalendarView = ({ projects, onOpenProject, onDeleteProject }) => {
+const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields = {} }) => {
   const [refDate, setRefDate] = useState(new Date(TODAY));
   const [mode, setMode] = useState('month'); // month | week | day
 
@@ -532,16 +565,16 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject }) => {
       )}
 
       {mode === 'week' && (
-        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} />
+        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} previewFields={previewFields} />
       )}
       {mode === 'day' && (
-        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} />
+        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} previewFields={previewFields} />
       )}
     </div>
   );
 };
 
-const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject }) => {
+const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, previewFields = {} }) => {
   const start = new Date(refDate);
   const day = (start.getDay() + 6) % 7;
   start.setDate(start.getDate() - day);
@@ -570,7 +603,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject }) =
             <div className="p-2 space-y-2">
               {items.length === 0 && <div className="text-[10px] text-[var(--text-muted)] text-center py-6">—</div>}
               {items.map(p => (
-                <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} compact onDelete={onDeleteProject} />
+                <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} compact onDelete={onDeleteProject} previewFields={previewFields} />
               ))}
             </div>
           </div>
@@ -580,7 +613,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject }) =
   );
 };
 
-const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject }) => {
+const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, previewFields = {} }) => {
   const iso = refDate.toISOString().slice(0, 10);
   const items = projectsByDate[iso] || [];
   return (
@@ -598,7 +631,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject }) =>
           </div>
         )}
         {items.map(p => (
-          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} />
+          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} previewFields={previewFields} />
         ))}
       </div>
     </div>
@@ -606,23 +639,25 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject }) =>
 };
 
 // ── GALLERY VIEW ────────────────────────────────────────────────
-const GalleryView = ({ projects, onOpenProject, onDeleteProject }) => {
+const GalleryView = ({ projects, onOpenProject, onDeleteProject, previewFields = {} }) => {
   if (projects.length === 0) return <EmptyState />;
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-        {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} />)}
+        {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} previewFields={previewFields} />)}
       </div>
     </div>
   );
 };
 
-const GalleryCard = ({ project, onClick, onDelete }) => {
+const GalleryCard = ({ project, onClick, onDelete, previewFields = {} }) => {
+  const pf = previewFields;
   const t = getType(project.type);
   const progress = progressOf(project);
   const days = daysUntil(project.deadline);
   const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
   const [confirmDel, setConfirmDel] = React.useState(false);
+  const hasTags = pf.tags && project.tags && project.tags.length > 0;
 
   return (
     <div
@@ -636,65 +671,70 @@ const GalleryCard = ({ project, onClick, onDelete }) => {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
-          <TypePill type={project.type} />
-          <div className="flex items-center gap-1.5">
-            {isUrgent && (
-              <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>
-                URGENTE
-              </span>
+          {pf.tipo !== false && <TypePill type={project.type} />}
+          <div className="flex items-center gap-1.5 ml-auto">
+            {pf.prioridad !== false && isUrgent && (
+              <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URGENTE</span>
             )}
-            {/* Delete button */}
             {onDelete && !confirmDel && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
+              <button onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
                 className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all"
-                style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)' }}
-              >
+                style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)' }}>
                 <Icon name="trash" size={12} />
               </button>
             )}
             {onDelete && confirmDel && (
-              <div
-                className="flex items-center gap-1.5 px-2 py-1 rounded-md"
-                style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
-                onClick={(e) => e.stopPropagation()}
-              >
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }} onClick={(e) => e.stopPropagation()}>
                 <span className="text-[10px] font-semibold text-white">¿Eliminar?</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
-                  className="text-[10px] font-bold px-2 py-0.5 rounded"
-                  style={{ background: '#FF6B6B', color: '#0a0a0b' }}
-                >Sí</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }}
-                  className="text-[10px] text-white/60 hover:text-white px-1"
-                >No</button>
+                <button onClick={(e) => { e.stopPropagation(); onDelete(project.id); }} className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>Sí</button>
+                <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }} className="text-[10px] text-white/60 hover:text-white px-1">No</button>
               </div>
             )}
           </div>
         </div>
-        <div className="absolute bottom-3 left-3 right-3">
-          <StatusPill status={project.status} />
-        </div>
+        {pf.estado !== false && (
+          <div className="absolute bottom-3 left-3 right-3">
+            <StatusPill status={project.status} />
+          </div>
+        )}
       </div>
       <div className="p-3.5">
-        <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-1">{project.client}</div>
-        <h3 className="font-display font-semibold text-[15px] leading-tight mb-3 balance" style={{ letterSpacing: '-0.01em' }}>
+        {pf.cliente !== false && (
+          <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-1">{project.client}</div>
+        )}
+        <h3 className="font-display font-semibold text-[15px] leading-tight mb-2 balance" style={{ letterSpacing: '-0.01em' }}>
           {project.title}
         </h3>
-        <div className="flex items-center justify-between mb-2.5">
-          <AvatarStack ids={project.assignees} size={20} />
-          <div className="text-[10px] text-[var(--text-muted)] font-mono">
-            <Icon name="calendar" size={10} className="inline mr-1" />
-            {fmtDate(project.deadline)}
+        {pf.presupuesto && project.budget > 0 && (
+          <div className="text-[11px] font-mono mb-2" style={{ color: 'var(--text-dim)' }}>
+            {project.currency || 'USD'} {project.budget.toLocaleString()}
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-            <div className="h-full transition-all duration-500" style={{ width: progress + '%', background: t.color }}></div>
+        )}
+        {hasTags && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {project.tags.slice(0, 3).map(tag => (
+              <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
+            ))}
           </div>
-          <div className="text-[10px] font-mono" style={{ color: t.color }}>{progress}%</div>
-        </div>
+        )}
+        {(pf.responsables !== false || pf.deadline !== false) && (
+          <div className="flex items-center justify-between mb-2">
+            {pf.responsables !== false ? <AvatarStack ids={project.assignees} size={20} /> : <span />}
+            {pf.deadline !== false && (
+              <div className="text-[10px] text-[var(--text-muted)] font-mono">
+                <Icon name="calendar" size={10} className="inline mr-1" />{fmtDate(project.deadline)}
+              </div>
+            )}
+          </div>
+        )}
+        {pf.progreso !== false && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+              <div className="h-full transition-all duration-500" style={{ width: progress + '%', background: t.color }}></div>
+            </div>
+            <div className="text-[10px] font-mono" style={{ color: t.color }}>{progress}%</div>
+          </div>
+        )}
       </div>
     </div>
   );

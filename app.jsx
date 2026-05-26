@@ -38,6 +38,13 @@ const initialState = {
   kanbanColumns: [],
   // ── Tipos personalizados ──
   customTypes: [],
+  // ── Vista previa en tarjetas ──
+  previewFields: {
+    tipo: true, cliente: true, estado: true,
+    prioridad: true, responsables: true,
+    deadline: true, presupuesto: false,
+    tags: false, progreso: true,
+  },
 };
 
 function reducer(state, action) {
@@ -90,6 +97,9 @@ function reducer(state, action) {
     case 'update_column':  return { ...state, kanbanColumns: state.kanbanColumns.map(c => c.id === action.column.id ? action.column : c) };
     case 'add_column':     return { ...state, kanbanColumns: [...state.kanbanColumns, action.column] };
     case 'delete_column':  return { ...state, kanbanColumns: state.kanbanColumns.filter(c => c.id !== action.id) };
+    // ── Vista previa ──
+    case 'set_preview_fields':    return { ...state, previewFields: action.fields };
+    case 'toggle_preview_field':  return { ...state, previewFields: { ...state.previewFields, [action.key]: !state.previewFields[action.key] } };
     // ── Tipos personalizados ──
     case 'set_custom_types':    return { ...state, customTypes: action.types };
     case 'add_custom_type':     return { ...state, customTypes: [...state.customTypes, action.typeObj] };
@@ -178,7 +188,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
         <NavItem icon="users"     label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
         <NavItem icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
         <NavItem icon="folder"    label="Archivos"  />
-        <NavItem icon="settings"  label="Ajustes"   />
+        <NavItem icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} />
 
         <div className="mt-5">
           <div className="flex items-center justify-between px-2 py-1.5">
@@ -673,6 +683,76 @@ const LoadingScreen = () => (
   </div>
 );
 
+// ── Settings section ────────────────────────────────────────────
+const PREVIEW_FIELD_LABELS = [
+  { key: 'tipo',         label: 'Tipo',          icon: 'film'     },
+  { key: 'cliente',      label: 'Cliente',        icon: 'briefcase'},
+  { key: 'estado',       label: 'Estado',         icon: 'dot'      },
+  { key: 'prioridad',    label: 'Prioridad',      icon: 'flag'     },
+  { key: 'responsables', label: 'Responsables',   icon: 'users'    },
+  { key: 'deadline',     label: 'Deadline',       icon: 'calendar' },
+  { key: 'presupuesto',  label: 'Presupuesto',    icon: 'zap'      },
+  { key: 'tags',         label: 'Tags',           icon: 'hash'     },
+  { key: 'progreso',     label: 'Progreso',       icon: 'layers'   },
+];
+
+const SettingsSection = ({ previewFields, onToggle }) => (
+  <div className="flex-1 overflow-y-auto p-8">
+    <div className="max-w-2xl mx-auto space-y-8">
+      <div>
+        <h1 className="font-display text-2xl font-bold mb-1" style={{ letterSpacing: '-0.02em' }}>Ajustes</h1>
+        <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Configuración del espacio de trabajo</p>
+      </div>
+
+      {/* Vista previa */}
+      <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
+          <h2 className="font-display font-semibold text-[16px]">Vista previa de tarjetas</h2>
+        </div>
+        <p className="text-[12px] mb-5" style={{ color: 'var(--text-muted)' }}>
+          Elegí qué campos se muestran en las tarjetas del tablero, calendario y galería.
+        </p>
+        <div className="grid grid-cols-1 gap-1">
+          {PREVIEW_FIELD_LABELS.map(({ key, label, icon }) => {
+            const active = previewFields[key];
+            return (
+              <button
+                key={key}
+                onClick={() => onToggle(key)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all text-left"
+                style={{
+                  background:   active ? 'var(--accent-soft)'       : 'var(--surface-2)',
+                  borderColor:  active ? 'rgba(212,255,79,0.3)'      : 'var(--border)',
+                }}
+              >
+                {/* Checkbox visual */}
+                <div
+                  className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
+                  style={{
+                    background:  active ? 'var(--accent)' : 'var(--surface-3)',
+                    borderColor: active ? 'var(--accent)' : 'var(--border-2)',
+                    border: active ? 'none' : '1.5px solid var(--border-2)',
+                  }}
+                >
+                  {active && <Icon name="check" size={10} strokeWidth={3} style={{ color: '#0a0a0b' }} />}
+                </div>
+                <Icon name={icon} size={13} style={{ color: active ? 'var(--accent)' : 'var(--text-muted)' }} />
+                <span className="text-[13px] font-medium" style={{ color: active ? 'var(--text)' : 'var(--text-dim)' }}>
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] mt-4" style={{ color: 'var(--text-muted)' }}>
+          Los cambios se aplican instantáneamente en todas las vistas y se sincronizan en la nube.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
 // ── App root ────────────────────────────────────────────────────
 const App = () => {
   const [state, dispatch]         = useReducer(reducer, initialState);
@@ -757,6 +837,24 @@ const App = () => {
       dispatch({ type: 'set_user', id: member.id });
     }
   }, [authUser, state.team.length]);
+
+  // ── Firestore: vista previa ────────────────────────────────
+  useEffect(() => {
+    const ref = window.db.collection('frame_config').doc('display_settings');
+    const unsub = ref.onSnapshot((snap) => {
+      if (snap.exists && snap.data().previewFields) {
+        dispatch({ type: 'set_preview_fields', fields: snap.data().previewFields });
+      }
+    }, (err) => console.error('Display settings error:', err));
+    return () => unsub();
+  }, []);
+
+  const handleTogglePreviewField = (key) => {
+    const next = { ...state.previewFields, [key]: !state.previewFields[key] };
+    dispatch({ type: 'set_preview_fields', fields: next });
+    window.db.collection('frame_config').doc('display_settings').set({ previewFields: next })
+      .catch(err => console.error('Error guardando display settings:', err));
+  };
 
   // ── Firestore: columnas Kanban ─────────────────────────────
   useEffect(() => {
@@ -1014,6 +1112,11 @@ const App = () => {
           team={state.team}
           currentUserId={state.currentUserId}
         />
+      ) : state.section === 'settings' ? (
+        <SettingsSection
+          previewFields={state.previewFields}
+          onToggle={handleTogglePreviewField}
+        />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
           <Header
@@ -1042,9 +1145,10 @@ const App = () => {
                   onAddColumn={handleAddColumn}
                   onDeleteColumn={handleDeleteColumn}
                   onReorderColumns={handleReorderColumns}
+                  previewFields={state.previewFields}
                 />}
-                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
-                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
+                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} previewFields={state.previewFields} />}
+                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} previewFields={state.previewFields} />}
                 {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
               </>
             )}
