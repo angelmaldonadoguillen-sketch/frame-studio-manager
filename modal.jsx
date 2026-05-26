@@ -61,6 +61,133 @@ const StatusPill = ({ status, size = 'sm' }) => {
   );
 };
 
+// ── Type dropdown content (selector + creator) ─────────────────
+const TYPE_PICKER_ICONS  = ['film','camera','mic','video','music','play','image','monitor','smartphone','briefcase','zap','megaphone','star','layers','globe','folder','archive','clock'];
+const TYPE_PICKER_COLORS = ['#C089FF','#6CC4FF','#7DD3C0','#FF7A59','#FFD166','#FB7185','#D4FF4F','#FF6B6B','#4ADE80','#F97316','#38BDF8','#9A9AA3'];
+
+const TypeDropdownContent = ({ allTypes, currentType, onSelect, onCreateCustomType, onDeleteCustomType }) => {
+  const [creating, setCreating] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
+  const [newIcon,  setNewIcon]  = useState('film');
+  const [newColor, setNewColor] = useState('#C089FF');
+  const labelRef = useRef(null);
+
+  const isCustom = (id) => !PROJECT_TYPES.find(p => p.id === id);
+
+  const submit = () => {
+    if (!newLabel.trim()) return;
+    onCreateCustomType({ id: 'ct_' + Date.now(), label: newLabel.trim(), icon: newIcon, color: newColor });
+    setNewLabel(''); setNewIcon('film'); setNewColor('#C089FF'); setCreating(false);
+  };
+
+  return (
+    <>
+      {allTypes.map(t => (
+        <div key={t.id} className="group flex items-center gap-0.5">
+          <button
+            onClick={() => onSelect(t.id)}
+            className={`flex-1 text-left px-2.5 py-1.5 rounded-md text-[13px] flex items-center gap-2 transition-colors ${currentType === t.id ? 'bg-[var(--surface-3)]' : 'hover:bg-[var(--surface-3)]'}`}
+          >
+            <Icon name={t.icon} size={13} style={{ color: t.color }} />
+            <span className="flex-1">{t.label}</span>
+            {currentType === t.id && <Icon name="check" size={12} style={{ color: 'var(--accent)' }} />}
+          </button>
+          {isCustom(t.id) && onDeleteCustomType && (
+            <button
+              onClick={() => onDeleteCustomType(t.id)}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] transition-all mr-0.5"
+              title="Eliminar tipo"
+            >
+              <Icon name="x" size={11} />
+            </button>
+          )}
+        </div>
+      ))}
+
+      <div className="my-1 mx-1 border-t" style={{ borderColor: 'var(--border)' }} />
+
+      {!creating ? (
+        <button
+          onClick={() => { setCreating(true); setTimeout(() => labelRef.current?.focus(), 0); }}
+          className="w-full text-left px-2.5 py-1.5 rounded-md text-[12px] flex items-center gap-2 transition-colors hover:bg-[var(--surface-3)]"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <Icon name="plus" size={12} /> Crear tipo personalizado
+        </button>
+      ) : (
+        <div className="p-2 space-y-2.5" onClick={(e) => e.stopPropagation()}>
+          {/* Nombre */}
+          <input
+            ref={labelRef}
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setCreating(false); }}
+            placeholder="Nombre del tipo…"
+            className="w-full px-2.5 py-1.5 rounded-md text-[13px] border outline-none"
+            style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+          />
+          {/* Íconos */}
+          <div>
+            <div className="text-[9px] font-semibold tracking-[0.15em] uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Ícono</div>
+            <div className="grid grid-cols-6 gap-1">
+              {TYPE_PICKER_ICONS.map(ic => (
+                <button
+                  key={ic}
+                  onClick={() => setNewIcon(ic)}
+                  className="flex items-center justify-center rounded-md transition-all"
+                  style={{
+                    width: 32, height: 32,
+                    background: newIcon === ic ? 'var(--accent-soft)' : 'var(--surface-3)',
+                    color: newIcon === ic ? 'var(--accent)' : 'var(--text-dim)',
+                    outline: newIcon === ic ? '1.5px solid var(--accent)' : 'none',
+                  }}
+                >
+                  <Icon name={ic} size={14} />
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Colores */}
+          <div>
+            <div className="text-[9px] font-semibold tracking-[0.15em] uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Color</div>
+            <div className="flex flex-wrap gap-1.5">
+              {TYPE_PICKER_COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setNewColor(c)}
+                  className="rounded-full transition-all"
+                  style={{
+                    width: 20, height: 20,
+                    background: c,
+                    outline: newColor === c ? `2px solid ${c}` : 'none',
+                    outlineOffset: 2,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          {/* Preview + acciones */}
+          <div className="flex items-center justify-between pt-0.5">
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: newColor + '22' }}>
+              <Icon name={newIcon} size={12} style={{ color: newColor }} />
+              <span className="text-[12px] font-medium" style={{ color: newColor }}>{newLabel || 'Vista previa'}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setCreating(false)} className="text-[11px] px-2 py-1 rounded transition-colors hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+              <button
+                onClick={submit}
+                disabled={!newLabel.trim()}
+                className="text-[11px] font-semibold px-2.5 py-1 rounded disabled:opacity-40 transition-all"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              >Crear</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 const TypePill = ({ type, size = 'sm' }) => {
   const t = getType(type);
   if (!t) return null;
@@ -365,9 +492,10 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], clients = [], onCreateClient }) => {
+const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onDeleteCustomType }) => {
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
+  const allTypes = [...PROJECT_TYPES, ...customTypes];
   const [tab, setTab]                         = useState('overview'); // overview | comments
   const [newComment, setNewComment]           = useState('');
   const [comments, setComments]               = useState(() => project?.comments || []);
@@ -575,13 +703,19 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
             </PropRow>
 
             <PropRow icon="film" label="Tipo">
-              <Dropdown trigger={<button className="text-left -mx-2 px-2 py-1 rounded hover:bg-[var(--surface-2)] w-full"><TypePill type={project.type} /></button>}>
-                {(close) => PROJECT_TYPES.map(t => (
-                  <MenuItem key={t.id} onClick={() => { upd({ type: t.id }); close(); }} active={project.type === t.id}>
-                    <Icon name={t.icon} size={13} style={{ color: t.color }} />
-                    <span>{t.label}</span>
-                  </MenuItem>
-                ))}
+              <Dropdown
+                trigger={<button className="text-left -mx-2 px-2 py-1 rounded hover:bg-[var(--surface-2)] w-full"><TypePill type={project.type} /></button>}
+                width={260}
+              >
+                {(close) => (
+                  <TypeDropdownContent
+                    allTypes={allTypes}
+                    currentType={project.type}
+                    onSelect={(id) => { upd({ type: id }); close(); }}
+                    onCreateCustomType={onCreateCustomType}
+                    onDeleteCustomType={onDeleteCustomType}
+                  />
+                )}
               </Dropdown>
             </PropRow>
 

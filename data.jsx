@@ -396,7 +396,7 @@ const SEED_PROJECTS = [
 // ─────────────────────────────────────────────────────────────────
 
 const getUser   = (id) => USERS.find(u => u.id === id) || USERS[0];
-const getType   = (id) => PROJECT_TYPES.find(t => t.id === id) || PROJECT_TYPES[0];
+const getType   = (id) => PROJECT_TYPES.find(t => t.id === id) || (window.FRAME_CUSTOM_TYPES || []).find(t => t.id === id) || PROJECT_TYPES[PROJECT_TYPES.length - 1];
 const getStatus = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
 const getPrio   = (id) => PRIORITIES.find(p => p.id === id) || PRIORITIES[0];
 

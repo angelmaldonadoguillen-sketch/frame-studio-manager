@@ -36,6 +36,8 @@ const initialState = {
   notifsLoading: true,
   // ── Columnas Kanban ──
   kanbanColumns: [],
+  // ── Tipos personalizados ──
+  customTypes: [],
 };
 
 function reducer(state, action) {
@@ -88,6 +90,10 @@ function reducer(state, action) {
     case 'update_column':  return { ...state, kanbanColumns: state.kanbanColumns.map(c => c.id === action.column.id ? action.column : c) };
     case 'add_column':     return { ...state, kanbanColumns: [...state.kanbanColumns, action.column] };
     case 'delete_column':  return { ...state, kanbanColumns: state.kanbanColumns.filter(c => c.id !== action.id) };
+    // ── Tipos personalizados ──
+    case 'set_custom_types':    return { ...state, customTypes: action.types };
+    case 'add_custom_type':     return { ...state, customTypes: [...state.customTypes, action.typeObj] };
+    case 'delete_custom_type':  return { ...state, customTypes: state.customTypes.filter(t => t.id !== action.id) };
     // ── Notificaciones ──
     case 'set_notifs':           return { ...state, notifications: action.notifications, notifsLoading: false };
     case 'mark_notif_read':      return { ...state, notifications: state.notifications.map(n => n.id === action.id ? { ...n, read: true } : n) };
@@ -524,7 +530,7 @@ const StatusStatsBar = ({ projects }) => {
 };
 
 // ── New project quick form ──────────────────────────────────────
-const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient }) => {
+const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, customTypes = [] }) => {
   const [title, setTitle] = useState('');
   const [client, setClient] = useState('');
   const [type, setType] = useState('reel');
@@ -607,7 +613,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient }) =>
                 className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app appearance-none cursor-pointer"
                 style={{ colorScheme: 'dark' }}
               >
-                {PROJECT_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                {[...PROJECT_TYPES, ...customTypes].map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
             </div>
             <div>
@@ -772,6 +778,38 @@ const App = () => {
     });
     return () => unsub();
   }, []);
+
+  // ── Firestore: tipos personalizados ───────────────────────────
+  useEffect(() => {
+    const ref = window.db.collection('frame_config').doc('project_types');
+    const unsub = ref.onSnapshot((snap) => {
+      const types = snap.exists ? (snap.data().types || []) : [];
+      window.FRAME_CUSTOM_TYPES = types;
+      dispatch({ type: 'set_custom_types', types });
+    }, (err) => {
+      console.error('Custom types error:', err);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleCreateCustomType = (typeObj) => {
+    dispatch({ type: 'add_custom_type', typeObj });
+    window.db.collection('frame_config').doc('project_types').get()
+      .then(snap => {
+        const existing = snap.exists ? (snap.data().types || []) : [];
+        return window.db.collection('frame_config').doc('project_types').set({ types: [...existing, typeObj] });
+      })
+      .catch(err => console.error('Error al crear tipo:', err));
+  };
+  const handleDeleteCustomType = (id) => {
+    dispatch({ type: 'delete_custom_type', id });
+    window.db.collection('frame_config').doc('project_types').get()
+      .then(snap => {
+        const existing = snap.exists ? (snap.data().types || []) : [];
+        return window.db.collection('frame_config').doc('project_types').set({ types: existing.filter(t => t.id !== id) });
+      })
+      .catch(err => console.error('Error al eliminar tipo:', err));
+  };
 
   const saveColumns = (cols) => {
     window.db.collection('frame_config').doc('kanban_columns').set({ columns: cols })
@@ -1002,6 +1040,9 @@ const App = () => {
           onCreateClient={handleCreateClient}
           onClose={() => dispatch({ type: 'close_project' })}
           onUpdate={handleUpdateProject}
+          customTypes={state.customTypes}
+          onCreateCustomType={handleCreateCustomType}
+          onDeleteCustomType={handleDeleteCustomType}
         />
       )}
 
@@ -1011,6 +1052,7 @@ const App = () => {
           onClose={() => dispatch({ type: 'hide_new' })}
           clients={state.clients}
           onCreateClient={handleCreateClient}
+          customTypes={state.customTypes}
         />
       )}
     </div>
