@@ -6,20 +6,27 @@ const { useReducer, useEffect } = React;
 
 // ── Initial state + reducer ─────────────────────────────────────
 const initialState = {
+  // ── Proyectos ──
   projects: [],
   loading: true,
   currentUserId: 'u1',
   view: 'kanban', // calendar | kanban | gallery | list
   search: '',
   filters: {
-    status: [],   // status ids
-    type: [],     // type ids
-    assignee: [], // user ids
-    priority: [], // priority ids
+    status: [],
+    type: [],
+    assignee: [],
+    priority: [],
   },
   openProjectId: null,
   showNewProject: false,
   sidebarFilter: 'all',
+  // ── Clientes ──
+  clients: [],
+  clientsLoading: true,
+  openClientId: null,
+  // ── Navegación ──
+  section: 'projects', // 'projects' | 'clients'
 };
 
 function reducer(state, action) {
@@ -49,7 +56,15 @@ function reducer(state, action) {
     case 'clear_filter':   return { ...state, filters: { ...state.filters, [action.key]: state.filters[action.key].filter(x => x !== action.value) } };
     case 'clear_all_filters': return { ...state, filters: { status: [], type: [], assignee: [], priority: [] }, search: '' };
     case 'set_projects':       return { ...state, projects: action.projects, loading: false };
-    case 'set_sidebar_filter': return { ...state, sidebarFilter: action.filter };
+    case 'set_sidebar_filter': return { ...state, sidebarFilter: action.filter, section: 'projects' };
+    // ── Clientes ──
+    case 'set_clients':   return { ...state, clients: action.clients, clientsLoading: false };
+    case 'create_client': return { ...state, clients: [action.client, ...state.clients], openClientId: action.client.id };
+    case 'update_client': return { ...state, clients: state.clients.map(c => c.id === action.client.id ? action.client : c) };
+    case 'open_client':   return { ...state, openClientId: action.id };
+    case 'close_client':  return { ...state, openClientId: null };
+    // ── Navegación ──
+    case 'set_section':   return { ...state, section: action.section };
     default: return state;
   }
 }
@@ -127,10 +142,10 @@ const Sidebar = ({ state, dispatch }) => {
         <NavItem icon="archive" label="Archivo"            count={counts.archived}  active={sf === 'archived'}  onClick={() => setFilter('archived')} />
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4">Trabajo</div>
-        <NavItem icon="briefcase" label="Clientes" />
-        <NavItem icon="users" label="Equipo" />
-        <NavItem icon="folder" label="Archivos" />
-        <NavItem icon="settings" label="Ajustes" />
+        <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'} onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
+        <NavItem icon="users"     label="Equipo"    />
+        <NavItem icon="folder"    label="Archivos"  />
+        <NavItem icon="settings"  label="Ajustes"   />
 
         <div className="mt-5">
           <div className="flex items-center justify-between px-2 py-1.5">
@@ -535,6 +550,25 @@ const App = () => {
     return () => unsub();
   }, []);
 
+  // ── Firestore: clientes ─────────────────────────────────────
+  useEffect(() => {
+    const col = window.db.collection('frame_clients');
+    const unsub = col.onSnapshot(async (snap) => {
+      if (snap.empty) {
+        const batch = window.db.batch();
+        SEED_CLIENTS.forEach(c => batch.set(col.doc(c.id), c));
+        await batch.commit();
+      } else {
+        const clients = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        dispatch({ type: 'set_clients', clients });
+      }
+    }, (err) => {
+      console.error('Firestore clients error:', err);
+      dispatch({ type: 'set_clients', clients: SEED_CLIENTS });
+    });
+    return () => unsub();
+  }, []);
+
   // ── Escrituras a Firestore ──────────────────────────────────
   const handleUpdateProject = (project) => {
     dispatch({ type: 'update_project', project }); // optimistic: actualiza UI al instante
@@ -553,29 +587,57 @@ const App = () => {
     }
   };
 
+  const handleUpdateClient = (client) => {
+    dispatch({ type: 'update_client', client });
+    window.db.collection('frame_clients').doc(client.id).set(client)
+      .catch(err => console.error('Error al guardar cliente:', err));
+  };
+
+  const handleCreateClient = async (client) => {
+    try {
+      const ref = await window.db.collection('frame_clients').add(client);
+      dispatch({ type: 'create_client', client: { ...client, id: ref.id } });
+    } catch (err) {
+      console.error('Error al crear cliente:', err);
+      dispatch({ type: 'create_client', client });
+    }
+  };
+
   if (state.loading) return <LoadingScreen />;
 
   return (
     <div className="h-screen flex" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
       <Sidebar state={state} dispatch={dispatch} />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <Header state={state} dispatch={dispatch} filteredCount={filtered.length} />
-        {state.view === 'kanban' && <StatusStatsBar projects={filtered} />}
+      {state.section === 'clients' ? (
+        <ClientsSection
+          clients={state.clients}
+          projects={state.projects}
+          onCreateClient={handleCreateClient}
+          onUpdateClient={handleUpdateClient}
+          openClientId={state.openClientId}
+          onOpenClient={(id) => dispatch({ type: 'open_client', id })}
+          onCloseClient={() => dispatch({ type: 'close_client' })}
+        />
+      ) : (
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <Header state={state} dispatch={dispatch} filteredCount={filtered.length} />
+          {state.view === 'kanban' && <StatusStatsBar projects={filtered} />}
 
-        <div className="flex-1 overflow-hidden">
-          {filtered.length === 0 && state.view !== 'kanban' && state.view !== 'calendar' ? (
-            <EmptyState />
-          ) : (
-            <>
-              {state.view === 'kanban'   && <KanbanView   projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onUpdateProject={handleUpdateProject} />}
-              {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
-              {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
-              {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
-            </>
-          )}
-        </div>
-      </main>
+          <div className="flex-1 overflow-hidden">
+            {filtered.length === 0 && state.view !== 'kanban' && state.view !== 'calendar' ? (
+              <EmptyState />
+            ) : (
+              <>
+                {state.view === 'kanban'   && <KanbanView   projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onUpdateProject={handleUpdateProject} />}
+                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
+                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
+                {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
+              </>
+            )}
+          </div>
+        </main>
+      )}
 
       {openProject && (
         <ProjectModal

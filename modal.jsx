@@ -982,4 +982,5 @@ const FormatBtn = ({ icon, onClick }) => (
 Object.assign(window, {
   Avatar, AvatarStack, StatusPill, TypePill, PriorityBadge, Cover,
   ProjectModal, Dropdown, MenuItem, renderWithMentions,
+  InlineEdit, TagAdd,
 });

@@ -437,7 +437,7 @@ const progressOf = (project) => {
 
 Object.assign(window, {
   USERS, PROJECT_TYPES, STATUSES, PRIORITIES, SEED_PROJECTS, COVER_IMAGES,
-  TODAY,
+  TODAY, d,
   getUser, getType, getStatus, getPrio,
   fmtMoney, fmtDate, fmtDateLong, daysUntil, relativeTime, progressOf,
 });

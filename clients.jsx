@@ -1,0 +1,647 @@
+// ─────────────────────────────────────────────────────────────────
+// CLIENTS — directorio de clientes del estudio
+// ─────────────────────────────────────────────────────────────────
+
+// ── Seed data ───────────────────────────────────────────────────
+const SEED_CLIENTS = [
+  {
+    id: 'cl1',
+    name: 'Volcán Activewear',
+    industry: 'Moda deportiva',
+    color: '#FF7A59',
+    initials: 'VA',
+    contact: { name: 'Laura Vega', email: 'laura@volcan.com', phone: '+54 11 5555-0101' },
+    tags: ['premium', 'recurrente'],
+    notes: 'Cliente desde 2024. Prefiere entregas los viernes y al menos 2 rondas de revisión.',
+    createdAt: d(-120),
+  },
+  {
+    id: 'cl2',
+    name: 'LUMEN Studio',
+    industry: 'Arquitectura & Diseño',
+    color: '#7DD3C0',
+    initials: 'LS',
+    contact: { name: 'Andrés Mora', email: 'andres@lumenstudio.com', phone: '+54 11 5555-0202' },
+    tags: ['corporativo', 'anual'],
+    notes: 'Muy exigentes con el color y la iluminación. Siempre revisan en pantalla calibrada.',
+    createdAt: d(-200),
+  },
+  {
+    id: 'cl3',
+    name: 'RIFF Records',
+    industry: 'Música & Entretenimiento',
+    color: '#C089FF',
+    initials: 'RR',
+    contact: { name: 'Nicolás Palma', email: 'nico@riff.com', phone: '+54 11 5555-0303' },
+    tags: ['música', 'high-profile'],
+    notes: 'Sello independiente. Proyectos de alto perfil creativo. Pago por adelantado.',
+    createdAt: d(-80),
+  },
+  {
+    id: 'cl4',
+    name: 'Café Origen',
+    industry: 'Gastronomía & Lifestyle',
+    color: '#FFD166',
+    initials: 'CO',
+    contact: { name: 'Valentina Ríos', email: 'vale@cafeorigen.com', phone: '+54 11 5555-0404' },
+    tags: ['social', 'mensual', 'recurrente'],
+    notes: 'Contrato mensual de contenido. Entregar lunes antes del mediodía para programar la semana.',
+    createdAt: d(-300),
+  },
+  {
+    id: 'cl5',
+    name: 'Atelier Sur',
+    industry: 'Moda & Lujo',
+    color: '#6CC4FF',
+    initials: 'AS',
+    contact: { name: 'Camila Fuentes', email: 'camila@ateliersur.com', phone: '+54 11 5555-0505' },
+    tags: ['lujo', 'fotografía'],
+    notes: 'Marca de lujo. Estética minimalista, paleta neutra. No hacer retoques excesivos.',
+    createdAt: d(-60),
+  },
+  {
+    id: 'cl6',
+    name: 'MoveOn',
+    industry: 'Fitness & Wellness',
+    color: '#FB7185',
+    initials: 'MO',
+    contact: { name: 'Tomás Herrera', email: 'tomas@moveon.com', phone: '+54 11 5555-0606' },
+    tags: ['fitness', 'nuevo'],
+    notes: 'Cliente nuevo. Primer proyecto en curso. Potencial de contrato anual si la entrega es conforme.',
+    createdAt: d(-15),
+  },
+];
+
+// ── Paleta de colores para clientes ─────────────────────────────
+const CLIENT_COLORS = [
+  '#FF7A59', '#7DD3C0', '#C089FF', '#FFD166',
+  '#6CC4FF', '#FB7185', '#D4FF4F', '#FF6B6B',
+];
+
+// ── Client avatar ────────────────────────────────────────────────
+const ClientAvatar = ({ client, size = 40 }) => (
+  <div
+    className="rounded-xl flex items-center justify-center font-display font-bold flex-shrink-0"
+    style={{
+      width: size, height: size,
+      background: client.color + '1a',
+      color: client.color,
+      fontSize: Math.max(11, size * 0.33),
+      letterSpacing: '-0.02em',
+      border: `1.5px solid ${client.color}44`,
+    }}
+  >
+    {client.initials}
+  </div>
+);
+
+// ── Industry badge ───────────────────────────────────────────────
+const IndustryBadge = ({ industry, color }) => (
+  <span
+    className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium"
+    style={{ background: color + '18', color: color }}
+  >
+    {industry}
+  </span>
+);
+
+// ── Client card ──────────────────────────────────────────────────
+const ClientCard = ({ client, projects, onClick }) => {
+  const cp = projects.filter(p => p.client.toLowerCase() === client.name.toLowerCase());
+  const totalBudget = cp.reduce((s, p) => s + (p.budget || 0), 0);
+  const active = cp.filter(p => p.status !== 'delivered' && p.status !== 'archived').length;
+
+  return (
+    <div
+      onClick={onClick}
+      className="group lift cursor-pointer rounded-xl border overflow-hidden"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      {/* Color accent strip */}
+      <div className="h-1" style={{ background: client.color }}></div>
+
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-start gap-3 mb-3">
+          <ClientAvatar client={client} size={44} />
+          <div className="flex-1 min-w-0 pt-0.5">
+            <div className="font-semibold text-[14px] truncate mb-1" style={{ letterSpacing: '-0.01em' }}>
+              {client.name}
+            </div>
+            <IndustryBadge industry={client.industry} color={client.color} />
+          </div>
+          <Icon
+            name="arrowUpRight"
+            size={13}
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-muted)] mt-0.5"
+          />
+        </div>
+
+        {/* Contact */}
+        <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] mb-3 truncate">
+          <Icon name="users" size={11} />
+          <span className="truncate">{client.contact.name}</span>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-app">
+          <div>
+            <div
+              className="text-[20px] font-display font-bold leading-none mb-0.5"
+              style={{ color: client.color, letterSpacing: '-0.03em' }}
+            >
+              {cp.length}
+            </div>
+            <div className="text-[9px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Proyectos</div>
+          </div>
+          <div>
+            <div className="text-[20px] font-display font-bold leading-none mb-0.5 text-white" style={{ letterSpacing: '-0.03em' }}>
+              {active}
+            </div>
+            <div className="text-[9px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Activos</div>
+          </div>
+          <div>
+            <div className="text-[13px] font-semibold font-mono text-white leading-none mb-0.5 truncate">
+              {totalBudget > 0 ? fmtMoney(totalBudget) : '—'}
+            </div>
+            <div className="text-[9px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Budget</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Client detail panel ──────────────────────────────────────────
+const ClientDetail = ({ client, projects, onClose, onUpdate }) => {
+  if (!client) return null;
+
+  const cp = projects.filter(p => p.client.toLowerCase() === client.name.toLowerCase());
+  const totalBudget = cp.reduce((s, p) => s + (p.budget || 0), 0);
+  const inProgress  = cp.filter(p => p.status !== 'delivered' && p.status !== 'archived').length;
+
+  const upd        = (patch) => onUpdate({ ...client, ...patch });
+  const addTag     = (t) => { if (!t.trim()) return; upd({ tags: [...new Set([...client.tags, t.trim()])] }); };
+  const removeTag  = (t) => upd({ tags: client.tags.filter(x => x !== t) });
+
+  // Status breakdown
+  const byStatus = STATUSES.filter(s => s.id !== 'archived').map(s => ({
+    ...s,
+    count: cp.filter(p => p.status === s.id).length,
+  })).filter(s => s.count > 0);
+
+  return (
+    <div className="fixed inset-0 z-50 backdrop flex items-stretch justify-end anim-fade-in" onClick={onClose}>
+      <div
+        className="w-full max-w-[600px] h-full flex flex-col anim-slide-right border-l border-app overflow-hidden"
+        style={{ background: 'var(--surface)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Panel header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-app flex-shrink-0">
+          <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)]">
+            <Icon name="briefcase" size={13} />
+            <span>Clientes</span>
+            <span>›</span>
+            <span className="text-[var(--text-dim)]">{client.name}</span>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* Color strip */}
+          <div className="h-1" style={{ background: client.color }}></div>
+
+          {/* Hero section */}
+          <div className="p-6 border-b border-app">
+            <div className="flex items-start gap-4 mb-5">
+              <ClientAvatar client={client} size={58} />
+              <div className="flex-1 min-w-0">
+                <InlineEdit
+                  value={client.name}
+                  onChange={(v) => upd({ name: v })}
+                  className="font-display font-bold text-[22px] leading-tight"
+                />
+                <div className="mt-1">
+                  <InlineEdit
+                    value={client.industry}
+                    onChange={(v) => upd({ industry: v })}
+                    placeholder="Industria…"
+                    className="text-[13px] text-[var(--text-dim)]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Stats strip */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: cp.length,    label: 'Proyectos',  color: client.color },
+                { value: inProgress,   label: 'En curso',   color: '#ededef' },
+                { value: totalBudget > 0 ? fmtMoney(totalBudget) : '—', label: 'Budget total', color: '#ededef', mono: true },
+              ].map(s => (
+                <div
+                  key={s.label}
+                  className="rounded-lg p-3 text-center"
+                  style={{ background: 'var(--surface-2)' }}
+                >
+                  <div
+                    className={`text-[24px] font-display font-bold leading-none mb-1 ${s.mono ? 'text-[18px] font-mono' : ''}`}
+                    style={{ color: s.color, letterSpacing: '-0.03em' }}
+                  >
+                    {s.value}
+                  </div>
+                  <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.12em]">{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Status breakdown */}
+            {byStatus.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                {byStatus.map(s => (
+                  <span
+                    key={s.id}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium"
+                    style={{ background: s.color + '18', color: s.color }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }}></span>
+                    {s.label} · {s.count}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Contact */}
+            <section>
+              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Contacto</div>
+              <div className="space-y-1 rounded-lg overflow-hidden border border-app divide-y divide-[var(--border)]">
+                {[
+                  { icon: 'users', label: 'Nombre',   key: 'name',  value: client.contact.name  },
+                  { icon: 'at',    label: 'Email',    key: 'email', value: client.contact.email, mono: true },
+                  { icon: 'mic',   label: 'Teléfono', key: 'phone', value: client.contact.phone, mono: true },
+                ].map(row => (
+                  <div key={row.key} className="grid grid-cols-[110px_1fr] items-center" style={{ background: 'var(--surface-2)' }}>
+                    <div className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-[var(--text-muted)]">
+                      <Icon name={row.icon} size={12} />
+                      {row.label}
+                    </div>
+                    <div className="px-3 py-1">
+                      <InlineEdit
+                        value={row.value}
+                        onChange={(v) => upd({ contact: { ...client.contact, [row.key]: v } })}
+                        className={`text-[13px] ${row.mono ? 'font-mono' : ''}`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Tags */}
+            <section>
+              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Tags</div>
+              <div className="flex flex-wrap gap-1.5">
+                {client.tags.map(t => (
+                  <span key={t} className="group flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-[var(--surface-2)] text-[var(--text-dim)]">
+                    #{t}
+                    <button className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeTag(t)}>
+                      <Icon name="x" size={10} />
+                    </button>
+                  </span>
+                ))}
+                <TagAdd onAdd={addTag} />
+              </div>
+            </section>
+
+            {/* Notes */}
+            <section>
+              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Notas internas</div>
+              <InlineEdit
+                value={client.notes}
+                onChange={(v) => upd({ notes: v })}
+                placeholder="Preferencias, acuerdos, cosas a recordar…"
+                multiline
+                className="text-[13px] text-[var(--text-dim)] leading-relaxed"
+              />
+            </section>
+
+            {/* Projects list */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">
+                  Proyectos ({cp.length})
+                </div>
+              </div>
+              {cp.length === 0 ? (
+                <div
+                  className="text-center py-8 rounded-lg text-[12px] text-[var(--text-muted)]"
+                  style={{ background: 'var(--surface-2)' }}
+                >
+                  Sin proyectos registrados para este cliente
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {cp.map(p => {
+                    const st = getStatus(p.status);
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-app"
+                        style={{ background: 'var(--surface-2)' }}
+                      >
+                        <div className="w-1 h-9 rounded-full flex-shrink-0" style={{ background: st?.color || '#666' }}></div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] font-medium truncate">{p.title}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <TypePill type={p.type} />
+                            <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                              deadline {fmtDate(p.deadline)}
+                            </span>
+                          </div>
+                        </div>
+                        <StatusPill status={p.status} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── New client modal ─────────────────────────────────────────────
+const NewClientModal = ({ onCreate, onClose }) => {
+  const [name, setName]               = useState('');
+  const [industry, setIndustry]       = useState('');
+  const [contactName, setContactName] = useState('');
+  const [email, setEmail]             = useState('');
+  const [color, setColor]             = useState(CLIENT_COLORS[0]);
+
+  const initials = name.trim()
+    .split(/\s+/)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '?';
+
+  const submit = () => {
+    if (!name.trim()) return;
+    onCreate({
+      id: 'cl' + Date.now(),
+      name: name.trim(),
+      industry: industry.trim() || 'Sin categoría',
+      color,
+      initials,
+      contact: {
+        name:  contactName.trim() || '—',
+        email: email.trim()       || '—',
+        phone: '—',
+      },
+      tags: [],
+      notes: '',
+      createdAt: new Date().toISOString().slice(0, 10),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 backdrop flex items-center justify-center p-6 anim-fade-in" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border anim-scale-in overflow-hidden"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-app">
+          <div>
+            <div className="font-display text-lg font-semibold" style={{ letterSpacing: '-0.01em' }}>Nuevo cliente</div>
+            <div className="text-[11px] text-[var(--text-muted)]">Agregá un cliente al directorio del estudio</div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+            <Icon name="x" size={15} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Avatar preview + color picker */}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-lg flex-shrink-0 transition-all"
+              style={{ background: color + '1a', color, border: `2px solid ${color}55`, letterSpacing: '-0.02em' }}
+            >
+              {initials}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {CLIENT_COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className="w-5 h-5 rounded-full border-2 transition-all hover:scale-110"
+                  style={{ background: c, borderColor: color === c ? 'white' : 'transparent' }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">
+              Nombre del cliente *
+            </label>
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+              placeholder="Ej: Volcán Activewear"
+              className="w-full px-3 py-2.5 rounded-md text-[14px] surface-2 border border-app focus:border-[var(--accent)]/60"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Industria</label>
+            <input
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              placeholder="Ej: Moda deportiva"
+              className="w-full px-3 py-2.5 rounded-md text-[13.5px] surface-2 border border-app"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Contacto</label>
+              <input
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Nombre completo"
+                className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@cliente.com"
+                className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-app">
+          <button onClick={onClose} className="px-3 py-1.5 rounded-md text-[12.5px] hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+            Cancelar
+          </button>
+          <button
+            onClick={submit}
+            disabled={!name.trim()}
+            className="px-3 py-1.5 rounded-md text-[12.5px] font-semibold disabled:opacity-40 transition-all hover:brightness-110"
+            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+          >
+            Crear cliente
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Clients section (main) ───────────────────────────────────────
+const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, openClientId, onOpenClient, onCloseClient }) => {
+  const [search, setSearch]   = useState('');
+  const [showNew, setShowNew] = useState(false);
+
+  const openClient = openClientId ? clients.find(c => c.id === openClientId) : null;
+
+  const filtered = clients.filter(c => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return c.name.toLowerCase().includes(q) || c.industry.toLowerCase().includes(q);
+  });
+
+  const handleCreate = async (client) => {
+    await onCreateClient(client);
+    setShowNew(false);
+  };
+
+  return (
+    <>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Section header */}
+        <header className="border-b border-app px-5 py-3 flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Icon name="briefcase" size={15} className="text-[var(--text-muted)]" />
+            <span className="font-display font-bold text-[15px]" style={{ letterSpacing: '-0.02em' }}>
+              Clientes
+            </span>
+            <span
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+            >
+              {clients.length}
+            </span>
+          </div>
+
+          {/* Search */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md surface-2 flex-1 max-w-sm">
+            <Icon name="search" size={13} className="text-[var(--text-muted)]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar clientes o industria…"
+              className="flex-1 text-[12.5px]"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="text-[var(--text-muted)] hover:text-white">
+                <Icon name="x" size={12} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex-1" />
+
+          <button
+            onClick={() => setShowNew(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-semibold hover:brightness-110 transition-all"
+            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+          >
+            <Icon name="plus" size={13} strokeWidth={2.4} />
+            Nuevo cliente
+          </button>
+        </header>
+
+        {/* Grid */}
+        <div className="flex-1 overflow-y-auto p-5">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+                <Icon name="briefcase" size={22} className="text-[var(--text-muted)]" />
+              </div>
+              <div>
+                <div className="text-[14px] font-medium mb-1">
+                  {search ? `Sin resultados para "${search}"` : 'Sin clientes aún'}
+                </div>
+                <div className="text-[12px] text-[var(--text-muted)]">
+                  {search ? 'Probá con otro término' : 'Empezá agregando tu primer cliente al directorio'}
+                </div>
+              </div>
+              {!search && (
+                <button
+                  onClick={() => setShowNew(true)}
+                  className="text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all hover:brightness-110"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                >
+                  + Agregar cliente
+                </button>
+              )}
+            </div>
+          ) : (
+            <div
+              className="grid gap-4"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(255px, 1fr))' }}
+            >
+              {filtered.map(c => (
+                <ClientCard
+                  key={c.id}
+                  client={c}
+                  projects={projects}
+                  onClick={() => onOpenClient(c.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Detail panel */}
+      {openClient && (
+        <ClientDetail
+          client={openClient}
+          projects={projects}
+          onClose={onCloseClient}
+          onUpdate={onUpdateClient}
+        />
+      )}
+
+      {/* New client modal */}
+      {showNew && (
+        <NewClientModal
+          onCreate={handleCreate}
+          onClose={() => setShowNew(false)}
+        />
+      )}
+    </>
+  );
+};
+
+Object.assign(window, { ClientsSection, SEED_CLIENTS });
