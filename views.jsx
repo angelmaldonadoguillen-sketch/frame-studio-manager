@@ -79,39 +79,128 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
   );
 };
 
+// ── Column color presets ─────────────────────────────────────────
+const COL_COLORS = [
+  '#9A9AA3','#FFD166','#6CC4FF','#C089FF','#7DD3C0',
+  '#FF7A59','#FB7185','#D4FF4F','#FF6B6B','#34D399',
+  '#F59E0B','#EC4899','#8B5CF6','#06B6D4','#38BDF8',
+];
+
+// ── Column settings menu ─────────────────────────────────────────
+const ColumnMenu = ({ col, projectCount, onUpdate, onDelete, onClose }) => {
+  const [label, setLabel] = React.useState(col.label);
+
+  const commitLabel = () => {
+    const trimmed = label.trim();
+    if (trimmed && trimmed !== col.label) onUpdate({ ...col, label: trimmed });
+  };
+
+  return (
+    <div className="space-y-4 py-1">
+      {/* Nombre */}
+      <div>
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1">Nombre</div>
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onBlur={commitLabel}
+          onKeyDown={(e) => { if (e.key === 'Enter') { commitLabel(); e.target.blur(); } }}
+          className="w-full px-2.5 py-1.5 rounded-md text-[12.5px] border"
+          style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+        />
+      </div>
+
+      {/* Color */}
+      <div>
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1">Color</div>
+        <div className="grid grid-cols-5 gap-1.5">
+          {COL_COLORS.map(c => (
+            <button
+              key={c}
+              onClick={() => onUpdate({ ...col, color: c })}
+              className="w-8 h-8 rounded-md transition-all hover:scale-110"
+              style={{
+                background: c,
+                boxShadow: col.color === c
+                  ? `0 0 0 2px var(--surface-2), 0 0 0 3.5px ${c}`
+                  : 'none',
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Eliminar */}
+      <div className="border-t border-app pt-2">
+        <button
+          onClick={() => {
+            if (projectCount === 0) { onDelete(col.id); onClose(); }
+          }}
+          disabled={projectCount > 0}
+          title={projectCount > 0 ? `Mové los ${projectCount} proyectos antes de eliminar` : ''}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] transition-colors disabled:opacity-35"
+          style={{ color: '#FF6B6B' }}
+          onMouseEnter={(e) => { if (projectCount === 0) e.currentTarget.style.background = '#FF6B6B14'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          <Icon name="trash" size={13} />
+          {projectCount > 0
+            ? `${projectCount} proyecto${projectCount > 1 ? 's' : ''} — no se puede eliminar`
+            : 'Eliminar columna'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ── KANBAN VIEW ─────────────────────────────────────────────────
-const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject }) => {
-  const [draggingId, setDraggingId] = useState(null);
-  const [dragOverCol, setDragOverCol] = useState(null);
-  const visibleStatuses = STATUSES.filter(s => s.id !== 'archived');
+const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn }) => {
+  const [draggingId, setDraggingId]     = useState(null);
+  const [dragOverCol, setDragOverCol]   = useState(null);
+  const [addingCol, setAddingCol]       = useState(false);
+  const [newColLabel, setNewColLabel]   = useState('');
+
+  // Use passed columns if available, fallback to STATUSES
+  const visibleCols = (columns && columns.length > 0)
+    ? columns
+    : STATUSES.filter(s => s.id !== 'archived');
 
   const onDrop = (statusId) => (e) => {
     e.preventDefault();
     if (!draggingId) return;
     const p = projects.find(x => x.id === draggingId);
-    if (p && p.status !== statusId) {
-      onUpdateProject({ ...p, status: statusId });
-    }
+    if (p && p.status !== statusId) onUpdateProject({ ...p, status: statusId });
     setDraggingId(null);
     setDragOverCol(null);
   };
 
+  const submitNewCol = () => {
+    const label = newColLabel.trim();
+    if (!label) return;
+    const id = 'col_' + Date.now();
+    const color = COL_COLORS[visibleCols.length % COL_COLORS.length];
+    onAddColumn({ id, label, color });
+    setNewColLabel('');
+    setAddingCol(false);
+  };
+
   return (
     <div className="h-full overflow-x-auto overflow-y-hidden p-4">
-      <div className="flex gap-3 h-full" style={{ minWidth: 'fit-content' }}>
-        {visibleStatuses.map(s => {
+      <div className="flex gap-3 h-full items-start" style={{ minWidth: 'fit-content' }}>
+
+        {visibleCols.map(s => {
           const items = projects.filter(p => p.status === s.id);
           const isOver = dragOverCol === s.id;
           return (
             <div
               key={s.id}
               className={`flex flex-col w-[280px] flex-shrink-0 rounded-xl border ${isOver ? 'drag-over' : ''}`}
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '100%' }}
               onDragOver={(e) => { e.preventDefault(); setDragOverCol(s.id); }}
               onDragLeave={() => setDragOverCol(c => c === s.id ? null : c)}
               onDrop={onDrop(s.id)}
             >
-              <div className="flex items-center justify-between px-3 py-3 border-b border-app">
+              <div className="flex items-center justify-between px-3 py-3 border-b border-app flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full" style={{ background: s.color }}></span>
                   <span className="text-[12px] font-semibold">{s.label}</span>
@@ -119,9 +208,27 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject 
                     {items.length}
                   </span>
                 </div>
-                <button className="text-[var(--text-muted)] hover:text-white p-1 rounded hover:bg-[var(--surface-2)]">
-                  <Icon name="more" size={14} />
-                </button>
+                {onUpdateColumn && (
+                  <Dropdown
+                    width={220}
+                    align="right"
+                    trigger={
+                      <button className="text-[var(--text-muted)] hover:text-white p-1 rounded hover:bg-[var(--surface-2)] transition-colors">
+                        <Icon name="more" size={14} />
+                      </button>
+                    }
+                  >
+                    {(close) => (
+                      <ColumnMenu
+                        col={s}
+                        projectCount={items.length}
+                        onUpdate={(col) => { onUpdateColumn(col); }}
+                        onDelete={(id) => { onDeleteColumn(id); close(); }}
+                        onClose={close}
+                      />
+                    )}
+                  </Dropdown>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-2">
                 {items.map(p => (
@@ -146,6 +253,58 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject 
             </div>
           );
         })}
+
+        {/* ── Agregar columna ── */}
+        {onAddColumn && (
+          <div className="flex-shrink-0 w-[220px]">
+            {addingCol ? (
+              <div
+                className="rounded-xl border p-3 space-y-2"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+              >
+                <input
+                  autoFocus
+                  value={newColLabel}
+                  onChange={(e) => setNewColLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') submitNewCol();
+                    if (e.key === 'Escape') { setAddingCol(false); setNewColLabel(''); }
+                  }}
+                  placeholder="Nombre de la columna"
+                  className="w-full px-2.5 py-1.5 rounded-md text-[12.5px] border"
+                  style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                />
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={submitNewCol}
+                    disabled={!newColLabel.trim()}
+                    className="flex-1 py-1.5 rounded-md text-[12px] font-semibold disabled:opacity-40"
+                    style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+                  >
+                    Crear
+                  </button>
+                  <button
+                    onClick={() => { setAddingCol(false); setNewColLabel(''); }}
+                    className="px-2.5 py-1.5 rounded-md text-[var(--text-muted)] hover:text-white"
+                    style={{ background: 'var(--surface-2)' }}
+                  >
+                    <Icon name="x" size={13} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAddingCol(true)}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12.5px] border border-dashed text-[var(--text-dim)] hover:text-white hover:border-[var(--text-muted)] transition-colors"
+                style={{ borderColor: 'var(--border-2)' }}
+              >
+                <Icon name="plus" size={14} />
+                Agregar columna
+              </button>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );

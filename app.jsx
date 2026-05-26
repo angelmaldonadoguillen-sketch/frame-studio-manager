@@ -34,6 +34,8 @@ const initialState = {
   // ── Notificaciones ──
   notifications: [],
   notifsLoading: true,
+  // ── Columnas Kanban ──
+  kanbanColumns: [],
 };
 
 function reducer(state, action) {
@@ -79,6 +81,11 @@ function reducer(state, action) {
     case 'close_member':  return { ...state, openMemberId: null };
     // ── Navegación ──
     case 'set_section':   return { ...state, section: action.section };
+    // ── Columnas Kanban ──
+    case 'set_columns':    return { ...state, kanbanColumns: action.columns };
+    case 'update_column':  return { ...state, kanbanColumns: state.kanbanColumns.map(c => c.id === action.column.id ? action.column : c) };
+    case 'add_column':     return { ...state, kanbanColumns: [...state.kanbanColumns, action.column] };
+    case 'delete_column':  return { ...state, kanbanColumns: state.kanbanColumns.filter(c => c.id !== action.id) };
     // ── Notificaciones ──
     case 'set_notifs':           return { ...state, notifications: action.notifications, notifsLoading: false };
     case 'mark_notif_read':      return { ...state, notifications: state.notifications.map(n => n.id === action.id ? { ...n, read: true } : n) };
@@ -742,6 +749,49 @@ const App = () => {
     }
   }, [authUser, state.team.length]);
 
+  // ── Firestore: columnas Kanban ─────────────────────────────
+  useEffect(() => {
+    const ref = window.db.collection('frame_config').doc('kanban_columns');
+    const unsub = ref.onSnapshot((snap) => {
+      if (!snap.exists) {
+        // Primera vez: sembrar con columnas por defecto
+        const defaults = STATUSES
+          .filter(s => s.id !== 'archived')
+          .map(s => ({ id: s.id, label: s.label, color: s.color }));
+        ref.set({ columns: defaults });
+        dispatch({ type: 'set_columns', columns: defaults });
+      } else {
+        dispatch({ type: 'set_columns', columns: snap.data().columns || [] });
+      }
+    }, (err) => {
+      console.error('Kanban columns error:', err);
+      const defaults = STATUSES.filter(s => s.id !== 'archived').map(s => ({ id: s.id, label: s.label, color: s.color }));
+      dispatch({ type: 'set_columns', columns: defaults });
+    });
+    return () => unsub();
+  }, []);
+
+  const saveColumns = (cols) => {
+    window.db.collection('frame_config').doc('kanban_columns').set({ columns: cols })
+      .catch(err => console.error('Error guardando columnas:', err));
+  };
+
+  const handleUpdateColumn = (col) => {
+    const updated = state.kanbanColumns.map(c => c.id === col.id ? col : c);
+    dispatch({ type: 'update_column', column: col });
+    saveColumns(updated);
+  };
+  const handleAddColumn = (col) => {
+    const updated = [...state.kanbanColumns, col];
+    dispatch({ type: 'add_column', column: col });
+    saveColumns(updated);
+  };
+  const handleDeleteColumn = (id) => {
+    const updated = state.kanbanColumns.filter(c => c.id !== id);
+    dispatch({ type: 'delete_column', id });
+    saveColumns(updated);
+  };
+
   // ── Firestore: notificaciones en tiempo real ────────────────
   useEffect(() => {
     if (!state.currentUserId) return;
@@ -896,7 +946,16 @@ const App = () => {
               <EmptyState />
             ) : (
               <>
-                {state.view === 'kanban'   && <KanbanView   projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onUpdateProject={handleUpdateProject} onDeleteProject={handleDeleteProject} />}
+                {state.view === 'kanban'   && <KanbanView
+                  projects={filtered}
+                  onOpenProject={(id) => dispatch({ type: 'open_project', id })}
+                  onUpdateProject={handleUpdateProject}
+                  onDeleteProject={handleDeleteProject}
+                  columns={state.kanbanColumns}
+                  onUpdateColumn={handleUpdateColumn}
+                  onAddColumn={handleAddColumn}
+                  onDeleteColumn={handleDeleteColumn}
+                />}
                 {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
                 {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
                 {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
