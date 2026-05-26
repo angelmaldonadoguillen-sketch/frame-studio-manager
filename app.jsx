@@ -1165,6 +1165,7 @@ const App = () => {
           onCreateClient={handleCreateClient}
           onClose={() => dispatch({ type: 'close_project' })}
           onUpdate={handleUpdateProject}
+          onDelete={handleDeleteProject}
           customTypes={state.customTypes}
           onCreateCustomType={handleCreateCustomType}
           onUpdateCustomType={handleUpdateCustomType}

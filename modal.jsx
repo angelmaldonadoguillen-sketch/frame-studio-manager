@@ -513,7 +513,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType }) => {
+const ProjectModal = ({ project, onClose, onUpdate, onDelete, currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType }) => {
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
   // Cuando Firestore ya cargó los tipos (customTypes.length > 0) los usa directamente;
@@ -529,6 +529,7 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
   const [editingDvId, setEditingDvId]     = useState(null);
   const [editingDvData, setEditingDvData] = useState({});
   const editDvNameRef = useRef(null);
+  const [confirmDel, setConfirmDel]       = useState(false);
 
   // ── Listener de comentarios en tiempo real ────────────────────
   useEffect(() => {
@@ -687,6 +688,36 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
                 style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>
                 <Icon name="alert" size={11} /> URGENTE
               </span>
+            )}
+            {/* Delete button — two-step confirm */}
+            {onDelete && (
+              confirmDel ? (
+                <div className="flex items-center gap-1 mr-1">
+                  <span className="text-[12px] font-medium" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
+                  <button
+                    onClick={() => { onDelete(project.id); onClose(); }}
+                    className="px-2.5 py-1 rounded-md text-[12px] font-semibold"
+                    style={{ background: '#FF6B6B22', color: '#FF6B6B' }}
+                  >
+                    Sí
+                  </button>
+                  <button
+                    onClick={() => setConfirmDel(false)}
+                    className="px-2.5 py-1 rounded-md text-[12px]"
+                    style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="p-2 rounded-md hover:bg-[#FF6B6B18] text-[var(--text-dim)] hover:text-[#FF6B6B] transition-colors"
+                  title="Eliminar proyecto"
+                  onClick={() => setConfirmDel(true)}
+                >
+                  <Icon name="trash" size={15} />
+                </button>
+              )
             )}
             <button className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]" onClick={onClose}>
               <Icon name="x" size={16} />
