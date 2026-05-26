@@ -502,10 +502,8 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onUpdateProjec
     if (!project) return;
     const currentDate = dragging.kind === 'deadline' ? project.deadline : project.sessionDate;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
-    const updated = dragging.kind === 'deadline'
-      ? { ...project, deadline: iso }
-      : { ...project, sessionDate: iso };
-    onUpdateProject && onUpdateProject(updated);
+    // Mueve deadline Y sessionDate juntos para que el proyecto no aparezca en dos días
+    onUpdateProject && onUpdateProject({ ...project, deadline: iso, sessionDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
 
