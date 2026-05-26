@@ -903,6 +903,7 @@ const App = () => {
         <ProjectModal
           project={openProject}
           currentUserId={state.currentUserId}
+          team={state.team}
           onClose={() => dispatch({ type: 'close_project' })}
           onUpdate={handleUpdateProject}
         />

@@ -338,7 +338,9 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
+const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [] }) => {
+  // Lookup que prioriza el equipo real de Firestore sobre los datos seed
+  const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
   const [tab, setTab]                         = useState('overview'); // overview | comments
   const [newComment, setNewComment]           = useState('');
   const [comments, setComments]               = useState(() => project?.comments || []);
@@ -400,14 +402,17 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
     // ── Detectar @menciones y notificar ──────────────────────
     if (window.pushNotif) {
       const mentionRe = /@([A-Za-zÀ-ÿ]+(?:\s[A-Za-zÀ-ÿ]+)?)/g;
+      // Combinar USERS seed + equipo real de Firestore (sin duplicados)
+      const allMembers = [...USERS];
+      team.forEach(m => { if (!allMembers.find(u => u.id === m.id)) allMembers.push(m); });
       const mentioned = new Set();
       let m;
       while ((m = mentionRe.exec(comment.text)) !== null) {
         const fragment = m[1].toLowerCase();
-        const u = USERS.find(u => u.name.toLowerCase().startsWith(fragment));
+        const u = allMembers.find(u => u.name && u.name.toLowerCase().startsWith(fragment));
         if (u && u.id !== currentUserId) mentioned.add(u.id);
       }
-      const sender = getUser(currentUserId);
+      const sender = resolveUser(currentUserId);
       const preview = comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text;
       mentioned.forEach(uid => window.pushNotif(uid, {
         type: 'mention',
@@ -515,7 +520,7 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
                 {(close) => STATUSES.map(s => (
                   <MenuItem key={s.id} onClick={() => {
                     if (s.id !== project.status && window.pushNotif) {
-                      const changer = getUser(currentUserId);
+                      const changer = resolveUser(currentUserId);
                       const newSt   = getStatus(s.id);
                       project.assignees.forEach(uid => {
                         if (uid !== currentUserId) {
@@ -753,6 +758,8 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
                 comments={comments}
                 commentsLoading={commentsLoading}
                 currentUserId={currentUserId}
+                team={team}
+                resolveUser={resolveUser}
                 newComment={newComment}
                 setNewComment={setNewComment}
                 onSend={addComment}
@@ -995,8 +1002,9 @@ const DescriptionEditor = ({ blocks, onChange }) => {
   );
 };
 
-const CommentsTab = ({ comments, commentsLoading, currentUserId, newComment, setNewComment, onSend }) => {
-  const me = getUser(currentUserId);
+const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], resolveUser, newComment, setNewComment, onSend }) => {
+  const resolve = resolveUser || ((id) => team.find(m => m.id === id) || getUser(id));
+  const me = resolve(currentUserId);
   const [showMentions, setShowMentions] = useState(false);
   const inputRef = useRef(null);
 
@@ -1028,7 +1036,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, newComment, set
           </div>
         )}
         {comments.map(c => {
-          const u = getUser(c.userId);
+          const u = resolve(c.userId);
           return (
             <div key={c.id} className="flex gap-3">
               <Avatar user={u} size={32} />

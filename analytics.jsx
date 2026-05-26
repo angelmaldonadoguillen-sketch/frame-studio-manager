@@ -88,7 +88,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
             style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
           >
             <Icon name="clock" size={13} />
-            {fmtDateLong(TODAY)}
+            {TODAY.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
           </div>
         </div>
       </div>
