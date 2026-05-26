@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 // ── Project mini card (used in calendar + kanban) ──────────────
-const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete, previewFields = {} }) => {
+const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete, onDuplicate, previewFields = {} }) => {
   const pf = previewFields;
   const t = getType(project.type);
   const days = daysUntil(project.deadline);
@@ -41,9 +41,17 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
             {pf.prioridad !== false && isOverdue && (
               <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
             )}
+            {!confirmDel && onDuplicate && (
+              <button onClick={(e) => { e.stopPropagation(); onDuplicate(project.id); }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-all"
+                title="Duplicar">
+                <Icon name="copy" size={11} />
+              </button>
+            )}
             {onDelete && !confirmDel && (
               <button onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all">
+                className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all"
+                title="Eliminar">
                 <Icon name="trash" size={11} />
               </button>
             )}
@@ -228,7 +236,7 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
 };
 
 // ── KANBAN VIEW ─────────────────────────────────────────────────
-const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
+const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, onDuplicateProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
   const [draggingId,    setDraggingId]    = useState(null);   // card drag
   const [draggingColId, setDraggingColId] = useState(null);   // column drag
   const [dragOverCol,   setDragOverCol]   = useState(null);
@@ -374,6 +382,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     onDragEnd={resetDrag}
                     dragging={draggingId === p.id}
                     onDelete={onDeleteProject}
+                    onDuplicate={onDuplicateProject}
                     previewFields={previewFields}
                   />
                 ))}
@@ -438,7 +447,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
 };
 
 // ── CALENDAR VIEW ───────────────────────────────────────────────
-const CalendarView = ({ projects, onOpenProject, onDeleteProject, onUpdateProject, previewFields = {} }) => {
+const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, previewFields = {} }) => {
   const [refDate, setRefDate] = useState(new Date(TODAY));
   const [mode, setMode] = useState('month'); // month | week | day
   const [dragging, setDragging]       = useState(null); // { id, kind }
@@ -652,16 +661,16 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onUpdateProjec
       )}
 
       {mode === 'week' && (
-        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} previewFields={previewFields} />
+        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} previewFields={previewFields} />
       )}
       {mode === 'day' && (
-        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} previewFields={previewFields} />
+        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} previewFields={previewFields} />
       )}
     </div>
   );
 };
 
-const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, previewFields = {} }) => {
+const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, previewFields = {} }) => {
   const start = new Date(refDate);
   const day = (start.getDay() + 6) % 7;
   start.setDate(start.getDate() - day);
@@ -690,7 +699,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, pre
             <div className="p-2 space-y-2">
               {items.length === 0 && <div className="text-[10px] text-[var(--text-muted)] text-center py-6">—</div>}
               {items.map(p => (
-                <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} compact onDelete={onDeleteProject} previewFields={previewFields} />
+                <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} compact onDelete={onDeleteProject} onDuplicate={onDuplicateProject} previewFields={previewFields} />
               ))}
             </div>
           </div>
@@ -700,7 +709,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, pre
   );
 };
 
-const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, previewFields = {} }) => {
+const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, previewFields = {} }) => {
   const iso = refDate.toISOString().slice(0, 10);
   const items = projectsByDate[iso] || [];
   return (
@@ -718,7 +727,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, prev
           </div>
         )}
         {items.map(p => (
-          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} previewFields={previewFields} />
+          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} previewFields={previewFields} />
         ))}
       </div>
     </div>
@@ -726,18 +735,18 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, prev
 };
 
 // ── GALLERY VIEW ────────────────────────────────────────────────
-const GalleryView = ({ projects, onOpenProject, onDeleteProject, previewFields = {} }) => {
+const GalleryView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, previewFields = {} }) => {
   if (projects.length === 0) return <EmptyState />;
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-        {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} previewFields={previewFields} />)}
+        {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} previewFields={previewFields} />)}
       </div>
     </div>
   );
 };
 
-const GalleryCard = ({ project, onClick, onDelete, previewFields = {} }) => {
+const GalleryCard = ({ project, onClick, onDelete, onDuplicate, previewFields = {} }) => {
   const pf = previewFields;
   const t = getType(project.type);
   const progress = progressOf(project);
@@ -763,10 +772,19 @@ const GalleryCard = ({ project, onClick, onDelete, previewFields = {} }) => {
             {pf.prioridad !== false && isUrgent && (
               <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URGENTE</span>
             )}
+            {!confirmDel && onDuplicate && (
+              <button onClick={(e) => { e.stopPropagation(); onDuplicate(project.id); }}
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all"
+                style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)' }}
+                title="Duplicar">
+                <Icon name="copy" size={12} />
+              </button>
+            )}
             {onDelete && !confirmDel && (
               <button onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
                 className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all"
-                style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)' }}>
+                style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)' }}
+                title="Eliminar">
                 <Icon name="trash" size={12} />
               </button>
             )}
@@ -828,7 +846,7 @@ const GalleryCard = ({ project, onClick, onDelete, previewFields = {} }) => {
 };
 
 // ── LIST VIEW ───────────────────────────────────────────────────
-const ListRow = ({ p, onOpenProject, onDeleteProject }) => {
+const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject }) => {
   const t = getType(p.type);
   const days = daysUntil(p.deadline);
   const isUrgent = days >= 0 && days < 3 && p.status !== 'delivered' && p.status !== 'archived';
@@ -875,15 +893,29 @@ const ListRow = ({ p, onOpenProject, onDeleteProject }) => {
           <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-muted)' }}>{progress}%</span>
         </div>
       </td>
-      {/* Acción eliminar */}
+      {/* Acciones */}
       <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-        {onDeleteProject && !confirmDel && (
-          <button
-            onClick={() => setConfirmDel(true)}
-            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all"
-          >
-            <Icon name="trash" size={13} />
-          </button>
+        {!confirmDel && (
+          <div className="opacity-0 group-hover:opacity-100 flex items-center justify-end gap-1 transition-all">
+            {onDuplicateProject && (
+              <button
+                onClick={() => onDuplicateProject(p.id)}
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-colors"
+                title="Duplicar"
+              >
+                <Icon name="copy" size={13} />
+              </button>
+            )}
+            {onDeleteProject && (
+              <button
+                onClick={() => setConfirmDel(true)}
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-colors"
+                title="Eliminar"
+              >
+                <Icon name="trash" size={13} />
+              </button>
+            )}
+          </div>
         )}
         {onDeleteProject && confirmDel && (
           <div className="flex items-center justify-end gap-1.5">
@@ -905,7 +937,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject }) => {
   );
 };
 
-const ListView = ({ projects, onOpenProject, onDeleteProject }) => {
+const ListView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject }) => {
   if (projects.length === 0) return <EmptyState />;
   return (
     <div className="h-full overflow-auto">
@@ -925,7 +957,7 @@ const ListView = ({ projects, onOpenProject, onDeleteProject }) => {
         </thead>
         <tbody>
           {projects.map(p => (
-            <ListRow key={p.id} p={p} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} />
+            <ListRow key={p.id} p={p} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} />
           ))}
         </tbody>
       </table>

@@ -83,6 +83,7 @@ function reducer(state, action) {
     case 'set_trash':          return { ...state, trash: action.trash, trashLoading: false };
     case 'remove_from_trash':  return { ...state, trash: state.trash.filter(t => t.id !== action.id) };
     case 'restore_project':    return { ...state, projects: [action.project, ...state.projects], trash: state.trash.filter(t => t.id !== action.project.id) };
+    case 'duplicate_project':  return { ...state, projects: [action.project, ...state.projects] };
     // ── Clientes ──
     case 'set_clients':   return { ...state, clients: action.clients, clientsLoading: false };
     case 'create_client': return { ...state, clients: [action.client, ...state.clients], openClientId: action.client.id };
@@ -1090,6 +1091,21 @@ const App = () => {
     }
   };
 
+  const handleDuplicateProject = (id) => {
+    const original = state.projects.find(p => p.id === id);
+    if (!original) return;
+    const newId  = 'p' + Date.now();
+    const copy   = {
+      ...original,
+      id:        newId,
+      title:     original.title + ' (copia)',
+      createdAt: new Date().toISOString(),
+    };
+    dispatch({ type: 'duplicate_project', project: copy });
+    window.db.collection('frame_projects').doc(newId).set(copy)
+      .catch(err => console.error('[FRAME] Error al duplicar proyecto:', err));
+  };
+
   const handleUpdateProject = (project) => {
     dispatch({ type: 'update_project', project }); // optimistic: actualiza UI al instante
     window.db.collection('frame_projects').doc(project.id).set(project)
@@ -1210,6 +1226,7 @@ const App = () => {
                   onOpenProject={(id) => dispatch({ type: 'open_project', id })}
                   onUpdateProject={handleUpdateProject}
                   onDeleteProject={handleDeleteProject}
+                  onDuplicateProject={handleDuplicateProject}
                   columns={state.kanbanColumns}
                   onUpdateColumn={handleUpdateColumn}
                   onAddColumn={handleAddColumn}
@@ -1217,9 +1234,9 @@ const App = () => {
                   onReorderColumns={handleReorderColumns}
                   previewFields={state.previewFields}
                 />}
-                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onUpdateProject={handleUpdateProject} previewFields={state.previewFields} />}
-                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} previewFields={state.previewFields} />}
-                {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
+                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onUpdateProject={handleUpdateProject} previewFields={state.previewFields} />}
+                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} previewFields={state.previewFields} />}
+                {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} />}
               </>
             )}
           </div>
