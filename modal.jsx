@@ -207,18 +207,30 @@ const COVER_PRESETS = [
 ];
 
 const CoverEditor = ({ cover, onChange, projectId }) => {
-  const [open, setOpen]             = useState(false);
-  const [urlVal, setUrlVal]         = useState('');
-  const [uploading, setUploading]   = useState(false);
-  const [progress, setProgress]     = useState(0);
-  const ref     = useRef(null);
-  const fileRef = useRef(null);
+  const [open, setOpen]           = useState(false);
+  const [pos, setPos]             = useState({ top: 0, right: 0 });
+  const [urlVal, setUrlVal]       = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress]   = useState(0);
+  const btnRef   = useRef(null);
+  const panelRef = useRef(null);
+  const fileRef  = useRef(null);
 
+  // Close on outside click
   useEffect(() => {
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    if (open) document.addEventListener('mousedown', close);
+    if (!open) return;
+    const close = (e) => {
+      if (!btnRef.current?.contains(e.target) && !panelRef.current?.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
+
+  const openPanel = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setOpen(v => !v);
+  };
 
   const applyUrl = () => {
     if (!urlVal.trim()) return;
@@ -233,9 +245,9 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
     if (!file.type.startsWith('image/')) return;
     setUploading(true);
     setProgress(0);
-    const path     = `frame-covers/${projectId || 'general'}/${Date.now()}_${file.name}`;
-    const stRef    = window.storage.ref(path);
-    const task     = stRef.put(file);
+    const path  = `frame-covers/${projectId || 'general'}/${Date.now()}_${file.name}`;
+    const stRef = window.storage.ref(path);
+    const task  = stRef.put(file);
     task.on('state_changed',
       (snap) => setProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
       (err)  => { console.error('Storage upload error:', err); setUploading(false); },
@@ -250,90 +262,105 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
     e.target.value = '';
   };
 
+  // Panel rendered via portal → escapes overflow:hidden of the modal
+  const panel = open && ReactDOM.createPortal(
+    <div
+      ref={panelRef}
+      className="anim-scale-in"
+      style={{
+        position: 'fixed', top: pos.top, right: pos.right,
+        width: 268, zIndex: 9999,
+        background: 'var(--surface-2)',
+        borderRadius: 14,
+        border: '1px solid var(--border-2)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+        padding: '16px',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* ── Colores ── */}
+      <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Color de fondo</div>
+      <div className="grid grid-cols-5 gap-2 mb-4">
+        {COVER_PRESETS.map(c => (
+          <button
+            key={c}
+            onClick={() => { onChange({ type: 'color', value: c }); setOpen(false); }}
+            className="aspect-square rounded-lg border-2 transition-all hover:scale-105"
+            style={{
+              background: c,
+              borderColor: cover.type === 'color' && cover.value === c ? 'var(--accent)' : 'var(--border)',
+              minHeight: 36,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* ── Subir archivo ── */}
+      <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Subir imagen</div>
+      {uploading ? (
+        <div className="space-y-1.5 mb-3">
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+            <div className="h-full transition-all duration-200" style={{ width: `${progress}%`, background: 'var(--accent)' }}></div>
+          </div>
+          <div className="text-[11px] text-center font-mono" style={{ color: 'var(--accent)' }}>{progress}% — subiendo…</div>
+        </div>
+      ) : (
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="w-full mb-3 py-2 rounded-lg text-[12px] font-medium border border-dashed flex items-center justify-center gap-2 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          style={{ borderColor: 'var(--border-2)', color: 'var(--text-dim)' }}
+        >
+          <Icon name="upload" size={13} />
+          Elegir archivo
+        </button>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+
+      {/* ── URL manual ── */}
+      <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">URL de imagen</div>
+      <div className="flex gap-2">
+        <input
+          value={urlVal}
+          onChange={(e) => setUrlVal(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') applyUrl(); }}
+          placeholder="https://…"
+          className="flex-1 px-2.5 py-1.5 rounded-md text-[12px] border"
+          style={{ background: 'var(--surface-3)', borderColor: 'var(--border-2)', color: 'var(--text)' }}
+        />
+        <button
+          onClick={applyUrl}
+          disabled={!urlVal.trim()}
+          className="px-3 py-1.5 rounded-md text-[12px] font-semibold disabled:opacity-40"
+          style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+        >
+          OK
+        </button>
+      </div>
+
+      {cover.type === 'image' && (
+        <button
+          onClick={() => { onChange({ type: 'color', value: '#0a0a0b' }); setOpen(false); }}
+          className="mt-3 w-full text-center text-[11px] text-[var(--text-muted)] hover:text-white border-t border-app pt-3"
+        >
+          Quitar imagen
+        </button>
+      )}
+    </div>,
+    document.body
+  );
+
   return (
-    <div ref={ref} className="absolute top-3 right-3 z-10">
+    <>
       <button
-        onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium"
+        ref={btnRef}
+        onClick={openPanel}
+        className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium"
         style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(6px)' }}
       >
         <Icon name="image" size={12} /> Portada
       </button>
-      {open && (
-        <div
-          className="absolute top-full right-0 mt-2 rounded-xl border shadow-2xl p-4 anim-scale-in"
-          style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', width: 268 }}
-        >
-          {/* ── Colores ── */}
-          <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Color de fondo</div>
-          <div className="grid grid-cols-5 gap-2 mb-4">
-            {COVER_PRESETS.map(c => (
-              <button
-                key={c}
-                onClick={() => { onChange({ type: 'color', value: c }); setOpen(false); }}
-                className="aspect-square rounded-lg border-2 transition-all hover:scale-105"
-                style={{
-                  background: c,
-                  borderColor: cover.type === 'color' && cover.value === c ? 'var(--accent)' : 'var(--border)',
-                  minHeight: 36,
-                }}
-              />
-            ))}
-          </div>
-
-          {/* ── Subir archivo ── */}
-          <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Subir imagen</div>
-          {uploading ? (
-            <div className="space-y-1.5 mb-3">
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                <div className="h-full transition-all duration-200" style={{ width: `${progress}%`, background: 'var(--accent)' }}></div>
-              </div>
-              <div className="text-[11px] text-center font-mono" style={{ color: 'var(--accent)' }}>{progress}% — subiendo…</div>
-            </div>
-          ) : (
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="w-full mb-3 py-2 rounded-lg text-[12px] font-medium border border-dashed flex items-center justify-center gap-2 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-              style={{ borderColor: 'var(--border-2)', color: 'var(--text-dim)' }}
-            >
-              <Icon name="upload" size={13} />
-              Elegir archivo
-            </button>
-          )}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-
-          {/* ── URL manual ── */}
-          <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">URL de imagen</div>
-          <div className="flex gap-2">
-            <input
-              value={urlVal}
-              onChange={(e) => setUrlVal(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') applyUrl(); }}
-              placeholder="https://…"
-              className="flex-1 px-2.5 py-1.5 rounded-md text-[12px] border"
-              style={{ background: 'var(--surface-3)', borderColor: 'var(--border-2)', color: 'var(--text)' }}
-            />
-            <button
-              onClick={applyUrl}
-              disabled={!urlVal.trim()}
-              className="px-3 py-1.5 rounded-md text-[12px] font-semibold disabled:opacity-40"
-              style={{ background: 'var(--accent)', color: '#0a0a0b' }}
-            >
-              OK
-            </button>
-          </div>
-
-          {cover.type === 'image' && (
-            <button
-              onClick={() => { onChange({ type: 'color', value: '#0a0a0b' }); setOpen(false); }}
-              className="mt-3 w-full text-center text-[11px] text-[var(--text-muted)] hover:text-white border-t border-app pt-3"
-            >
-              Quitar imagen
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+      {panel}
+    </>
   );
 };
 
