@@ -661,7 +661,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
       )}
 
       {mode === 'week' && (
-        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} previewFields={previewFields} />
+        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onUpdateProject={onUpdateProject} previewFields={previewFields} />
       )}
       {mode === 'day' && (
         <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} previewFields={previewFields} />
@@ -670,9 +670,13 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
   );
 };
 
-const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, previewFields = {} }) => {
+const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, previewFields = {} }) => {
+  const [dragging, setDragging]         = React.useState(null); // { id, kind }
+  const [dragOverDate, setDragOverDate] = React.useState(null);
+  const lastOverRef                     = React.useRef(null);
+
   const start = new Date(refDate);
-  const day = (start.getDay() + 6) % 7;
+  const day   = (start.getDay() + 6) % 7; // Monday-first offset
   start.setDate(start.getDate() - day);
   const days = Array.from({ length: 7 }, (_, i) => {
     const dt = new Date(start);
@@ -680,26 +684,93 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
     return dt;
   });
   const todayDt = new Date(TODAY);
+
+  // ── Drag handlers ───────────────────────────────────────────────
+  const handleDragStart = (e, p) => {
+    setDragging({ id: p.id, kind: p._kind });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', p.id);
+  };
+  const handleDragEnd = () => {
+    setDragging(null); setDragOverDate(null); lastOverRef.current = null;
+  };
+  const handleDragOver = (e, iso) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (lastOverRef.current !== iso) { lastOverRef.current = iso; setDragOverDate(iso); }
+  };
+  const handleDrop = (e, iso) => {
+    e.preventDefault();
+    if (!dragging) return;
+    // Find the project across all days (items have _kind injected)
+    let found = null;
+    Object.values(projectsByDate).forEach(items => {
+      const match = items.find(p => p.id === dragging.id && p._kind === dragging.kind);
+      if (match) found = match;
+    });
+    if (!found) return;
+    const currentDate = dragging.kind === 'deadline' ? found.deadline : found.sessionDate;
+    if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
+    // Strip _kind before saving, move both dates together
+    const { _kind, ...cleanProject } = found;
+    onUpdateProject && onUpdateProject({ ...cleanProject, deadline: iso, sessionDate: iso });
+    setDragging(null); setDragOverDate(null); lastOverRef.current = null;
+  };
+
   return (
     <div className="flex-1 grid grid-cols-7 overflow-hidden">
       {days.map((dt, i) => {
-        const iso = dt.toISOString().slice(0, 10);
-        const items = projectsByDate[iso] || [];
-        const isToday = dt.toDateString() === todayDt.toDateString();
+        const iso        = dt.toISOString().slice(0, 10);
+        const items      = projectsByDate[iso] || [];
+        const isToday    = dt.toDateString() === todayDt.toDateString();
+        const isDragOver = dragOverDate === iso;
         return (
-          <div key={i} className="border-r border-app overflow-y-auto" style={{ background: isToday ? 'var(--accent-soft)' : 'transparent' }}>
-            <div className="sticky top-0 px-3 py-2 border-b border-app surface flex items-baseline gap-2" style={{ background: 'var(--surface)' }}>
+          <div
+            key={i}
+            className="border-r border-app overflow-y-auto transition-colors"
+            style={{
+              background:   isDragOver ? 'rgba(212,255,79,0.08)' : isToday ? 'var(--accent-soft)' : 'transparent',
+              borderColor:  isDragOver ? 'rgba(212,255,79,0.4)'  : 'var(--border)',
+              borderRightStyle: 'solid',
+            }}
+            onDragOver={(e)   => handleDragOver(e, iso)}
+            onDragLeave={(e)  => { if (!e.currentTarget.contains(e.relatedTarget)) { setDragOverDate(null); lastOverRef.current = null; } }}
+            onDrop={(e)       => handleDrop(e, iso)}
+          >
+            {/* Day header */}
+            <div className="sticky top-0 px-3 py-2 border-b border-app flex items-baseline gap-2" style={{ background: 'var(--surface)' }}>
               <span className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)]">
                 {dt.toLocaleDateString('es-ES', { weekday: 'short' })}
               </span>
-              <span className={`text-lg font-display font-bold ${isToday ? '' : 'text-[var(--text-dim)]'}`} style={{ color: isToday ? 'var(--accent)' : undefined }}>
+              <span className={`text-lg font-display font-bold`} style={{ color: isToday ? 'var(--accent)' : 'var(--text-dim)' }}>
                 {dt.getDate()}
               </span>
+              {isDragOver && (
+                <span className="ml-auto text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>SOLTAR</span>
+              )}
             </div>
+
+            {/* Cards */}
             <div className="p-2 space-y-2">
-              {items.length === 0 && <div className="text-[10px] text-[var(--text-muted)] text-center py-6">—</div>}
+              {items.length === 0 && (
+                <div className="text-[10px] text-center py-6" style={{ color: isDragOver ? 'var(--accent)' : 'var(--text-muted)' }}>
+                  {isDragOver ? '↓' : '—'}
+                </div>
+              )}
               {items.map(p => (
-                <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} compact onDelete={onDeleteProject} onDuplicate={onDuplicateProject} previewFields={previewFields} />
+                <ProjectCardMini
+                  key={p.id + p._kind}
+                  project={p}
+                  onClick={() => !dragging && onOpenProject(p.id)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, p)}
+                  onDragEnd={handleDragEnd}
+                  dragging={dragging?.id === p.id && dragging?.kind === p._kind}
+                  compact
+                  onDelete={onDeleteProject}
+                  onDuplicate={onDuplicateProject}
+                  previewFields={previewFields}
+                />
               ))}
             </div>
           </div>
