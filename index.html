@@ -15,6 +15,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script>
   firebase.initializeApp({
     apiKey: "AIzaSyDjuOtF5CUQmZ9nsLDPUeTPFG6sLJZTTkE",
@@ -24,7 +25,8 @@
     messagingSenderId: "193761852127",
     appId: "1:193761852127:web:ba8d049866d581920e076a"
   });
-  window.db = firebase.firestore();
+  window.db      = firebase.firestore();
+  window.storage = firebase.storage();
 </script>
 <script>
   tailwind.config = {

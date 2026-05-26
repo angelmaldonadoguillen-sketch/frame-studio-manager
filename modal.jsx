@@ -206,10 +206,13 @@ const COVER_PRESETS = [
   '#1a1200', '#0a2010', '#2a1000', '#111827', '#1a1016',
 ];
 
-const CoverEditor = ({ cover, onChange }) => {
-  const [open, setOpen] = useState(false);
-  const [urlVal, setUrlVal] = useState('');
-  const ref = useRef(null);
+const CoverEditor = ({ cover, onChange, projectId }) => {
+  const [open, setOpen]             = useState(false);
+  const [urlVal, setUrlVal]         = useState('');
+  const [uploading, setUploading]   = useState(false);
+  const [progress, setProgress]     = useState(0);
+  const ref     = useRef(null);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -222,6 +225,29 @@ const CoverEditor = ({ cover, onChange }) => {
     onChange({ type: 'image', value: urlVal.trim() });
     setUrlVal('');
     setOpen(false);
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    setUploading(true);
+    setProgress(0);
+    const path     = `frame-covers/${projectId || 'general'}/${Date.now()}_${file.name}`;
+    const stRef    = window.storage.ref(path);
+    const task     = stRef.put(file);
+    task.on('state_changed',
+      (snap) => setProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+      (err)  => { console.error('Storage upload error:', err); setUploading(false); },
+      async () => {
+        const url = await task.snapshot.ref.getDownloadURL();
+        onChange({ type: 'image', value: url });
+        setUploading(false);
+        setProgress(0);
+        setOpen(false);
+      }
+    );
+    e.target.value = '';
   };
 
   return (
@@ -238,6 +264,7 @@ const CoverEditor = ({ cover, onChange }) => {
           className="absolute top-full right-0 mt-2 rounded-xl border shadow-2xl p-4 anim-scale-in"
           style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', width: 268 }}
         >
+          {/* ── Colores ── */}
           <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Color de fondo</div>
           <div className="grid grid-cols-5 gap-2 mb-4">
             {COVER_PRESETS.map(c => (
@@ -253,6 +280,29 @@ const CoverEditor = ({ cover, onChange }) => {
               />
             ))}
           </div>
+
+          {/* ── Subir archivo ── */}
+          <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Subir imagen</div>
+          {uploading ? (
+            <div className="space-y-1.5 mb-3">
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+                <div className="h-full transition-all duration-200" style={{ width: `${progress}%`, background: 'var(--accent)' }}></div>
+              </div>
+              <div className="text-[11px] text-center font-mono" style={{ color: 'var(--accent)' }}>{progress}% — subiendo…</div>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-full mb-3 py-2 rounded-lg text-[12px] font-medium border border-dashed flex items-center justify-center gap-2 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              style={{ borderColor: 'var(--border-2)', color: 'var(--text-dim)' }}
+            >
+              <Icon name="upload" size={13} />
+              Elegir archivo
+            </button>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+
+          {/* ── URL manual ── */}
           <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">URL de imagen</div>
           <div className="flex gap-2">
             <input
@@ -272,6 +322,7 @@ const CoverEditor = ({ cover, onChange }) => {
               OK
             </button>
           </div>
+
           {cover.type === 'image' && (
             <button
               onClick={() => { onChange({ type: 'color', value: '#0a0a0b' }); setOpen(false); }}
@@ -406,7 +457,7 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
         {/* Cover */}
         <div className="relative">
           <Cover cover={project.cover} height={180} />
-          <CoverEditor cover={project.cover} onChange={(cover) => upd({ cover })} />
+          <CoverEditor cover={project.cover} onChange={(cover) => upd({ cover })} projectId={project.id} />
           <div className="absolute bottom-4 left-6 right-6">
             <div className="flex items-center gap-2 mb-2">
               <TypePill type={project.type} size="md" />
