@@ -395,10 +395,10 @@ const SEED_PROJECTS = [
 // Helpers
 // ─────────────────────────────────────────────────────────────────
 
-const getUser   = (id) => USERS.find(u => u.id === id);
-const getType   = (id) => PROJECT_TYPES.find(t => t.id === id);
-const getStatus = (id) => STATUSES.find(s => s.id === id);
-const getPrio   = (id) => PRIORITIES.find(p => p.id === id);
+const getUser   = (id) => USERS.find(u => u.id === id) || USERS[0];
+const getType   = (id) => PROJECT_TYPES.find(t => t.id === id) || PROJECT_TYPES[0];
+const getStatus = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
+const getPrio   = (id) => PRIORITIES.find(p => p.id === id) || PRIORITIES[0];
 
 const fmtMoney = (n, c = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(n);
 const fmtDate  = (iso) => {

@@ -82,7 +82,7 @@ function reducer(state, action) {
 // ── Sidebar ─────────────────────────────────────────────────────
 const Sidebar = ({ state, dispatch, onSignOut }) => {
   const recentProjects = state.projects.slice(0, 5);
-  const me = getUser(state.currentUserId);
+  const me = state.team.find(m => m.id === state.currentUserId) || getUser(state.currentUserId);
 
   const counts = {
     all:       state.projects.filter(p => p.status !== 'archived').length,
