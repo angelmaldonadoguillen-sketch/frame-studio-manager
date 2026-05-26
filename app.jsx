@@ -71,6 +71,7 @@ function reducer(state, action) {
     case 'set_clients':   return { ...state, clients: action.clients, clientsLoading: false };
     case 'create_client': return { ...state, clients: [action.client, ...state.clients], openClientId: action.client.id };
     case 'update_client': return { ...state, clients: state.clients.map(c => c.id === action.client.id ? action.client : c) };
+    case 'delete_client': return { ...state, clients: state.clients.filter(c => c.id !== action.id), openClientId: state.openClientId === action.id ? null : state.openClientId };
     case 'open_client':   return { ...state, openClientId: action.id };
     case 'close_client':  return { ...state, openClientId: null };
     // ── Equipo ──
@@ -881,6 +882,12 @@ const App = () => {
     }
   };
 
+  const handleDeleteClient = (id) => {
+    dispatch({ type: 'delete_client', id });
+    window.db.collection('frame_clients').doc(id).delete()
+      .catch(err => console.error('Error al eliminar cliente:', err));
+  };
+
   const handleUpdateClient = (client) => {
     dispatch({ type: 'update_client', client });
     window.db.collection('frame_clients').doc(client.id).set(client)
@@ -911,6 +918,7 @@ const App = () => {
           projects={state.projects}
           onCreateClient={handleCreateClient}
           onUpdateClient={handleUpdateClient}
+          onDeleteClient={handleDeleteClient}
           openClientId={state.openClientId}
           onOpenClient={(id) => dispatch({ type: 'open_client', id })}
           onCloseClient={() => dispatch({ type: 'close_client' })}
@@ -975,6 +983,8 @@ const App = () => {
           project={openProject}
           currentUserId={state.currentUserId}
           team={state.team}
+          clients={state.clients}
+          onCreateClient={handleCreateClient}
           onClose={() => dispatch({ type: 'close_project' })}
           onUpdate={handleUpdateProject}
         />

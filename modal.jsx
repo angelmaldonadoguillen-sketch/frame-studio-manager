@@ -365,7 +365,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [] }) => {
+const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], clients = [], onCreateClient }) => {
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
   const [tab, setTab]                         = useState('overview'); // overview | comments
@@ -528,7 +528,12 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [] }) 
             <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Propiedades</div>
 
             <PropRow icon="briefcase" label="Cliente">
-              <InlineEdit value={project.client} onChange={updField('client')} className="text-sm" />
+              <ClientAutocomplete
+                value={project.client}
+                onChange={updField('client')}
+                clients={clients}
+                onCreateClient={onCreateClient}
+              />
             </PropRow>
 
             <PropRow icon="film" label="Tipo">

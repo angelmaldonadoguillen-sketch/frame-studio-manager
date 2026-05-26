@@ -173,7 +173,8 @@ const ClientCard = ({ client, projects, onClick }) => {
 };
 
 // ── Client detail panel ──────────────────────────────────────────
-const ClientDetail = ({ client, projects, onClose, onUpdate }) => {
+const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
+  const [confirmDel, setConfirmDel] = useState(false);
   if (!client) return null;
 
   const cp = projects.filter(p => p.client.toLowerCase() === client.name.toLowerCase());
@@ -371,6 +372,49 @@ const ClientDetail = ({ client, projects, onClose, onUpdate }) => {
                 </div>
               )}
             </section>
+
+            {/* ── Danger zone: eliminar cliente ── */}
+            {onDelete && (
+              <section className="pt-2">
+                {!confirmDel ? (
+                  <button
+                    onClick={() => setConfirmDel(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[12.5px] transition-colors"
+                    style={{ color: '#FF6B6B', border: '1px dashed #FF6B6B44' }}
+                  >
+                    <Icon name="trash" size={13} />
+                    Eliminar cliente
+                  </button>
+                ) : (
+                  <div className="rounded-lg p-4 border" style={{ background: '#FF6B6B08', borderColor: '#FF6B6B33' }}>
+                    <div className="text-[13px] font-semibold mb-1" style={{ color: '#FF6B6B' }}>
+                      ¿Eliminar "{client.name}"?
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] mb-3">
+                      {cp.length > 0
+                        ? `Este cliente tiene ${cp.length} proyecto${cp.length > 1 ? 's' : ''} vinculado${cp.length > 1 ? 's' : ''}. Los proyectos conservarán el nombre pero el cliente se eliminará del directorio.`
+                        : 'Esta acción no se puede deshacer.'}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { onDelete(client.id); onClose(); }}
+                        className="flex-1 py-1.5 rounded-md text-[12.5px] font-semibold"
+                        style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+                      >
+                        Sí, eliminar
+                      </button>
+                      <button
+                        onClick={() => setConfirmDel(false)}
+                        className="flex-1 py-1.5 rounded-md text-[12.5px] text-[var(--text-muted)] hover:text-white transition-colors"
+                        style={{ background: 'var(--surface-3)' }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         </div>
       </div>
@@ -516,8 +560,137 @@ const NewClientModal = ({ onCreate, onClose }) => {
   );
 };
 
+// ── Client autocomplete (portal-based, used in ProjectModal) ────
+const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient }) => {
+  const [query,  setQuery]  = useState(value || '');
+  const [open,   setOpen]   = useState(false);
+  const [pos,    setPos]    = useState({ top: 0, left: 0, width: 220 });
+  const wrapRef  = useRef(null);
+  const inputRef = useRef(null);
+  const panelRef = useRef(null);
+
+  // Sync display when value changes externally (but not while editing)
+  useEffect(() => { if (!open) setQuery(value || ''); }, [value, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => {
+      if (!wrapRef.current?.contains(e.target) && !panelRef.current?.contains(e.target)) {
+        setOpen(false);
+        const q = query.trim();
+        if (q && q !== value) onChange(q);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open, query, value]);
+
+  const openDropdown = () => {
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 2, left: r.left, width: Math.max(r.width, 230) });
+    setQuery(value || '');
+    setOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const filtered    = clients.filter(c => !query || c.name.toLowerCase().includes(query.toLowerCase())).slice(0, 7);
+  const exactMatch  = clients.find(c => c.name.toLowerCase() === (query || '').toLowerCase());
+  const showCreate  = query.trim() && !exactMatch && onCreateClient;
+  const matched     = clients.find(c => c.name.toLowerCase() === (value || '').toLowerCase());
+
+  const select = (name) => { setQuery(name); onChange(name); setOpen(false); };
+
+  const createAndSelect = () => {
+    const q = query.trim();
+    if (!q) return;
+    const words    = q.split(/\s+/);
+    const initials = words.map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+    const color    = CLIENT_COLORS[clients.length % CLIENT_COLORS.length];
+    if (onCreateClient) onCreateClient({ id: 'cl' + Date.now(), name: q, industry: 'Sin categoría', color, initials, contact: { name: '—', email: '—', phone: '—' }, tags: [], notes: '', createdAt: new Date().toISOString().slice(0, 10) });
+    onChange(q);
+    setOpen(false);
+  };
+
+  const panel = open && ReactDOM.createPortal(
+    <div
+      ref={panelRef}
+      className="anim-scale-in"
+      style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999,
+        background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--border-2)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden', maxHeight: 280, overflowY: 'auto' }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {filtered.length === 0 && !showCreate && (
+        <div className="px-3 py-4 text-center text-[12px] text-[var(--text-muted)]">Sin resultados</div>
+      )}
+      {filtered.map(c => (
+        <button key={c.id} onClick={() => select(c.name)}
+          className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-[var(--surface-3)] transition-colors text-left"
+        >
+          <div className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+            style={{ background: c.color + '22', color: c.color, border: `1px solid ${c.color}44` }}>
+            {c.initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[12.5px] font-medium truncate">{c.name}</div>
+            <div className="text-[10px] text-[var(--text-muted)] truncate">{c.industry}</div>
+          </div>
+          {value === c.name && <Icon name="check" size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
+        </button>
+      ))}
+      {showCreate && (
+        <div className={filtered.length > 0 ? 'border-t border-app' : ''}>
+          <button onClick={createAndSelect}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--surface-3)] transition-colors text-left"
+          >
+            <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--accent-soft)' }}>
+              <Icon name="plus" size={11} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div>
+              <div className="text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>Crear cliente</div>
+              <div className="text-[10px] text-[var(--text-muted)]">"{query.trim()}"</div>
+            </div>
+          </button>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+
+  return (
+    <>
+      <div ref={wrapRef} onClick={openDropdown}
+        className="flex items-center gap-2 px-2 py-1 -mx-2 rounded hover:bg-[var(--surface-2)] cursor-pointer transition-colors"
+      >
+        {matched && !open && (
+          <div className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center text-[8px] font-bold"
+            style={{ background: matched.color + '22', color: matched.color }}>
+            {matched.initials.slice(0, 1)}
+          </div>
+        )}
+        {open ? (
+          <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { if (filtered.length > 0) select(filtered[0].name); else if (showCreate) createAndSelect(); else { onChange(query.trim()); setOpen(false); } }
+              if (e.key === 'Escape') setOpen(false);
+            }}
+            className="flex-1 text-sm bg-transparent outline-none"
+            placeholder="Buscar o escribir cliente…"
+            style={{ minWidth: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="text-sm truncate">{value || <span className="text-[var(--text-muted)]">Sin cliente</span>}</span>
+        )}
+      </div>
+      {panel}
+    </>
+  );
+};
+
 // ── Clients section (main) ───────────────────────────────────────
-const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, openClientId, onOpenClient, onCloseClient }) => {
+const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onDeleteClient, openClientId, onOpenClient, onCloseClient }) => {
   const [search, setSearch]   = useState('');
   const [showNew, setShowNew] = useState(false);
 
@@ -630,6 +803,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, ope
           projects={projects}
           onClose={onCloseClient}
           onUpdate={onUpdateClient}
+          onDelete={onDeleteClient}
         />
       )}
 
@@ -644,4 +818,4 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, ope
   );
 };
 
-Object.assign(window, { ClientsSection, SEED_CLIENTS });
+Object.assign(window, { ClientsSection, ClientAutocomplete, SEED_CLIENTS });
