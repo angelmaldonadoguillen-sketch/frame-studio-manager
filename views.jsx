@@ -3,12 +3,13 @@
 // ─────────────────────────────────────────────────────────────────
 
 // ── Project mini card (used in calendar + kanban) ──────────────
-const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact }) => {
+const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete }) => {
   const t = getType(project.type);
   const days = daysUntil(project.deadline);
   const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
   const isOverdue = days < 0 && project.status !== 'delivered' && project.status !== 'archived';
   const progress = progressOf(project);
+  const [confirmDel, setConfirmDel] = React.useState(false);
 
   return (
     <div
@@ -16,19 +17,45 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`group lift cursor-pointer rounded-lg border surface-2 overflow-hidden ${dragging ? 'dragging' : ''}`}
+      className={`group lift cursor-pointer rounded-lg border surface-2 overflow-hidden relative ${dragging ? 'dragging' : ''}`}
       style={{ borderColor: 'var(--border)' }}
     >
       <div className="h-1" style={{ background: t.color }}></div>
       <div className={compact ? 'p-2.5' : 'p-3'}>
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <TypePill type={project.type} />
-          {isUrgent && (
-            <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>
-          )}
-          {isOverdue && (
-            <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
-          )}
+          <div className="flex items-center gap-1">
+            {isUrgent && (
+              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>
+            )}
+            {isOverdue && (
+              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
+            )}
+            {/* Delete button */}
+            {onDelete && !confirmDel && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all"
+              >
+                <Icon name="trash" size={11} />
+              </button>
+            )}
+            {onDelete && confirmDel && (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <span className="text-[9px] font-semibold" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded transition-colors"
+                  style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+                >Sí</button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }}
+                  className="text-[9px] font-medium px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-white"
+                  style={{ background: 'var(--surface-3)' }}
+                >No</button>
+              </div>
+            )}
+          </div>
         </div>
         <div className={`font-display font-semibold balance leading-tight mb-1 ${compact ? 'text-[12.5px]' : 'text-[13.5px]'}`}>
           {project.title}
@@ -53,7 +80,7 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
 };
 
 // ── KANBAN VIEW ─────────────────────────────────────────────────
-const KanbanView = ({ projects, onOpenProject, onUpdateProject }) => {
+const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject }) => {
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
   const visibleStatuses = STATUSES.filter(s => s.id !== 'archived');
@@ -106,6 +133,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject }) => {
                     onDragStart={() => setDraggingId(p.id)}
                     onDragEnd={() => { setDraggingId(null); setDragOverCol(null); }}
                     dragging={draggingId === p.id}
+                    onDelete={onDeleteProject}
                   />
                 ))}
                 {items.length === 0 && (
@@ -124,7 +152,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject }) => {
 };
 
 // ── CALENDAR VIEW ───────────────────────────────────────────────
-const CalendarView = ({ projects, onOpenProject }) => {
+const CalendarView = ({ projects, onOpenProject, onDeleteProject }) => {
   const [refDate, setRefDate] = useState(new Date(TODAY));
   const [mode, setMode] = useState('month'); // month | week | day
 
@@ -251,16 +279,16 @@ const CalendarView = ({ projects, onOpenProject }) => {
       )}
 
       {mode === 'week' && (
-        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} />
+        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} />
       )}
       {mode === 'day' && (
-        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} />
+        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} />
       )}
     </div>
   );
 };
 
-const WeekView = ({ refDate, projectsByDate, onOpenProject }) => {
+const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject }) => {
   const start = new Date(refDate);
   const day = (start.getDay() + 6) % 7;
   start.setDate(start.getDate() - day);
@@ -289,7 +317,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject }) => {
             <div className="p-2 space-y-2">
               {items.length === 0 && <div className="text-[10px] text-[var(--text-muted)] text-center py-6">—</div>}
               {items.map(p => (
-                <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} compact />
+                <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} compact onDelete={onDeleteProject} />
               ))}
             </div>
           </div>
@@ -299,7 +327,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject }) => {
   );
 };
 
-const DayView = ({ refDate, projectsByDate, onOpenProject }) => {
+const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject }) => {
   const iso = refDate.toISOString().slice(0, 10);
   const items = projectsByDate[iso] || [];
   return (
@@ -317,7 +345,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject }) => {
           </div>
         )}
         {items.map(p => (
-          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} />
+          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} />
         ))}
       </div>
     </div>
@@ -325,22 +353,23 @@ const DayView = ({ refDate, projectsByDate, onOpenProject }) => {
 };
 
 // ── GALLERY VIEW ────────────────────────────────────────────────
-const GalleryView = ({ projects, onOpenProject }) => {
+const GalleryView = ({ projects, onOpenProject, onDeleteProject }) => {
   if (projects.length === 0) return <EmptyState />;
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-        {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} />)}
+        {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} />)}
       </div>
     </div>
   );
 };
 
-const GalleryCard = ({ project, onClick }) => {
+const GalleryCard = ({ project, onClick, onDelete }) => {
   const t = getType(project.type);
   const progress = progressOf(project);
   const days = daysUntil(project.deadline);
   const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
+  const [confirmDel, setConfirmDel] = React.useState(false);
 
   return (
     <div
@@ -355,11 +384,41 @@ const GalleryCard = ({ project, onClick }) => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
           <TypePill type={project.type} />
-          {isUrgent && (
-            <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>
-              URGENTE
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {isUrgent && (
+              <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>
+                URGENTE
+              </span>
+            )}
+            {/* Delete button */}
+            {onDelete && !confirmDel && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all"
+                style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)' }}
+              >
+                <Icon name="trash" size={12} />
+              </button>
+            )}
+            {onDelete && confirmDel && (
+              <div
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md"
+                style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-[10px] font-semibold text-white">¿Eliminar?</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
+                  className="text-[10px] font-bold px-2 py-0.5 rounded"
+                  style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+                >Sí</button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }}
+                  className="text-[10px] text-white/60 hover:text-white px-1"
+                >No</button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="absolute bottom-3 left-3 right-3">
           <StatusPill status={project.status} />
@@ -389,72 +448,105 @@ const GalleryCard = ({ project, onClick }) => {
 };
 
 // ── LIST VIEW ───────────────────────────────────────────────────
-const ListView = ({ projects, onOpenProject }) => {
+const ListRow = ({ p, onOpenProject, onDeleteProject }) => {
+  const t = getType(p.type);
+  const days = daysUntil(p.deadline);
+  const isUrgent = days >= 0 && days < 3 && p.status !== 'delivered' && p.status !== 'archived';
+  const isOverdue = days < 0 && p.status !== 'delivered' && p.status !== 'archived';
+  const progress = progressOf(p);
+  const [confirmDel, setConfirmDel] = React.useState(false);
+
+  return (
+    <tr
+      key={p.id}
+      onClick={() => onOpenProject(p.id)}
+      className="group cursor-pointer border-b border-app hover:bg-[var(--surface-2)] transition-colors"
+    >
+      <td className="px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-1 h-8 rounded-full" style={{ background: t.color }}></div>
+          <div className="min-w-0">
+            <div className="font-medium truncate">{p.title}</div>
+            <div className="text-[11px] text-[var(--text-muted)] font-mono">
+              {p.tags.slice(0, 2).map(tag => '#' + tag).join(' ')}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-3 text-[var(--text-dim)]">{p.client}</td>
+      <td className="px-3 py-3"><TypePill type={p.type} /></td>
+      <td className="px-3 py-3"><StatusPill status={p.status} /></td>
+      <td className="px-3 py-3"><AvatarStack ids={p.assignees} size={20} max={3} /></td>
+      <td className="px-3 py-3 font-mono text-[12px]">
+        <div className="flex items-center gap-2">
+          <span className={isOverdue ? 'text-[#FF6B6B]' : 'text-[var(--text-dim)]'}>
+            {fmtDate(p.deadline)}
+          </span>
+          {isUrgent && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>}
+          {isOverdue && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>}
+        </div>
+      </td>
+      <td className="px-3 py-3"><PriorityBadge priority={p.priority} /></td>
+      <td className="px-3 py-3">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+            <div className="h-full" style={{ width: progress + '%', background: t.color }}></div>
+          </div>
+          <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-muted)' }}>{progress}%</span>
+        </div>
+      </td>
+      {/* Acción eliminar */}
+      <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+        {onDeleteProject && !confirmDel && (
+          <button
+            onClick={() => setConfirmDel(true)}
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all"
+          >
+            <Icon name="trash" size={13} />
+          </button>
+        )}
+        {onDeleteProject && confirmDel && (
+          <div className="flex items-center justify-end gap-1.5">
+            <span className="text-[10px] font-semibold" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
+            <button
+              onClick={() => onDeleteProject(p.id)}
+              className="text-[10px] font-bold px-2 py-0.5 rounded"
+              style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+            >Sí</button>
+            <button
+              onClick={() => setConfirmDel(false)}
+              className="text-[10px] text-[var(--text-muted)] hover:text-white px-1.5 py-0.5 rounded"
+              style={{ background: 'var(--surface-3)' }}
+            >No</button>
+          </div>
+        )}
+      </td>
+    </tr>
+  );
+};
+
+const ListView = ({ projects, onOpenProject, onDeleteProject }) => {
   if (projects.length === 0) return <EmptyState />;
   return (
     <div className="h-full overflow-auto">
       <table className="w-full text-[13px]">
         <thead className="sticky top-0 z-10 surface" style={{ background: 'var(--surface)' }}>
           <tr className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)]">
-            <th className="text-left px-5 py-3 font-semibold border-b border-app w-[36%]">Proyecto</th>
+            <th className="text-left px-5 py-3 font-semibold border-b border-app w-[34%]">Proyecto</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Cliente</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Tipo</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Estado</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Equipo</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Deadline</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Prio</th>
-            <th className="text-left px-3 py-3 font-semibold border-b border-app w-[120px]">Progreso</th>
+            <th className="text-left px-3 py-3 font-semibold border-b border-app w-[110px]">Progreso</th>
+            <th className="text-left px-3 py-3 font-semibold border-b border-app w-[60px]"></th>
           </tr>
         </thead>
         <tbody>
-          {projects.map(p => {
-            const t = getType(p.type);
-            const days = daysUntil(p.deadline);
-            const isUrgent = days >= 0 && days < 3 && p.status !== 'delivered' && p.status !== 'archived';
-            const isOverdue = days < 0 && p.status !== 'delivered' && p.status !== 'archived';
-            const progress = progressOf(p);
-            return (
-              <tr
-                key={p.id}
-                onClick={() => onOpenProject(p.id)}
-                className="cursor-pointer border-b border-app hover:bg-[var(--surface-2)] transition-colors"
-              >
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-1 h-8 rounded-full" style={{ background: t.color }}></div>
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{p.title}</div>
-                      <div className="text-[11px] text-[var(--text-muted)] font-mono">
-                        {p.tags.slice(0, 2).map(t => '#' + t).join(' ')}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-[var(--text-dim)]">{p.client}</td>
-                <td className="px-3 py-3"><TypePill type={p.type} /></td>
-                <td className="px-3 py-3"><StatusPill status={p.status} /></td>
-                <td className="px-3 py-3"><AvatarStack ids={p.assignees} size={20} max={3} /></td>
-                <td className="px-3 py-3 font-mono text-[12px]">
-                  <div className="flex items-center gap-2">
-                    <span className={isOverdue ? 'text-[#FF6B6B]' : 'text-[var(--text-dim)]'}>
-                      {fmtDate(p.deadline)}
-                    </span>
-                    {isUrgent && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>}
-                    {isOverdue && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-3"><PriorityBadge priority={p.priority} /></td>
-                <td className="px-3 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                      <div className="h-full" style={{ width: progress + '%', background: t.color }}></div>
-                    </div>
-                    <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-muted)' }}>{progress}%</span>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
+          {projects.map(p => (
+            <ListRow key={p.id} p={p} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} />
+          ))}
         </tbody>
       </table>
     </div>

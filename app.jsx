@@ -63,6 +63,7 @@ function reducer(state, action) {
     case 'clear_filter':   return { ...state, filters: { ...state.filters, [action.key]: state.filters[action.key].filter(x => x !== action.value) } };
     case 'clear_all_filters': return { ...state, filters: { status: [], type: [], assignee: [], priority: [] }, search: '' };
     case 'set_projects':       return { ...state, projects: action.projects, loading: false };
+    case 'delete_project':     return { ...state, projects: state.projects.filter(p => p.id !== action.id), openProjectId: state.openProjectId === action.id ? null : state.openProjectId };
     case 'set_sidebar_filter': return { ...state, sidebarFilter: action.filter, section: 'projects' };
     // ── Clientes ──
     case 'set_clients':   return { ...state, clients: action.clients, clientsLoading: false };
@@ -787,6 +788,12 @@ const App = () => {
   };
 
   // ── Escrituras a Firestore ──────────────────────────────────
+  const handleDeleteProject = (id) => {
+    dispatch({ type: 'delete_project', id });
+    window.db.collection('frame_projects').doc(id).delete()
+      .catch(err => console.error('Error al eliminar proyecto:', err));
+  };
+
   const handleUpdateProject = (project) => {
     dispatch({ type: 'update_project', project }); // optimistic: actualiza UI al instante
     window.db.collection('frame_projects').doc(project.id).set(project)
@@ -889,10 +896,10 @@ const App = () => {
               <EmptyState />
             ) : (
               <>
-                {state.view === 'kanban'   && <KanbanView   projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onUpdateProject={handleUpdateProject} />}
-                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
-                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
-                {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} />}
+                {state.view === 'kanban'   && <KanbanView   projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onUpdateProject={handleUpdateProject} onDeleteProject={handleDeleteProject} />}
+                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
+                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
+                {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} />}
               </>
             )}
           </div>
