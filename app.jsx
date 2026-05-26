@@ -25,8 +25,12 @@ const initialState = {
   clients: [],
   clientsLoading: true,
   openClientId: null,
+  // ── Equipo ──
+  team: [],
+  teamLoading: true,
+  openMemberId: null,
   // ── Navegación ──
-  section: 'projects', // 'projects' | 'clients'
+  section: 'projects', // 'projects' | 'clients' | 'team'
 };
 
 function reducer(state, action) {
@@ -63,6 +67,12 @@ function reducer(state, action) {
     case 'update_client': return { ...state, clients: state.clients.map(c => c.id === action.client.id ? action.client : c) };
     case 'open_client':   return { ...state, openClientId: action.id };
     case 'close_client':  return { ...state, openClientId: null };
+    // ── Equipo ──
+    case 'set_team':      return { ...state, team: action.team, teamLoading: false };
+    case 'create_member': return { ...state, team: [action.member, ...state.team], openMemberId: action.member.id };
+    case 'update_member': return { ...state, team: state.team.map(m => m.id === action.member.id ? action.member : m) };
+    case 'open_member':   return { ...state, openMemberId: action.id };
+    case 'close_member':  return { ...state, openMemberId: null };
     // ── Navegación ──
     case 'set_section':   return { ...state, section: action.section };
     default: return state;
@@ -142,8 +152,8 @@ const Sidebar = ({ state, dispatch }) => {
         <NavItem icon="archive" label="Archivo"            count={counts.archived}  active={sf === 'archived'}  onClick={() => setFilter('archived')} />
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4">Trabajo</div>
-        <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'} onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
-        <NavItem icon="users"     label="Equipo"    />
+        <NavItem icon="briefcase" label="Clientes" active={state.section === 'clients'} onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
+        <NavItem icon="users"     label="Equipo"   active={state.section === 'team'}    onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
         <NavItem icon="folder"    label="Archivos"  />
         <NavItem icon="settings"  label="Ajustes"   />
 
@@ -550,6 +560,25 @@ const App = () => {
     return () => unsub();
   }, []);
 
+  // ── Firestore: equipo ───────────────────────────────────────
+  useEffect(() => {
+    const col = window.db.collection('frame_users');
+    const unsub = col.onSnapshot(async (snap) => {
+      if (snap.empty) {
+        const batch = window.db.batch();
+        SEED_TEAM.forEach(m => batch.set(col.doc(m.id), m));
+        await batch.commit();
+      } else {
+        const team = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        dispatch({ type: 'set_team', team });
+      }
+    }, (err) => {
+      console.error('Firestore team error:', err);
+      dispatch({ type: 'set_team', team: SEED_TEAM });
+    });
+    return () => unsub();
+  }, []);
+
   // ── Firestore: clientes ─────────────────────────────────────
   useEffect(() => {
     const col = window.db.collection('frame_clients');
@@ -587,6 +616,22 @@ const App = () => {
     }
   };
 
+  const handleUpdateMember = (member) => {
+    dispatch({ type: 'update_member', member });
+    window.db.collection('frame_users').doc(member.id).set(member)
+      .catch(err => console.error('Error al guardar integrante:', err));
+  };
+
+  const handleCreateMember = async (member) => {
+    try {
+      const ref = await window.db.collection('frame_users').add(member);
+      dispatch({ type: 'create_member', member: { ...member, id: ref.id } });
+    } catch (err) {
+      console.error('Error al crear integrante:', err);
+      dispatch({ type: 'create_member', member });
+    }
+  };
+
   const handleUpdateClient = (client) => {
     dispatch({ type: 'update_client', client });
     window.db.collection('frame_clients').doc(client.id).set(client)
@@ -618,6 +663,16 @@ const App = () => {
           openClientId={state.openClientId}
           onOpenClient={(id) => dispatch({ type: 'open_client', id })}
           onCloseClient={() => dispatch({ type: 'close_client' })}
+        />
+      ) : state.section === 'team' ? (
+        <TeamSection
+          team={state.team}
+          projects={state.projects}
+          onCreateMember={handleCreateMember}
+          onUpdateMember={handleUpdateMember}
+          openMemberId={state.openMemberId}
+          onOpenMember={(id) => dispatch({ type: 'open_member', id })}
+          onCloseMember={() => dispatch({ type: 'close_member' })}
         />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
