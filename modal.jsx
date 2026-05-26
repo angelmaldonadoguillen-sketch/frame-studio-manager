@@ -513,7 +513,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, onDelete, currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType }) => {
+const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType }) => {
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
   // Cuando Firestore ya cargó los tipos (customTypes.length > 0) los usa directamente;
@@ -558,6 +558,27 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, currentUserId, tea
   }, [project?.id]);
 
   if (!project) return null;
+
+  // ── Navegación entre proyectos ────────────────────────────────
+  const navList   = projects.length > 0 ? projects : [];
+  const navIdx    = navList.findIndex(p => p.id === project.id);
+  const prevId    = navIdx > 0 ? navList[navIdx - 1].id : null;
+  const nextId    = navIdx >= 0 && navIdx < navList.length - 1 ? navList[navIdx + 1].id : null;
+  const navLabel  = navList.length > 0 ? `${navIdx + 1} / ${navList.length}` : null;
+
+  // ── Teclado: Esc cierra, ← → navega ──────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      const tag = document.activeElement?.tagName;
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
+      if (typing) return;
+      if (e.key === 'ArrowLeft'  && prevId && onNavigate) onNavigate(prevId);
+      if (e.key === 'ArrowRight' && nextId && onNavigate) onNavigate(nextId);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose, onNavigate, prevId, nextId]);
 
   const upd = (patch) => onUpdate({ ...project, ...patch });
   const updField = (key) => (val) => upd({ [key]: val });
@@ -631,6 +652,13 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, currentUserId, tea
       });
   };
 
+  const deleteComment = (commentId) => {
+    setComments(prev => prev.filter(c => c.id !== commentId));
+    window.db.collection('frame_projects').doc(project.id)
+      .collection('comments').doc(commentId).delete()
+      .catch(err => console.error('Error al eliminar comentario:', err));
+  };
+
   const addTag = (text) => {
     if (!text.trim()) return;
     upd({ tags: [...new Set([...project.tags, text.trim()])] });
@@ -681,6 +709,28 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, currentUserId, tea
             <span>{project.client}</span>
             <span>›</span>
             <span className="text-[var(--text-dim)]">Proyecto</span>
+            {/* Navegación posicional */}
+            {navLabel && onNavigate && (
+              <div className="flex items-center gap-0.5 ml-2">
+                <button
+                  onClick={() => prevId && onNavigate(prevId)}
+                  disabled={!prevId}
+                  className="p-1 rounded hover:bg-[var(--surface-2)] disabled:opacity-25 transition-colors"
+                  title="Proyecto anterior (←)"
+                >
+                  <Icon name="chevronLeft" size={13} />
+                </button>
+                <span className="text-[11px] font-mono px-1 select-none">{navLabel}</span>
+                <button
+                  onClick={() => nextId && onNavigate(nextId)}
+                  disabled={!nextId}
+                  className="p-1 rounded hover:bg-[var(--surface-2)] disabled:opacity-25 transition-colors"
+                  title="Proyecto siguiente (→)"
+                >
+                  <Icon name="chevronRight" size={13} />
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1">
             {isUrgent && (
@@ -864,6 +914,16 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, currentUserId, tea
                 />
                 {isUrgent && <span className="text-[10px] font-semibold" style={{ color: '#FF6B6B' }}>en {days}d</span>}
               </div>
+            </PropRow>
+
+            <PropRow icon="camera" label="Fecha sesión">
+              <input
+                type="date"
+                value={project.sessionDate || ''}
+                onChange={(e) => updField('sessionDate')(e.target.value)}
+                className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
+                style={{ colorScheme: 'dark' }}
+              />
             </PropRow>
 
             <PropRow icon="zap" label="Presupuesto">
@@ -1113,6 +1173,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, currentUserId, tea
                 newComment={newComment}
                 setNewComment={setNewComment}
                 onSend={addComment}
+                onDeleteComment={deleteComment}
               />
             )}
           </div>
@@ -1134,11 +1195,31 @@ const SectionTitle = ({ icon, right, children }) => (
 
 const TagAdd = ({ onAdd }) => {
   const [v, setV] = useState('');
+
+  const flush = (raw) => {
+    raw.split(/[,;\n]+/).map(t => t.trim()).filter(Boolean).forEach(t => onAdd(t));
+  };
+
   return (
     <input
       value={v}
-      onChange={(e) => setV(e.target.value)}
-      onKeyDown={(e) => { if (e.key === 'Enter') { onAdd(v); setV(''); } }}
+      onChange={(e) => {
+        // Si el usuario escribió una coma, agregar el tag inmediatamente
+        if (e.target.value.includes(',')) {
+          flush(e.target.value);
+          setV('');
+        } else {
+          setV(e.target.value);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { flush(v); setV(''); }
+      }}
+      onPaste={(e) => {
+        e.preventDefault();
+        flush(e.clipboardData.getData('text'));
+        setV('');
+      }}
       placeholder="+ tag"
       className="px-2 py-0.5 rounded-md text-[11px] bg-transparent border border-dashed border-[var(--border-2)] focus:border-[var(--accent)] hover:border-[var(--text-muted)]"
       style={{ width: 70 }}
@@ -1352,7 +1433,7 @@ const DescriptionEditor = ({ blocks, onChange }) => {
   );
 };
 
-const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], resolveUser, newComment, setNewComment, onSend }) => {
+const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], resolveUser, newComment, setNewComment, onSend, onDeleteComment }) => {
   const resolve = resolveUser || ((id) => team.find(m => m.id === id) || getUser(id));
   const me = resolve(currentUserId);
   const [showMentions, setShowMentions] = useState(false);
@@ -1387,8 +1468,9 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
         )}
         {comments.map(c => {
           const u = resolve(c.userId);
+          const isOwn = c.userId === currentUserId;
           return (
-            <div key={c.id} className="flex gap-3">
+            <div key={c.id} className="group flex gap-3">
               <Avatar user={u} size={32} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
@@ -1396,6 +1478,15 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                   <span className="text-[11px] text-[var(--text-muted)]">{u?.role}</span>
                   <span className="text-[11px] text-[var(--text-muted)]">·</span>
                   <span className="text-[11px] text-[var(--text-muted)]">{relativeTime(c.at)}</span>
+                  {isOwn && onDeleteComment && (
+                    <button
+                      onClick={() => onDeleteComment(c.id)}
+                      className="ml-auto opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] transition-all"
+                      title="Eliminar comentario"
+                    >
+                      <Icon name="trash" size={11} />
+                    </button>
+                  )}
                 </div>
                 <div className="text-[14px] leading-relaxed pretty">{renderWithMentions(c.text)}</div>
               </div>

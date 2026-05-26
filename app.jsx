@@ -1245,7 +1245,10 @@ const App = () => {
 
       {openProject && (
         <ProjectModal
+          key={openProject.id}
           project={openProject}
+          projects={filtered}
+          onNavigate={(id) => dispatch({ type: 'open_project', id })}
           currentUserId={state.currentUserId}
           team={state.team}
           clients={state.clients}
