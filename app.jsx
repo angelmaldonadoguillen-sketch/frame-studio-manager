@@ -2,7 +2,7 @@
 // APP — Sidebar + Header + Filters + Active view + Modal
 // ─────────────────────────────────────────────────────────────────
 
-const { useReducer, useEffect } = React;
+const { useReducer, useEffect, useState, useMemo } = React;
 
 // ── Initial state + reducer ─────────────────────────────────────
 const initialState = {
@@ -80,7 +80,7 @@ function reducer(state, action) {
 }
 
 // ── Sidebar ─────────────────────────────────────────────────────
-const Sidebar = ({ state, dispatch }) => {
+const Sidebar = ({ state, dispatch, onSignOut }) => {
   const recentProjects = state.projects.slice(0, 5);
   const me = getUser(state.currentUserId);
 
@@ -109,37 +109,22 @@ const Sidebar = ({ state, dispatch }) => {
         </div>
       </div>
 
-      {/* User selector */}
+      {/* Usuario autenticado */}
       <div className="px-3 py-3 border-b border-app">
-        <Dropdown
-          width={232}
-          trigger={
-            <button className="w-full flex items-center gap-2.5 p-2 rounded-md hover:bg-[var(--surface-2)]">
-              <Avatar user={me} size={32} />
-              <div className="flex-1 text-left min-w-0">
-                <div className="text-[12.5px] font-semibold truncate">{me.name}</div>
-                <div className="text-[10px] text-[var(--text-muted)]">{me.role}</div>
-              </div>
-              <Icon name="chevronDown" size={12} className="text-[var(--text-muted)]" />
-            </button>
-          }
-        >
-          {(close) => (
-            <>
-              <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5">Cambiar de usuario</div>
-              {USERS.map(u => (
-                <MenuItem key={u.id} active={u.id === state.currentUserId} onClick={() => { dispatch({ type: 'set_user', id: u.id }); close(); }}>
-                  <Avatar user={u} size={22} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12px] truncate">{u.name}</div>
-                    <div className="text-[10px] text-[var(--text-muted)]">{u.role}</div>
-                  </div>
-                  {u.id === state.currentUserId && <Icon name="check" size={12} style={{ color: 'var(--accent)' }} />}
-                </MenuItem>
-              ))}
-            </>
-          )}
-        </Dropdown>
+        <div className="flex items-center gap-2.5 px-2 py-1.5">
+          <Avatar user={me} size={32} />
+          <div className="flex-1 min-w-0">
+            <div className="text-[12.5px] font-semibold truncate">{me.name}</div>
+            <div className="text-[10px] text-[var(--text-muted)] truncate">{me.role}</div>
+          </div>
+          <button
+            onClick={onSignOut}
+            title="Cerrar sesión"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-colors flex-shrink-0"
+          >
+            <Icon name="logOut" size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Nav */}
@@ -532,8 +517,11 @@ const LoadingScreen = () => (
 
 // ── App root ────────────────────────────────────────────────────
 const App = () => {
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const filtered = useMemo(() => applyFilters(state), [state]);
+  const [state, dispatch]         = useReducer(reducer, initialState);
+  const [authUser, setAuthUser]   = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  const filtered    = useMemo(() => applyFilters(state), [state]);
   const openProject = state.openProjectId ? state.projects.find(p => p.id === state.openProjectId) : null;
 
   // ── Firestore sync ──────────────────────────────────────────
@@ -598,6 +586,25 @@ const App = () => {
     return () => unsub();
   }, []);
 
+  // ── Firebase Auth: sesión ───────────────────────────────────
+  useEffect(() => {
+    const unsub = firebase.auth().onAuthStateChanged((user) => {
+      setAuthUser(user);
+      setAuthChecked(true);
+    });
+    return () => unsub();
+  }, []);
+
+  // ── Sync email autenticado → currentUserId del equipo ───────
+  useEffect(() => {
+    if (!authUser || state.team.length === 0) return;
+    const email  = (authUser.email || '').toLowerCase();
+    const member = state.team.find(m => (m.email || '').toLowerCase() === email);
+    if (member && member.id !== state.currentUserId) {
+      dispatch({ type: 'set_user', id: member.id });
+    }
+  }, [authUser, state.team.length]);
+
   // ── Escrituras a Firestore ──────────────────────────────────
   const handleUpdateProject = (project) => {
     dispatch({ type: 'update_project', project }); // optimistic: actualiza UI al instante
@@ -648,11 +655,13 @@ const App = () => {
     }
   };
 
+  if (!authChecked)  return <LoadingScreen />;
+  if (!authUser)     return <LoginScreen />;
   if (state.loading) return <LoadingScreen />;
 
   return (
     <div className="h-screen flex" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
-      <Sidebar state={state} dispatch={dispatch} />
+      <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} />
 
       {state.section === 'clients' ? (
         <ClientsSection

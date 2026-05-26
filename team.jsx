@@ -699,4 +699,4 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, openMembe
   );
 };
 
-Object.assign(window, { TeamSection, SEED_TEAM });
+Object.assign(window, { TeamSection, SEED_TEAM, TEAM_COLORS });
