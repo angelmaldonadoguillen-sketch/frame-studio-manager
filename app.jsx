@@ -78,6 +78,7 @@ function reducer(state, action) {
     case 'set_team':      return { ...state, team: action.team, teamLoading: false };
     case 'create_member': return { ...state, team: [action.member, ...state.team], openMemberId: action.member.id };
     case 'update_member': return { ...state, team: state.team.map(m => m.id === action.member.id ? action.member : m) };
+    case 'delete_member': return { ...state, team: state.team.filter(m => m.id !== action.id), openMemberId: state.openMemberId === action.id ? null : state.openMemberId };
     case 'open_member':   return { ...state, openMemberId: action.id };
     case 'close_member':  return { ...state, openMemberId: null };
     // ── Navegación ──
@@ -196,12 +197,15 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
       <div className="border-t border-app p-3">
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1">Equipo en línea</div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {USERS.slice(0, 5).map(u => (
+          {(state.team || []).slice(0, 5).map(u => (
             <div key={u.id} className="relative" title={u.name}>
               <Avatar user={u} size={26} />
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-2 ring-[var(--surface)]" style={{ background: '#7DD3C0' }}></span>
             </div>
           ))}
+          {(state.team || []).length === 0 && (
+            <span className="text-[10px] text-[var(--text-muted)]">Sin integrantes</span>
+          )}
         </div>
       </div>
     </aside>
@@ -389,7 +393,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
         <FilterDropdown label="Estado"    icon="dot"   filterKey="status"   options={STATUSES}                                                               state={state} dispatch={dispatch} />
         <FilterDropdown label="Tipo"      icon="film"  filterKey="type"     options={PROJECT_TYPES}                                                           state={state} dispatch={dispatch} />
         <FilterDropdown label="Prioridad" icon="flag"  filterKey="priority" options={PRIORITIES}                                                              state={state} dispatch={dispatch} />
-        <FilterDropdown label="Equipo"    icon="users" filterKey="assignee" options={USERS.map(u => ({ id: u.id, label: u.name, color: u.color }))}           state={state} dispatch={dispatch} />
+        <FilterDropdown label="Equipo"    icon="users" filterKey="assignee" options={(state.team || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
 
         <div className="flex-1"></div>
 
@@ -698,18 +702,13 @@ const App = () => {
   // ── Firestore: equipo ───────────────────────────────────────
   useEffect(() => {
     const col = window.db.collection('frame_users');
-    const unsub = col.onSnapshot(async (snap) => {
-      if (snap.empty) {
-        const batch = window.db.batch();
-        SEED_TEAM.forEach(m => batch.set(col.doc(m.id), m));
-        await batch.commit();
-      } else {
-        const team = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        dispatch({ type: 'set_team', team });
-      }
+    const unsub = col.onSnapshot((snap) => {
+      // No seeding — only real registered users
+      const team = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      dispatch({ type: 'set_team', team });
     }, (err) => {
       console.error('Firestore team error:', err);
-      dispatch({ type: 'set_team', team: SEED_TEAM });
+      dispatch({ type: 'set_team', team: [] });
     });
     return () => unsub();
   }, []);
@@ -864,6 +863,12 @@ const App = () => {
       .catch(err => console.error('Error al crear proyecto:', err));
   };
 
+  const handleDeleteMember = (id) => {
+    dispatch({ type: 'delete_member', id });
+    window.db.collection('frame_users').doc(id).delete()
+      .catch(err => console.error('Error al eliminar integrante:', err));
+  };
+
   const handleUpdateMember = (member) => {
     dispatch({ type: 'update_member', member });
     window.db.collection('frame_users').doc(member.id).set(member)
@@ -919,6 +924,7 @@ const App = () => {
           projects={state.projects}
           onCreateMember={handleCreateMember}
           onUpdateMember={handleUpdateMember}
+          onDeleteMember={handleDeleteMember}
           openMemberId={state.openMemberId}
           onOpenMember={(id) => dispatch({ type: 'open_member', id })}
           onCloseMember={() => dispatch({ type: 'close_member' })}

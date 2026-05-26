@@ -202,7 +202,8 @@ const MemberCard = ({ member, projects, onClick }) => {
 };
 
 // ── Member detail panel ──────────────────────────────────────────
-const MemberDetail = ({ member, projects, onClose, onUpdate }) => {
+const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete }) => {
+  const [confirmDel, setConfirmDel] = useState(false);
   if (!member) return null;
 
   const all    = projects.filter(p => (p.assignees || []).includes(member.id));
@@ -417,6 +418,49 @@ const MemberDetail = ({ member, projects, onClose, onUpdate }) => {
                 </div>
               )}
             </section>
+
+            {/* ── Danger zone: eliminar integrante ── */}
+            {onDelete && (
+              <section className="pt-2">
+                {!confirmDel ? (
+                  <button
+                    onClick={() => setConfirmDel(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[12.5px] transition-colors"
+                    style={{ color: '#FF6B6B', border: '1px dashed #FF6B6B44' }}
+                  >
+                    <Icon name="trash" size={13} />
+                    Eliminar integrante
+                  </button>
+                ) : (
+                  <div className="rounded-lg p-4 border" style={{ background: '#FF6B6B08', borderColor: '#FF6B6B33' }}>
+                    <div className="text-[13px] font-semibold mb-1" style={{ color: '#FF6B6B' }}>
+                      ¿Eliminar a "{member.name}"?
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] mb-3">
+                      {active.length > 0
+                        ? `Tiene ${active.length} proyecto${active.length > 1 ? 's' : ''} activo${active.length > 1 ? 's' : ''}. Se eliminará el perfil pero los proyectos conservarán su asignación.`
+                        : 'Se eliminará el perfil del directorio.'}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { onDelete(member.id); onClose(); }}
+                        className="flex-1 py-1.5 rounded-md text-[12.5px] font-semibold"
+                        style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+                      >
+                        Sí, eliminar
+                      </button>
+                      <button
+                        onClick={() => setConfirmDel(false)}
+                        className="flex-1 py-1.5 rounded-md text-[12.5px] text-[var(--text-muted)] hover:text-white transition-colors"
+                        style={{ background: 'var(--surface-3)' }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         </div>
       </div>
@@ -546,7 +590,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
 };
 
 // ── Team section (main) ──────────────────────────────────────────
-const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, openMemberId, onOpenMember, onCloseMember }) => {
+const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember }) => {
   const [search, setSearch]         = useState('');
   const [filterAvail, setFilterAvail] = useState('all');
   const [showNew, setShowNew]       = useState(false);
@@ -686,6 +730,7 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, openMembe
           projects={projects}
           onClose={onCloseMember}
           onUpdate={onUpdateMember}
+          onDelete={onDeleteMember}
         />
       )}
 

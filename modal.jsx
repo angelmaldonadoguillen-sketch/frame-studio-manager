@@ -593,13 +593,17 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
                     <div className="flex items-center gap-2">
                       <AvatarStack ids={project.assignees} size={22} />
                       <span className="text-[12px] text-[var(--text-dim)]">
-                        {project.assignees.map(id => getUser(id)?.name.split(' ')[0]).join(', ')}
+                        {project.assignees.map(id => resolveUser(id)?.name.split(' ')[0]).join(', ')}
                       </span>
                     </div>
                   ) : <span className="text-[var(--text-muted)] text-sm">Sin asignar</span>}
                 </button>
               } width={240}>
-                {USERS.map(u => (
+                {team.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-[12px] text-[var(--text-muted)]">
+                    Sin integrantes registrados
+                  </div>
+                ) : team.map(u => (
                   <MenuItem key={u.id} onClick={() => toggleAssignee(u.id)} active={project.assignees.includes(u.id)}>
                     <Avatar user={u} size={20} />
                     <div className="flex-1 min-w-0">
