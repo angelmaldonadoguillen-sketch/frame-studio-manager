@@ -946,6 +946,175 @@ const EmptyState = ({ message = 'No hay proyectos que coincidan con tus filtros'
   </div>
 );
 
+// ── TRASH SECTION ────────────────────────────────────────────────
+const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
+  const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+  const [confirmId, setConfirmId] = React.useState(null); // permanent-delete confirm
+
+  const deletedAgo = (iso) => {
+    const ms = Date.now() - new Date(iso).getTime();
+    const d  = Math.floor(ms / 86400000);
+    const h  = Math.floor((ms % 86400000) / 3600000);
+    if (d > 0) return `hace ${d}d`;
+    if (h > 0) return `hace ${h}h`;
+    return 'hace un momento';
+  };
+
+  const daysLeft = (iso) => {
+    const remaining = FIVE_DAYS_MS - (Date.now() - new Date(iso).getTime());
+    return Math.max(0, Math.ceil(remaining / 86400000));
+  };
+
+  // sort: most recently deleted first
+  const sorted = [...trash].sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
+
+  return (
+    <main className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-app flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-3)' }}>
+          <Icon name="trash" size={15} className="text-[var(--text-muted)]" />
+        </div>
+        <div>
+          <h2 className="font-display font-bold text-[16px]" style={{ letterSpacing: '-0.01em' }}>Papelera de reciclaje</h2>
+          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            Los proyectos se eliminan permanentemente a los <strong className="text-[var(--text-dim)]">5 días</strong>
+          </p>
+        </div>
+        {trash.length > 0 && (
+          <span className="ml-auto text-[11px] font-mono px-2 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+            {trash.length} {trash.length === 1 ? 'proyecto' : 'proyectos'}
+          </span>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {sorted.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 pb-20">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+              <Icon name="trash" size={28} className="text-[var(--text-muted)]" />
+            </div>
+            <div className="text-center">
+              <p className="font-semibold text-[15px] mb-1">Papelera vacía</p>
+              <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Los proyectos eliminados aparecerán aquí</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2 max-w-2xl">
+            {sorted.map(item => {
+              const t   = getType(item.type);
+              const dl  = daysLeft(item.deletedAt);
+              const pct = progressOf(item);
+              const isUrgent = dl <= 1;
+              const isConfirming = confirmId === item.id;
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all"
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: isUrgent ? '#FF6B6B44' : 'var(--border)',
+                  }}
+                >
+                  {/* Color strip */}
+                  <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: t.color }}></div>
+
+                  {/* Main info */}
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <div className="font-semibold text-[13px] truncate">{item.title}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {item.client && (
+                        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{item.client}</span>
+                      )}
+                      <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>·</span>
+                      <span className="text-[11px] flex items-center gap-1 font-medium" style={{ color: t.color }}>
+                        <Icon name={t.icon} size={10} />{t.label}
+                      </span>
+                      {pct > 0 && (
+                        <>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>·</span>
+                          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{pct}%</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Time indicator */}
+                  <div className="flex-shrink-0 text-right mr-1 min-w-[80px]">
+                    <div
+                      className="text-[11px] font-semibold"
+                      style={{ color: isUrgent ? '#FF6B6B' : 'var(--text-dim)' }}
+                    >
+                      {dl === 0 ? 'Expira hoy' : `${dl}d restantes`}
+                    </div>
+                    <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {deletedAgo(item.deletedAt)}
+                    </div>
+                    {/* Progress bar for time remaining */}
+                    <div className="mt-1 h-0.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)', width: 64 }}>
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${(dl / 5) * 100}%`,
+                          background: isUrgent ? '#FF6B6B' : 'var(--text-muted)',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {isConfirming ? (
+                      <>
+                        <span className="text-[11px] font-medium" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
+                        <button
+                          onClick={() => { onPermanentDelete(item.id); setConfirmId(null); }}
+                          className="px-2.5 py-1 rounded-lg text-[12px] font-semibold"
+                          style={{ background: '#FF6B6B22', color: '#FF6B6B' }}
+                        >
+                          Sí
+                        </button>
+                        <button
+                          onClick={() => setConfirmId(null)}
+                          className="px-2.5 py-1 rounded-lg text-[12px]"
+                          style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+                        >
+                          No
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => onRestore(item)}
+                          className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors hover:opacity-90"
+                          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                          title="Restaurar proyecto"
+                        >
+                          Restaurar
+                        </button>
+                        <button
+                          onClick={() => setConfirmId(item.id)}
+                          className="p-1.5 rounded-lg transition-colors hover:bg-[#FF6B6B18] hover:text-[#FF6B6B]"
+                          style={{ color: 'var(--text-muted)' }}
+                          title="Eliminar permanentemente"
+                        >
+                          <Icon name="x" size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+};
+
 Object.assign(window, {
-  KanbanView, CalendarView, GalleryView, ListView, EmptyState, ProjectCardMini, GalleryCard,
+  KanbanView, CalendarView, GalleryView, ListView, EmptyState, ProjectCardMini, GalleryCard, TrashSection,
 });

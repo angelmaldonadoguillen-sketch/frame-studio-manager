@@ -38,6 +38,9 @@ const initialState = {
   kanbanColumns: [],
   // ── Tipos personalizados ──
   customTypes: [],
+  // ── Papelera ──
+  trash: [],
+  trashLoading: true,
   // ── Vista previa en tarjetas ──
   previewFields: {
     tipo: true, cliente: true, estado: true,
@@ -75,7 +78,11 @@ function reducer(state, action) {
     case 'clear_all_filters': return { ...state, filters: { status: [], type: [], assignee: [], priority: [] }, search: '' };
     case 'set_projects':       return { ...state, projects: action.projects, loading: false };
     case 'delete_project':     return { ...state, projects: state.projects.filter(p => p.id !== action.id), openProjectId: state.openProjectId === action.id ? null : state.openProjectId };
-    case 'set_sidebar_filter': return { ...state, sidebarFilter: action.filter, section: 'projects' };
+    case 'set_sidebar_filter': return { ...state, sidebarFilter: action.filter, section: action.filter === 'trash' ? 'trash' : 'projects' };
+    // ── Papelera ──
+    case 'set_trash':          return { ...state, trash: action.trash, trashLoading: false };
+    case 'remove_from_trash':  return { ...state, trash: state.trash.filter(t => t.id !== action.id) };
+    case 'restore_project':    return { ...state, projects: [action.project, ...state.projects], trash: state.trash.filter(t => t.id !== action.project.id) };
     // ── Clientes ──
     case 'set_clients':   return { ...state, clients: action.clients, clientsLoading: false };
     case 'create_client': return { ...state, clients: [action.client, ...state.clients], openClientId: action.client.id };
@@ -137,6 +144,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
     urgent:    state.projects.filter(p => { const d = daysUntil(p.deadline); return d >= 0 && d < 3 && p.status !== 'delivered' && p.status !== 'archived'; }).length,
     delivered: state.projects.filter(p => p.status === 'delivered').length,
     archived:  state.projects.filter(p => p.status === 'archived').length,
+    trash:     state.trash.length,
   };
   const sf = state.sidebarFilter;
   const setFilter = (f) => dispatch({ type: 'set_sidebar_filter', filter: f });
@@ -182,6 +190,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
         <NavItem icon="alert"   label="Deadlines urgentes" count={counts.urgent}    active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
         <NavItem icon="check"   label="Entregados"         count={counts.delivered} active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
         <NavItem icon="archive" label="Archivo"            count={counts.archived}  active={sf === 'archived'}  onClick={() => setFilter('archived')} />
+        <NavItem icon="trash"   label="Papelera"           count={counts.trash || undefined} active={sf === 'trash'} onClick={() => setFilter('trash')} />
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4">Trabajo</div>
         <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
@@ -902,6 +911,34 @@ const App = () => {
     window.db.collection('frame_config').doc('project_types').set({ types })
       .catch(err => console.error('Error al guardar tipos:', err));
 
+  // ── Firestore: papelera de reciclaje ──────────────────────────
+  useEffect(() => {
+    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+    const col = window.db.collection('frame_trash');
+    const unsub = col.onSnapshot(async (snap) => {
+      const now = Date.now();
+      // Auto-purge items older than 5 days
+      const expired = snap.docs.filter(d => {
+        const deletedAt = d.data().deletedAt;
+        return deletedAt && (now - new Date(deletedAt).getTime()) > FIVE_DAYS_MS;
+      });
+      if (expired.length > 0) {
+        await Promise.all(expired.map(d => d.ref.delete()));
+      }
+      const remaining = snap.docs
+        .filter(d => {
+          const deletedAt = d.data().deletedAt;
+          return deletedAt && (now - new Date(deletedAt).getTime()) <= FIVE_DAYS_MS;
+        })
+        .map(d => ({ ...d.data(), id: d.id }));
+      dispatch({ type: 'set_trash', trash: remaining });
+    }, (err) => {
+      console.error('Trash listener error:', err);
+      dispatch({ type: 'set_trash', trash: [] });
+    });
+    return () => unsub();
+  }, []);
+
   const handleCreateCustomType = (typeObj) => {
     dispatch({ type: 'add_custom_type', typeObj });
     window.db.collection('frame_config').doc('project_types').get()
@@ -1002,27 +1039,54 @@ const App = () => {
 
   // ── Escrituras a Firestore ──────────────────────────────────
   const handleDeleteProject = async (id) => {
+    // 1. Grab full project data before removing from UI
+    const project = state.projects.find(p => p.id === id);
+    // 2. Optimistic UI removal
     dispatch({ type: 'delete_project', id });
     const col = window.db.collection('frame_projects');
     try {
-      // Verificar si existe el doc con ese ID exacto
+      // 3. Move to frame_trash with deletedAt timestamp
+      if (project) {
+        const trashItem = { ...project, deletedAt: new Date().toISOString() };
+        await window.db.collection('frame_trash').doc(id).set(trashItem);
+        console.log('[FRAME] Proyecto movido a papelera:', id);
+      }
+      // 4. Remove from frame_projects
       const snap = await col.doc(id).get();
       if (snap.exists) {
         await col.doc(id).delete();
-        console.log('[FRAME] Proyecto eliminado por doc ID:', id);
       } else {
-        // El proyecto fue creado con add() → doc ID ≠ campo id guardado en data
-        // Buscar por el campo id dentro del documento
         const q = await col.where('id', '==', id).get();
         if (!q.empty) {
           await Promise.all(q.docs.map(d => d.ref.delete()));
-          console.log('[FRAME] Proyecto eliminado por query (add-legacy):', id);
-        } else {
-          console.warn('[FRAME] Proyecto no encontrado en Firestore (ya borrado?):', id);
         }
       }
     } catch (err) {
-      console.error('[FRAME] Error al eliminar proyecto:', err);
+      console.error('[FRAME] Error al mover a papelera:', err);
+    }
+  };
+
+  const handleRestoreProject = async (item) => {
+    // Strip deletedAt before restoring
+    const { deletedAt, ...project } = item;
+    // Optimistic: add back to projects, remove from trash
+    dispatch({ type: 'restore_project', project });
+    try {
+      await window.db.collection('frame_projects').doc(project.id).set(project);
+      await window.db.collection('frame_trash').doc(item.id).delete();
+      console.log('[FRAME] Proyecto restaurado:', item.id);
+    } catch (err) {
+      console.error('[FRAME] Error al restaurar proyecto:', err);
+    }
+  };
+
+  const handlePermanentDelete = async (id) => {
+    dispatch({ type: 'remove_from_trash', id });
+    try {
+      await window.db.collection('frame_trash').doc(id).delete();
+      console.log('[FRAME] Proyecto eliminado permanentemente:', id);
+    } catch (err) {
+      console.error('[FRAME] Error al eliminar permanentemente:', err);
     }
   };
 
@@ -1116,6 +1180,12 @@ const App = () => {
         <SettingsSection
           previewFields={state.previewFields}
           onToggle={handleTogglePreviewField}
+        />
+      ) : state.section === 'trash' ? (
+        <TrashSection
+          trash={state.trash}
+          onRestore={handleRestoreProject}
+          onPermanentDelete={handlePermanentDelete}
         />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
