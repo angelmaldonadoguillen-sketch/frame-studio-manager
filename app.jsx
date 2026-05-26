@@ -2,7 +2,7 @@
 // APP — Sidebar + Header + Filters + Active view + Modal
 // ─────────────────────────────────────────────────────────────────
 
-const { useReducer, useEffect, useState, useMemo } = React;
+const { useReducer, useEffect, useState, useMemo, useRef } = React;
 
 // ── Initial state + reducer ─────────────────────────────────────
 const initialState = {
@@ -31,6 +31,9 @@ const initialState = {
   openMemberId: null,
   // ── Navegación ──
   section: 'projects', // 'projects' | 'clients' | 'team'
+  // ── Notificaciones ──
+  notifications: [],
+  notifsLoading: true,
 };
 
 function reducer(state, action) {
@@ -75,9 +78,26 @@ function reducer(state, action) {
     case 'close_member':  return { ...state, openMemberId: null };
     // ── Navegación ──
     case 'set_section':   return { ...state, section: action.section };
+    // ── Notificaciones ──
+    case 'set_notifs':           return { ...state, notifications: action.notifications, notifsLoading: false };
+    case 'mark_notif_read':      return { ...state, notifications: state.notifications.map(n => n.id === action.id ? { ...n, read: true } : n) };
+    case 'mark_all_notifs_read': return { ...state, notifications: state.notifications.map(n => ({ ...n, read: true })) };
     default: return state;
   }
 }
+
+// ── Helper global para crear notificaciones ──────────────────────────────
+window.pushNotif = (toUserId, data) => {
+  if (!toUserId) return;
+  const id = 'n' + Date.now() + Math.random().toString(36).slice(2, 6);
+  return window.db
+    .collection('frame_notifications')
+    .doc(String(toUserId))
+    .collection('items')
+    .doc(id)
+    .set({ id, ...data, read: false, createdAt: new Date().toISOString() })
+    .catch(err => console.error('pushNotif error:', err));
+};
 
 // ── Sidebar ─────────────────────────────────────────────────────
 const Sidebar = ({ state, dispatch, onSignOut }) => {
@@ -193,8 +213,121 @@ const NavItem = ({ icon, label, count, active, accent, onClick }) => (
   </button>
 );
 
+// ── Notification Panel ──────────────────────────────────────────
+const NotificationPanel = ({ notifications, onMarkRead, onMarkAllRead, onOpenProject }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const unread = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const timeAgo = (iso) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'ahora';
+    if (mins < 60) return `hace ${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `hace ${hrs}h`;
+    return `hace ${Math.floor(hrs / 24)}d`;
+  };
+
+  const notifIcon = (type) => {
+    if (type === 'mention') return 'at';
+    if (type === 'comment') return 'message';
+    if (type === 'status')  return 'zap';
+    return 'bell';
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`p-2 rounded-md transition-colors relative ${open ? 'bg-[var(--surface-2)] text-white' : 'text-[var(--text-dim)] hover:text-white hover:bg-[var(--surface-2)]'}`}
+      >
+        <Icon name="bell" size={15} />
+        {unread > 0 && (
+          <span
+            className="absolute top-0.5 right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full text-[8px] font-bold flex items-center justify-center"
+            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+          >
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-2 w-80 rounded-xl border shadow-2xl overflow-hidden anim-scale-in z-50"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-app">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-[13px]">Notificaciones</span>
+              {unread > 0 && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'var(--accent)', color: '#0a0a0b' }}>{unread}</span>
+              )}
+            </div>
+            {unread > 0 && (
+              <button onClick={onMarkAllRead} className="text-[11px] text-[var(--text-muted)] hover:text-white transition-colors">
+                Marcar todo leído
+              </button>
+            )}
+          </div>
+
+          {/* List */}
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="px-4 py-10 text-center">
+                <Icon name="bell" size={22} className="mx-auto mb-2 text-[var(--text-muted)]" />
+                <div className="text-[12px] text-[var(--text-muted)]">Sin notificaciones</div>
+              </div>
+            ) : (
+              notifications.slice(0, 25).map(n => (
+                <button
+                  key={n.id}
+                  onClick={() => {
+                    onMarkRead(n.id);
+                    if (n.projectId) { onOpenProject(n.projectId); setOpen(false); }
+                  }}
+                  className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-app hover:bg-[var(--surface-2)] transition-colors last:border-b-0 ${!n.read ? 'bg-[var(--accent-soft)]' : ''}`}
+                >
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{
+                      background: n.read ? 'var(--surface-3)' : 'var(--accent-soft)',
+                      color: n.read ? 'var(--text-muted)' : 'var(--accent)',
+                    }}
+                  >
+                    <Icon name={notifIcon(n.type)} size={13} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] leading-snug">{n.body}</div>
+                    {n.projectTitle && (
+                      <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">{n.projectTitle}</div>
+                    )}
+                    <div className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">{timeAgo(n.createdAt)}</div>
+                  </div>
+                  {!n.read && (
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2.5" style={{ background: 'var(--accent)' }}></span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Header ──────────────────────────────────────────────────────
-const Header = ({ state, dispatch, filteredCount }) => {
+const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject }) => {
   const me = getUser(state.currentUserId);
   const activeFilters = [
     ...state.filters.status.map(v => ({ key: 'status', value: v, label: getStatus(v).label, color: getStatus(v).color })),
@@ -250,10 +383,12 @@ const Header = ({ state, dispatch, filteredCount }) => {
 
         <div className="flex-1"></div>
 
-        <button className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)] hover:text-white relative">
-          <Icon name="bell" size={15} />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent)' }}></span>
-        </button>
+        <NotificationPanel
+          notifications={notifications}
+          onMarkRead={onMarkRead}
+          onMarkAllRead={onMarkAllRead}
+          onOpenProject={onOpenProject}
+        />
 
         <button
           onClick={() => dispatch({ type: 'show_new' })}
@@ -605,6 +740,51 @@ const App = () => {
     }
   }, [authUser, state.team.length]);
 
+  // ── Firestore: notificaciones en tiempo real ────────────────
+  useEffect(() => {
+    if (!state.currentUserId) return;
+    const col = window.db
+      .collection('frame_notifications')
+      .doc(String(state.currentUserId))
+      .collection('items');
+    const unsub = col.orderBy('createdAt', 'desc').limit(50).onSnapshot((snap) => {
+      const notifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      dispatch({ type: 'set_notifs', notifications: notifs });
+    }, (err) => {
+      console.error('Notifications listener error:', err);
+      dispatch({ type: 'set_notifs', notifications: [] });
+    });
+    return () => unsub();
+  }, [state.currentUserId]);
+
+  // ── Notificaciones: handlers ────────────────────────────────
+  const handleMarkRead = (id) => {
+    dispatch({ type: 'mark_notif_read', id });
+    window.db
+      .collection('frame_notifications')
+      .doc(String(state.currentUserId))
+      .collection('items')
+      .doc(id)
+      .update({ read: true })
+      .catch(err => console.error('Error al marcar notificación:', err));
+  };
+
+  const handleMarkAllRead = () => {
+    const unread = state.notifications.filter(n => !n.read);
+    if (unread.length === 0) return;
+    dispatch({ type: 'mark_all_notifs_read' });
+    const batch = window.db.batch();
+    unread.forEach(n => {
+      const ref = window.db
+        .collection('frame_notifications')
+        .doc(String(state.currentUserId))
+        .collection('items')
+        .doc(n.id);
+      batch.update(ref, { read: true });
+    });
+    batch.commit().catch(err => console.error('Error al marcar todas leídas:', err));
+  };
+
   // ── Escrituras a Firestore ──────────────────────────────────
   const handleUpdateProject = (project) => {
     dispatch({ type: 'update_project', project }); // optimistic: actualiza UI al instante
@@ -685,7 +865,15 @@ const App = () => {
         />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
-          <Header state={state} dispatch={dispatch} filteredCount={filtered.length} />
+          <Header
+            state={state}
+            dispatch={dispatch}
+            filteredCount={filtered.length}
+            notifications={state.notifications}
+            onMarkRead={handleMarkRead}
+            onMarkAllRead={handleMarkAllRead}
+            onOpenProject={(id) => dispatch({ type: 'open_project', id })}
+          />
           {state.view === 'kanban' && <StatusStatsBar projects={filtered} />}
 
           <div className="flex-1 overflow-hidden">

@@ -397,6 +397,25 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
       text:   newComment.trim(),
       at:     new Date().toISOString().slice(0, 16),
     };
+    // ── Detectar @menciones y notificar ──────────────────────
+    if (window.pushNotif) {
+      const mentionRe = /@([A-Za-zÀ-ÿ]+(?:\s[A-Za-zÀ-ÿ]+)?)/g;
+      const mentioned = new Set();
+      let m;
+      while ((m = mentionRe.exec(comment.text)) !== null) {
+        const fragment = m[1].toLowerCase();
+        const u = USERS.find(u => u.name.toLowerCase().startsWith(fragment));
+        if (u && u.id !== currentUserId) mentioned.add(u.id);
+      }
+      const sender = getUser(currentUserId);
+      const preview = comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text;
+      mentioned.forEach(uid => window.pushNotif(uid, {
+        type: 'mention',
+        body: `${sender?.name || 'Alguien'} te mencionó: "${preview}"`,
+        projectId: project.id,
+        projectTitle: project.title,
+      }));
+    }
     setNewComment('');
     window.db.collection('frame_projects').doc(project.id)
       .collection('comments').doc(comment.id).set(comment)
@@ -494,7 +513,24 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId }) => {
             <PropRow icon="dot" label="Estado">
               <Dropdown trigger={<button className="text-left -mx-2 px-2 py-1 rounded hover:bg-[var(--surface-2)] w-full"><StatusPill status={project.status} /></button>}>
                 {(close) => STATUSES.map(s => (
-                  <MenuItem key={s.id} onClick={() => { upd({ status: s.id }); close(); }} active={project.status === s.id}>
+                  <MenuItem key={s.id} onClick={() => {
+                    if (s.id !== project.status && window.pushNotif) {
+                      const changer = getUser(currentUserId);
+                      const newSt   = getStatus(s.id);
+                      project.assignees.forEach(uid => {
+                        if (uid !== currentUserId) {
+                          window.pushNotif(uid, {
+                            type: 'status',
+                            body: `${changer?.name || 'Alguien'} cambió "${project.title}" → ${newSt?.label || s.id}`,
+                            projectId: project.id,
+                            projectTitle: project.title,
+                          });
+                        }
+                      });
+                    }
+                    upd({ status: s.id });
+                    close();
+                  }} active={project.status === s.id}>
                     <span className="w-2 h-2 rounded-full" style={{ background: s.color }}></span>
                     <span>{s.label}</span>
                   </MenuItem>
