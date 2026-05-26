@@ -202,12 +202,13 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
   const [dragOverCol,   setDragOverCol]   = useState(null);
   const [addingCol,     setAddingCol]     = useState(false);
   const [newColLabel,   setNewColLabel]   = useState('');
+  // Ref to throttle dragOver: only call setState when the hovered column actually changes
+  const lastOverRef = useRef(null);
 
   const baseCols = (columns && columns.length > 0)
     ? columns
     : STATUSES.filter(s => s.id !== 'archived');
 
-  // Live reorder preview while dragging a column
   const reorder = (arr, fromId, toId) => {
     const a = [...arr];
     const fi = a.findIndex(c => c.id === fromId);
@@ -216,9 +217,23 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
     a.splice(ti, 0, a.splice(fi, 1)[0]);
     return a;
   };
-  const visibleCols = (draggingColId && dragOverCol && draggingColId !== dragOverCol)
-    ? reorder(baseCols, draggingColId, dragOverCol)
-    : baseCols;
+
+  // Throttled dragOver — only update state when entering a different column
+  const handleDragOver = (e, colId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (lastOverRef.current !== colId) {
+      lastOverRef.current = colId;
+      setDragOverCol(colId);
+    }
+  };
+
+  const resetDrag = () => {
+    setDraggingId(null);
+    setDraggingColId(null);
+    setDragOverCol(null);
+    lastOverRef.current = null;
+  };
 
   // Card drop → change status
   const onCardDrop = (statusId) => (e) => {
@@ -226,8 +241,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
     if (!draggingId) return;
     const p = projects.find(x => x.id === draggingId);
     if (p && p.status !== statusId) onUpdateProject({ ...p, status: statusId });
-    setDraggingId(null);
-    setDragOverCol(null);
+    resetDrag();
   };
 
   // Column drop → commit reorder
@@ -236,8 +250,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
     if (draggingColId && draggingColId !== targetId && onReorderColumns) {
       onReorderColumns(reorder(baseCols, draggingColId, targetId));
     }
-    setDraggingColId(null);
-    setDragOverCol(null);
+    resetDrag();
   };
 
   const submitNewCol = () => {
@@ -254,18 +267,32 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
     <div className="h-full overflow-x-auto p-4" style={{ overflowY: 'visible' }}>
       <div className="flex gap-3 h-full" style={{ minWidth: 'fit-content' }}>
 
-        {visibleCols.map(s => {
-          const items   = projects.filter(p => p.status === s.id);
-          const isOver  = dragOverCol === s.id && !!draggingId;
-          const isColOver = dragOverCol === s.id && !!draggingColId && draggingColId !== s.id;
+        {baseCols.map(s => {
+          const items           = projects.filter(p => p.status === s.id);
+          const isCardOver      = dragOverCol === s.id && !!draggingId && !draggingColId;
+          const isColOver       = dragOverCol === s.id && !!draggingColId && draggingColId !== s.id;
+          const isBeingDragged  = draggingColId === s.id;
 
           return (
             <div
               key={s.id}
-              className={`flex flex-col w-[280px] flex-shrink-0 rounded-xl border transition-all ${isOver ? 'drag-over' : ''} ${isColOver ? 'ring-2 ring-[var(--accent)]' : ''}`}
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)', height: '100%' }}
-              onDragOver={(e) => { e.preventDefault(); setDragOverCol(s.id); }}
-              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null); }}
+              className="flex flex-col w-[280px] flex-shrink-0 rounded-xl border transition-all"
+              style={{
+                background: 'var(--surface)',
+                borderColor: isColOver ? 'var(--accent)' : isCardOver ? s.color + '88' : 'var(--border)',
+                boxShadow: isColOver ? '0 0 0 2px var(--accent)' : 'none',
+                opacity: isBeingDragged ? 0.4 : 1,
+                height: '100%',
+              }}
+              onDragOver={(e) => handleDragOver(e, s.id)}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                  if (lastOverRef.current === s.id) {
+                    lastOverRef.current = null;
+                    setDragOverCol(null);
+                  }
+                }
+              }}
               onDrop={(e) => draggingColId ? onColDrop(e, s.id) : onCardDrop(s.id)(e)}
             >
               {/* Column header — draggable to reorder */}
@@ -275,10 +302,13 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                 style={{ cursor: onReorderColumns ? 'grab' : 'default' }}
                 onDragStart={(e) => {
                   e.stopPropagation();
-                  setDraggingColId(s.id);
+                  // Use setTimeout so the drag image renders before opacity change
+                  setTimeout(() => setDraggingColId(s.id), 0);
+                  setDraggingId(null);
                   e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', s.id);
                 }}
-                onDragEnd={() => { setDraggingColId(null); setDragOverCol(null); }}
+                onDragEnd={resetDrag}
               >
                 <div className="flex items-center gap-2">
                   {onReorderColumns && (
@@ -309,7 +339,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     onClick={() => onOpenProject(p.id)}
                     draggable
                     onDragStart={() => { setDraggingId(p.id); setDraggingColId(null); }}
-                    onDragEnd={() => { setDraggingId(null); setDragOverCol(null); }}
+                    onDragEnd={resetDrag}
                     dragging={draggingId === p.id}
                     onDelete={onDeleteProject}
                   />
