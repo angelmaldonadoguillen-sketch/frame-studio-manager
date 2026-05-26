@@ -93,6 +93,7 @@ function reducer(state, action) {
     // ── Tipos personalizados ──
     case 'set_custom_types':    return { ...state, customTypes: action.types };
     case 'add_custom_type':     return { ...state, customTypes: [...state.customTypes, action.typeObj] };
+    case 'update_custom_type':  return { ...state, customTypes: state.customTypes.map(t => t.id === action.id ? { ...t, ...action.patch } : t) };
     case 'delete_custom_type':  return { ...state, customTypes: state.customTypes.filter(t => t.id !== action.id) };
     // ── Notificaciones ──
     case 'set_notifs':           return { ...state, notifications: action.notifications, notifsLoading: false };
@@ -779,34 +780,54 @@ const App = () => {
     return () => unsub();
   }, []);
 
-  // ── Firestore: tipos personalizados ───────────────────────────
+  // ── Firestore: tipos de proyecto ──────────────────────────────
   useEffect(() => {
     const ref = window.db.collection('frame_config').doc('project_types');
     const unsub = ref.onSnapshot((snap) => {
-      const types = snap.exists ? (snap.data().types || []) : [];
-      window.FRAME_CUSTOM_TYPES = types;
-      dispatch({ type: 'set_custom_types', types });
+      if (!snap.exists) {
+        // Primera vez: sembrar con los tipos predefinidos para que sean editables
+        ref.set({ types: PROJECT_TYPES });
+      } else {
+        const types = snap.data().types || [];
+        window.FRAME_CUSTOM_TYPES = types;
+        dispatch({ type: 'set_custom_types', types });
+      }
     }, (err) => {
       console.error('Custom types error:', err);
+      window.FRAME_CUSTOM_TYPES = PROJECT_TYPES;
+      dispatch({ type: 'set_custom_types', types: PROJECT_TYPES });
     });
     return () => unsub();
   }, []);
+
+  const saveTypes = (types) =>
+    window.db.collection('frame_config').doc('project_types').set({ types })
+      .catch(err => console.error('Error al guardar tipos:', err));
 
   const handleCreateCustomType = (typeObj) => {
     dispatch({ type: 'add_custom_type', typeObj });
     window.db.collection('frame_config').doc('project_types').get()
       .then(snap => {
-        const existing = snap.exists ? (snap.data().types || []) : [];
-        return window.db.collection('frame_config').doc('project_types').set({ types: [...existing, typeObj] });
+        const existing = snap.exists ? (snap.data().types || []) : PROJECT_TYPES;
+        return saveTypes([...existing, typeObj]);
       })
       .catch(err => console.error('Error al crear tipo:', err));
+  };
+  const handleUpdateCustomType = (id, patch) => {
+    dispatch({ type: 'update_custom_type', id, patch });
+    window.db.collection('frame_config').doc('project_types').get()
+      .then(snap => {
+        const existing = snap.exists ? (snap.data().types || []) : PROJECT_TYPES;
+        return saveTypes(existing.map(t => t.id === id ? { ...t, ...patch } : t));
+      })
+      .catch(err => console.error('Error al editar tipo:', err));
   };
   const handleDeleteCustomType = (id) => {
     dispatch({ type: 'delete_custom_type', id });
     window.db.collection('frame_config').doc('project_types').get()
       .then(snap => {
-        const existing = snap.exists ? (snap.data().types || []) : [];
-        return window.db.collection('frame_config').doc('project_types').set({ types: existing.filter(t => t.id !== id) });
+        const existing = snap.exists ? (snap.data().types || []) : PROJECT_TYPES;
+        return saveTypes(existing.filter(t => t.id !== id));
       })
       .catch(err => console.error('Error al eliminar tipo:', err));
   };
@@ -1042,6 +1063,7 @@ const App = () => {
           onUpdate={handleUpdateProject}
           customTypes={state.customTypes}
           onCreateCustomType={handleCreateCustomType}
+          onUpdateCustomType={handleUpdateCustomType}
           onDeleteCustomType={handleDeleteCustomType}
         />
       )}
