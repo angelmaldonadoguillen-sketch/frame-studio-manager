@@ -514,13 +514,13 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields 
       </div>
 
       {mode === 'month' && (
-        <div className="flex-1 grid grid-rows-[auto_1fr] overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-app">
+        <div className="flex-1 flex flex-col overflow-y-auto">
+          <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-app" style={{ background: 'var(--surface)' }}>
             {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => (
               <div key={d} className="px-3 py-2 text-[10px] font-semibold tracking-[0.18em] uppercase text-[var(--text-muted)]">{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 grid-rows-6 overflow-y-auto">
+          <div className="grid grid-cols-7">
             {monthGrid.map((dt, i) => {
               const inMonth = dt.getMonth() === month;
               const iso = dt.toISOString().slice(0, 10);
@@ -539,7 +539,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields 
                     {isToday && <span className="text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>HOY</span>}
                   </div>
                   <div className="space-y-1">
-                    {items.slice(0, 3).map(p => {
+                    {items.map(p => {
                       const t    = getType(p.type);
                       const st   = getStatus(p.status);
                       const days = daysUntil(p.deadline);
@@ -598,9 +598,6 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, previewFields 
                         </div>
                       );
                     })}
-                    {items.length > 3 && (
-                      <div className="text-[10px] text-[var(--text-muted)] px-1.5">+{items.length - 3} más</div>
-                    )}
                   </div>
                 </div>
               );
