@@ -372,6 +372,9 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
   const [newComment, setNewComment]           = useState('');
   const [comments, setComments]               = useState(() => project?.comments || []);
   const [commentsLoading, setCommentsLoading] = useState(true);
+  const [editingCheckId, setEditingCheckId]   = useState(null);
+  const [editingCheckText, setEditingCheckText] = useState('');
+  const editCheckRef = useRef(null);
 
   // ── Listener de comentarios en tiempo real ────────────────────
   useEffect(() => {
@@ -417,6 +420,22 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
     upd({ checklist: [...project.checklist, { id: 'c' + Date.now(), text: text.trim(), done: false }] });
   };
   const removeCheck = (id) => upd({ checklist: project.checklist.filter(c => c.id !== id) });
+
+  const startEditCheck = (c) => {
+    setEditingCheckId(c.id);
+    setEditingCheckText(c.text);
+    setTimeout(() => { editCheckRef.current?.focus(); editCheckRef.current?.select(); }, 0);
+  };
+  const saveEditCheck = () => {
+    if (!editingCheckId) return;
+    const text = editingCheckText.trim();
+    if (text) {
+      upd({ checklist: project.checklist.map(c => c.id === editingCheckId ? { ...c, text } : c) });
+    }
+    setEditingCheckId(null);
+    setEditingCheckText('');
+  };
+  const cancelEditCheck = () => { setEditingCheckId(null); setEditingCheckText(''); };
 
   const addComment = () => {
     if (!newComment.trim()) return;
@@ -711,13 +730,32 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
                   <div className="space-y-1">
                     {project.checklist.map(c => (
                       <div key={c.id} className="group flex items-center gap-2.5 py-1 px-2 -mx-2 rounded hover:bg-[var(--surface-2)]">
-                        <span className={`check ${c.done ? 'on' : ''}`} onClick={() => toggleCheck(c.id)}>
+                        <span className={`check flex-shrink-0 ${c.done ? 'on' : ''}`} onClick={() => toggleCheck(c.id)}>
                           {c.done && <Icon name="check" size={11} strokeWidth={3} />}
                         </span>
-                        <span className={`flex-1 text-[13.5px] ${c.done ? 'line-through text-[var(--text-muted)]' : ''}`}>
-                          {c.text}
-                        </span>
-                        <button onClick={() => removeCheck(c.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B]">
+                        {editingCheckId === c.id ? (
+                          <input
+                            ref={editCheckRef}
+                            value={editingCheckText}
+                            onChange={(e) => setEditingCheckText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') { e.preventDefault(); saveEditCheck(); }
+                              if (e.key === 'Escape') cancelEditCheck();
+                            }}
+                            onBlur={saveEditCheck}
+                            className="flex-1 text-[13.5px] bg-transparent outline-none border-b"
+                            style={{ borderColor: 'var(--accent)', color: 'var(--text)' }}
+                          />
+                        ) : (
+                          <span
+                            onClick={() => startEditCheck(c)}
+                            className={`flex-1 text-[13.5px] cursor-text ${c.done ? 'line-through text-[var(--text-muted)]' : ''}`}
+                            title="Clic para editar"
+                          >
+                            {c.text}
+                          </span>
+                        )}
+                        <button onClick={() => removeCheck(c.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B] flex-shrink-0">
                           <Icon name="trash" size={13} />
                         </button>
                       </div>
