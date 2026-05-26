@@ -375,6 +375,9 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
   const [editingCheckId, setEditingCheckId]   = useState(null);
   const [editingCheckText, setEditingCheckText] = useState('');
   const editCheckRef = useRef(null);
+  const [editingDvId, setEditingDvId]     = useState(null);
+  const [editingDvData, setEditingDvData] = useState({});
+  const editDvNameRef = useRef(null);
 
   // ── Listener de comentarios en tiempo real ────────────────────
   useEffect(() => {
@@ -481,6 +484,22 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
     upd({ tags: [...new Set([...project.tags, text.trim()])] });
   };
   const removeTag = (t) => upd({ tags: project.tags.filter(x => x !== t) });
+
+  const updateDeliverable = (id, patch) => upd({ deliverables: project.deliverables.map(dv => dv.id === id ? { ...dv, ...patch } : dv) });
+
+  const startEditDv = (dv) => {
+    setEditingDvId(dv.id);
+    setEditingDvData({ name: dv.name, kind: dv.kind, url: dv.url || '' });
+    setTimeout(() => { editDvNameRef.current?.focus(); editDvNameRef.current?.select(); }, 0);
+  };
+  const saveEditDv = () => {
+    if (!editingDvId) return;
+    const name = editingDvData.name?.trim();
+    if (name) updateDeliverable(editingDvId, { name, kind: editingDvData.kind, url: editingDvData.url?.trim() || '' });
+    setEditingDvId(null);
+    setEditingDvData({});
+  };
+  const cancelEditDv = () => { setEditingDvId(null); setEditingDvData({}); };
 
   const toggleDeliverable = (id) => {
     upd({ deliverables: project.deliverables.map(dv => dv.id === id ? { ...dv, status: dv.status === 'ready' ? 'pending' : 'ready' } : dv) });
@@ -767,24 +786,92 @@ const ProjectModal = ({ project, onClose, onUpdate, currentUserId, team = [], cl
                 {/* Deliverables */}
                 <section>
                   <SectionTitle icon="upload">Entregables</SectionTitle>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {project.deliverables.map(dv => (
-                      <div key={dv.id} className="group flex items-center gap-3 py-2 px-3 rounded-md border border-app surface-2">
-                        <Icon name={dv.kind === 'video' ? 'film' : dv.kind === 'photos' ? 'camera' : 'mic'} size={14} className="text-[var(--text-dim)]" />
-                        <span className="flex-1 text-[13px]">{dv.name}</span>
-                        <button
-                          onClick={() => toggleDeliverable(dv.id)}
-                          className="text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors"
-                          style={{
-                            background: dv.status === 'ready' ? '#7DD3C022' : '#9A9AA322',
-                            color: dv.status === 'ready' ? '#7DD3C0' : '#9A9AA3',
-                          }}
-                        >
-                          {dv.status === 'ready' ? '✓ Listo' : 'Pendiente'}
-                        </button>
-                        <button onClick={() => removeDeliverable(dv.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B] transition-opacity">
-                          <Icon name="trash" size={13} />
-                        </button>
+                      <div key={dv.id} className="group rounded-md border border-app surface-2 overflow-hidden">
+                        {editingDvId === dv.id ? (
+                          /* ── Modo edición ── */
+                          <div className="p-2.5 space-y-2">
+                            {/* Fila 1: nombre + tipo */}
+                            <div className="flex items-center gap-2">
+                              <Icon name={editingDvData.kind === 'video' ? 'film' : editingDvData.kind === 'photos' ? 'camera' : 'mic'} size={13} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                              <input
+                                ref={editDvNameRef}
+                                value={editingDvData.name}
+                                onChange={(e) => setEditingDvData(d => ({ ...d, name: e.target.value }))}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEditDv(); } if (e.key === 'Escape') cancelEditDv(); }}
+                                className="flex-1 text-[13px] bg-transparent outline-none border-b"
+                                style={{ borderColor: 'var(--accent)', color: 'var(--text)' }}
+                                placeholder="Nombre del entregable"
+                              />
+                              <select
+                                value={editingDvData.kind}
+                                onChange={(e) => setEditingDvData(d => ({ ...d, kind: e.target.value }))}
+                                className="text-[11px] px-1.5 py-0.5 rounded border cursor-pointer"
+                                style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text-dim)', colorScheme: 'dark' }}
+                              >
+                                <option value="video">Video</option>
+                                <option value="photos">Foto</option>
+                                <option value="audio">Audio</option>
+                              </select>
+                            </div>
+                            {/* Fila 2: URL */}
+                            <div className="flex items-center gap-2">
+                              <Icon name="link" size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                              <input
+                                value={editingDvData.url}
+                                onChange={(e) => setEditingDvData(d => ({ ...d, url: e.target.value }))}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEditDv(); } if (e.key === 'Escape') cancelEditDv(); }}
+                                className="flex-1 text-[12px] bg-transparent outline-none border-b font-mono"
+                                style={{ borderColor: 'var(--border-2)', color: 'var(--text-dim)' }}
+                                placeholder="https://drive.google.com/…"
+                              />
+                            </div>
+                            {/* Acciones */}
+                            <div className="flex items-center justify-end gap-2 pt-0.5">
+                              <button onClick={cancelEditDv} className="text-[11px] px-2 py-0.5 rounded" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+                              <button onClick={saveEditDv} className="text-[11px] font-semibold px-2.5 py-0.5 rounded" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>Guardar</button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* ── Modo normal ── */
+                          <div className="flex items-center gap-3 py-2 px-3">
+                            <Icon name={dv.kind === 'video' ? 'film' : dv.kind === 'photos' ? 'camera' : 'mic'} size={14} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                            <div className="flex-1 min-w-0">
+                              <div
+                                onClick={() => startEditDv(dv)}
+                                className="text-[13px] cursor-text truncate hover:text-white transition-colors"
+                                title="Clic para editar"
+                              >{dv.name}</div>
+                              {dv.url && (
+                                <a
+                                  href={dv.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-[11px] font-mono truncate max-w-full hover:underline"
+                                  style={{ color: 'var(--accent)' }}
+                                >
+                                  <Icon name="link" size={10} />
+                                  {dv.url.replace(/^https?:\/\//, '').slice(0, 40)}{dv.url.replace(/^https?:\/\//, '').length > 40 ? '…' : ''}
+                                </a>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => toggleDeliverable(dv.id)}
+                              className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors"
+                              style={{
+                                background: dv.status === 'ready' ? '#7DD3C022' : '#9A9AA322',
+                                color: dv.status === 'ready' ? '#7DD3C0' : '#9A9AA3',
+                              }}
+                            >
+                              {dv.status === 'ready' ? '✓ Listo' : 'Pendiente'}
+                            </button>
+                            <button onClick={() => removeDeliverable(dv.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B] transition-opacity flex-shrink-0">
+                              <Icon name="trash" size={13} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                     <DeliverableAdd onAdd={addDeliverable} />
