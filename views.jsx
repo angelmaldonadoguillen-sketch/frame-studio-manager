@@ -489,6 +489,17 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
   );
 };
 
+// ── Local-date ISO helper (avoids UTC shift from toISOString) ───
+// toISOString() converts to UTC first, which can shift the date in
+// non-UTC timezones. localISO reads year/month/day in local time so
+// the key always matches the date the user sees on screen.
+const localISO = (dt) => {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 // ── CALENDAR VIEW ───────────────────────────────────────────────
 const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, previewFields = {} }) => {
   const [refDate, setRefDate] = useState(new Date(TODAY));
@@ -602,7 +613,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
           <div className="grid grid-cols-7">
             {monthGrid.map((dt, i) => {
               const inMonth = dt.getMonth() === month;
-              const iso = dt.toISOString().slice(0, 10);
+              const iso = localISO(dt);
               const items = projectsByDate[iso] || [];
               const isToday = isSameDay(dt, todayDt);
               const isDragOver = dragOverDate === iso;
@@ -763,7 +774,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
   return (
     <div className="flex-1 grid grid-cols-7 overflow-hidden">
       {days.map((dt, i) => {
-        const iso        = dt.toISOString().slice(0, 10);
+        const iso        = localISO(dt);
         const items      = projectsByDate[iso] || [];
         const isToday    = dt.toDateString() === todayDt.toDateString();
         const isDragOver = dragOverDate === iso;
@@ -825,7 +836,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
 };
 
 const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, previewFields = {} }) => {
-  const iso = refDate.toISOString().slice(0, 10);
+  const iso = localISO(refDate);
   const items = projectsByDate[iso] || [];
   return (
     <div className="flex-1 overflow-y-auto p-8 max-w-3xl mx-auto w-full">
