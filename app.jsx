@@ -942,6 +942,7 @@ const App = () => {
     const unsub = col.onSnapshot((snap) => {
       // No seeding — only real registered users
       const team = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      window.__liveTeam = team; // registro global para getUser / AvatarStack
       dispatch({ type: 'set_team', team });
     }, (err) => {
       console.error('Firestore team error:', err);
