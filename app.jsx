@@ -191,14 +191,12 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
         <NavItem icon="users"   label="Asignados a mí"     count={counts.mine}      active={sf === 'mine'}      onClick={() => setFilter('mine')} />
         <NavItem icon="alert"   label="Deadlines urgentes" count={counts.urgent}    active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
         <NavItem icon="check"   label="Entregados"         count={counts.delivered} active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
-        <NavItem icon="archive" label="Archivo"            count={counts.archived}  active={sf === 'archived'}  onClick={() => setFilter('archived')} />
         <NavItem icon="trash"   label="Papelera"           count={counts.trash || undefined} active={sf === 'trash'} onClick={() => setFilter('trash')} />
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4">Trabajo</div>
         <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
         <NavItem icon="users"     label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
         <NavItem icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
-        <NavItem icon="folder"    label="Archivos"  />
         <NavItem icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} />
 
         <div className="mt-5">
