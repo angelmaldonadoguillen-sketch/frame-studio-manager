@@ -228,22 +228,33 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
   const addSkill    = (s) => { if (!s.trim()) return; upd({ skills: [...new Set([...(member.skills || []), s.trim()])] }); };
   const removeSkill = (s) => upd({ skills: (member.skills || []).filter(x => x !== s) });
 
-  const handleAvatarUpload = async (e) => {
+  const handleAvatarUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    try {
-      const path = `frame-avatars/${member.id}/${Date.now()}_${file.name}`;
-      const ref  = window.storage.ref(path);
-      await ref.put(file);
-      const url  = await ref.getDownloadURL();
-      upd({ avatar: url });
-    } catch (err) {
-      console.error('[FRAME] Error al subir foto de perfil:', err);
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        // Redimensionar a máx 220×220 manteniendo proporción
+        const MAX   = 220;
+        const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+        const w     = Math.round(img.width  * ratio);
+        const h     = Math.round(img.height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width  = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        upd({ avatar: dataUrl });
+        setUploading(false);
+        if (fileRef.current) fileRef.current.value = '';
+      };
+      img.onerror = () => { setUploading(false); };
+      img.src = ev.target.result;
+    };
+    reader.onerror = () => { setUploading(false); };
+    reader.readAsDataURL(file);
   };
 
   return (
