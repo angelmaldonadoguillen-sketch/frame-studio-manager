@@ -161,9 +161,13 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
 
   return (
     <aside className="w-[240px] flex-shrink-0 border-r border-app flex flex-col" style={{ background: 'var(--surface)' }}>
-      {/* Logo */}
+      {/* Logo — click va a inicio */}
       <div className="px-5 py-5 border-b border-app">
-        <div className="flex items-center gap-2.5">
+        <button
+          onClick={() => { dispatch({ type: 'set_section', section: 'projects' }); dispatch({ type: 'set_sidebar_filter', filter: 'all' }); }}
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+          title="Ir al inicio"
+        >
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>
             <span className="font-display font-black text-lg" style={{ color: '#0a0a0b', letterSpacing: '-0.03em' }}>F</span>
           </div>
@@ -171,7 +175,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
             <div className="font-display font-bold text-[15px]" style={{ letterSpacing: '-0.02em' }}>FRAME</div>
             <div className="text-[9px] tracking-[0.2em] text-[var(--text-muted)] uppercase">Studio Manager</div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Usuario autenticado */}
