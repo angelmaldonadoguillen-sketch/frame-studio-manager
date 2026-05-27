@@ -1184,6 +1184,7 @@ const App = () => {
           openMemberId={state.openMemberId}
           onOpenMember={(id) => dispatch({ type: 'open_member', id })}
           onCloseMember={() => dispatch({ type: 'close_member' })}
+          currentUserId={state.currentUserId}
         />
       ) : state.section === 'analytics' ? (
         <AnalyticsSection

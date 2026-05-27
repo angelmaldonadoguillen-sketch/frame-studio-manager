@@ -143,19 +143,28 @@ const MemberCard = ({ member, projects, onClick }) => {
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3 mb-3">
-          <div
-            className="rounded-xl flex items-center justify-center font-display font-bold flex-shrink-0"
-            style={{
-              width: 46, height: 46,
-              background: member.color + '1a',
-              color: member.color,
-              fontSize: 14,
-              letterSpacing: '-0.02em',
-              border: `1.5px solid ${member.color}44`,
-            }}
-          >
-            {member.initials}
-          </div>
+          {member.avatar ? (
+            <img
+              src={member.avatar}
+              alt={member.initials}
+              className="rounded-xl object-cover flex-shrink-0"
+              style={{ width: 46, height: 46, border: `1.5px solid ${member.color}44` }}
+            />
+          ) : (
+            <div
+              className="rounded-xl flex items-center justify-center font-display font-bold flex-shrink-0"
+              style={{
+                width: 46, height: 46,
+                background: member.color + '1a',
+                color: member.color,
+                fontSize: 14,
+                letterSpacing: '-0.02em',
+                border: `1.5px solid ${member.color}44`,
+              }}
+            >
+              {member.initials}
+            </div>
+          )}
           <div className="flex-1 min-w-0 pt-0.5">
             <div className="font-semibold text-[13.5px] truncate" style={{ letterSpacing: '-0.01em' }}>
               {member.name}
@@ -202,9 +211,13 @@ const MemberCard = ({ member, projects, onClick }) => {
 };
 
 // ── Member detail panel ──────────────────────────────────────────
-const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete }) => {
+const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUserId }) => {
   const [confirmDel, setConfirmDel] = useState(false);
+  const [uploading,  setUploading]  = useState(false);
+  const fileRef = useRef(null);
   if (!member) return null;
+
+  const isOwnProfile = member.id === currentUserId;
 
   const all    = projects.filter(p => (p.assignees || []).includes(member.id));
   const active = all.filter(p => p.status !== 'delivered' && p.status !== 'archived');
@@ -214,6 +227,24 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete }) => {
   const upd         = (patch) => onUpdate({ ...member, ...patch });
   const addSkill    = (s) => { if (!s.trim()) return; upd({ skills: [...new Set([...(member.skills || []), s.trim()])] }); };
   const removeSkill = (s) => upd({ skills: (member.skills || []).filter(x => x !== s) });
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const path = `frame-avatars/${member.id}/${Date.now()}_${file.name}`;
+      const ref  = window.storage.ref(path);
+      await ref.put(file);
+      const url  = await ref.getDownloadURL();
+      upd({ avatar: url });
+    } catch (err) {
+      console.error('[FRAME] Error al subir foto de perfil:', err);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 backdrop flex items-stretch justify-end anim-fade-in" onClick={onClose}>
@@ -241,18 +272,57 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete }) => {
           {/* Hero */}
           <div className="p-6 border-b border-app">
             <div className="flex items-start gap-4 mb-5">
-              <div
-                className="rounded-2xl flex items-center justify-center font-display font-bold flex-shrink-0"
-                style={{
-                  width: 64, height: 64,
-                  background: member.color + '1a',
-                  color: member.color,
-                  fontSize: 22,
-                  letterSpacing: '-0.03em',
-                  border: `2px solid ${member.color}44`,
-                }}
-              >
-                {member.initials}
+              {/* Avatar — upload overlay shown only for own profile */}
+              <div className="relative flex-shrink-0 group/av">
+                {member.avatar ? (
+                  <img
+                    src={member.avatar}
+                    alt={member.initials}
+                    className="rounded-2xl object-cover"
+                    style={{ width: 64, height: 64, border: `2px solid ${member.color}44` }}
+                  />
+                ) : (
+                  <div
+                    className="rounded-2xl flex items-center justify-center font-display font-bold"
+                    style={{
+                      width: 64, height: 64,
+                      background: member.color + '1a',
+                      color: member.color,
+                      fontSize: 22,
+                      letterSpacing: '-0.03em',
+                      border: `2px solid ${member.color}44`,
+                    }}
+                  >
+                    {member.initials}
+                  </div>
+                )}
+                {isOwnProfile && (
+                  <>
+                    <button
+                      onClick={() => fileRef.current?.click()}
+                      disabled={uploading}
+                      className="absolute inset-0 rounded-2xl flex items-center justify-center opacity-0 group-hover/av:opacity-100 transition-opacity cursor-pointer"
+                      style={{ background: 'rgba(0,0,0,0.55)' }}
+                      title="Cambiar foto de perfil"
+                    >
+                      {uploading ? (
+                        <div
+                          className="rounded-full border-2 animate-spin"
+                          style={{ width: 18, height: 18, borderColor: 'rgba(255,255,255,0.25)', borderTopColor: '#fff' }}
+                        />
+                      ) : (
+                        <Icon name="camera" size={18} className="text-white" />
+                      )}
+                    </button>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                  </>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <InlineEdit
@@ -590,7 +660,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
 };
 
 // ── Team section (main) ──────────────────────────────────────────
-const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember }) => {
+const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember, currentUserId }) => {
   const [search, setSearch]         = useState('');
   const [filterAvail, setFilterAvail] = useState('all');
   const [showNew, setShowNew]       = useState(false);
@@ -731,6 +801,7 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
           onClose={onCloseMember}
           onUpdate={onUpdateMember}
           onDelete={onDeleteMember}
+          currentUserId={currentUserId}
         />
       )}
 

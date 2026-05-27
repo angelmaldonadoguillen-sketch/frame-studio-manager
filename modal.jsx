@@ -7,9 +7,21 @@ const { useState, useRef, useEffect, useMemo } = React;
 // ── Avatar ──────────────────────────────────────────────────────
 const Avatar = ({ user, size = 24, ring = false }) => {
   if (!user) return null;
+  const ringClass = ring ? 'ring-2 ring-[#0a0a0b]' : '';
+  if (user.avatar) {
+    return (
+      <img
+        src={user.avatar}
+        alt={user.initials}
+        className={`rounded-full object-cover flex-shrink-0 ${ringClass}`}
+        style={{ width: size, height: size }}
+        title={`${user.name} · ${user.role}`}
+      />
+    );
+  }
   return (
     <div
-      className={`rounded-full flex items-center justify-center font-semibold ${ring ? 'ring-2 ring-[#0a0a0b]' : ''}`}
+      className={`rounded-full flex items-center justify-center font-semibold flex-shrink-0 ${ringClass}`}
       style={{
         width: size, height: size,
         background: user.color,
