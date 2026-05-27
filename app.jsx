@@ -920,21 +920,12 @@ const App = () => {
   useEffect(() => {
     const col = window.db.collection('frame_projects');
 
-    const unsub = col.onSnapshot(async (snap) => {
-      if (snap.empty) {
-        // Primera vez: sembrar con datos de ejemplo
-        const batch = window.db.batch();
-        SEED_PROJECTS.forEach(p => batch.set(col.doc(p.id), p));
-        await batch.commit();
-        // El listener disparará de nuevo con los datos sembrados
-      } else {
-        const projects = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-        dispatch({ type: 'set_projects', projects });
-      }
+    const unsub = col.onSnapshot((snap) => {
+      const projects = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      dispatch({ type: 'set_projects', projects });
     }, (err) => {
       console.error('Firestore error:', err);
-      // Fallback a datos locales si hay error de conexión / permisos
-      dispatch({ type: 'set_projects', projects: SEED_PROJECTS });
+      dispatch({ type: 'set_projects', projects: [] });
     });
 
     return () => unsub();
@@ -958,18 +949,12 @@ const App = () => {
   // ── Firestore: clientes ─────────────────────────────────────
   useEffect(() => {
     const col = window.db.collection('frame_clients');
-    const unsub = col.onSnapshot(async (snap) => {
-      if (snap.empty) {
-        const batch = window.db.batch();
-        SEED_CLIENTS.forEach(c => batch.set(col.doc(c.id), c));
-        await batch.commit();
-      } else {
-        const clients = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        dispatch({ type: 'set_clients', clients });
-      }
+    const unsub = col.onSnapshot((snap) => {
+      const clients = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      dispatch({ type: 'set_clients', clients });
     }, (err) => {
       console.error('Firestore clients error:', err);
-      dispatch({ type: 'set_clients', clients: SEED_CLIENTS });
+      dispatch({ type: 'set_clients', clients: [] });
     });
     return () => unsub();
   }, []);
