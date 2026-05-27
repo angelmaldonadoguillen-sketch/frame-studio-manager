@@ -4,13 +4,19 @@
 
 const { useReducer, useEffect, useState, useMemo, useRef } = React;
 
+// ── Persistencia de navegación en localStorage ──────────────────
+const _savedNav = (() => {
+  try { return JSON.parse(localStorage.getItem('frame_nav') || '{}'); }
+  catch { return {}; }
+})();
+
 // ── Initial state + reducer ─────────────────────────────────────
 const initialState = {
   // ── Proyectos ──
   projects: [],
   loading: true,
   currentUserId: 'u1',
-  view: 'kanban', // calendar | kanban | gallery | list
+  view: _savedNav.view || 'kanban', // calendar | kanban | gallery | list
   search: '',
   filters: {
     status: [],
@@ -21,7 +27,7 @@ const initialState = {
   },
   openProjectId: null,
   showNewProject: false,
-  sidebarFilter: 'all',
+  sidebarFilter: _savedNav.sidebarFilter || 'all',
   // ── Clientes ──
   clients: [],
   clientsLoading: true,
@@ -31,7 +37,7 @@ const initialState = {
   teamLoading: true,
   openMemberId: null,
   // ── Navegación ──
-  section: 'projects', // 'projects' | 'clients' | 'team'
+  section: _savedNav.section || 'projects', // 'projects' | 'clients' | 'team'
   // ── Notificaciones ──
   notifications: [],
   notifsLoading: true,
@@ -915,6 +921,17 @@ const App = () => {
 
   const filtered    = useMemo(() => applyFilters(state), [state]);
   const openProject = state.openProjectId ? state.projects.find(p => p.id === state.openProjectId) : null;
+
+  // ── Persistir navegación en localStorage ───────────────────
+  useEffect(() => {
+    try {
+      localStorage.setItem('frame_nav', JSON.stringify({
+        section:       state.section,
+        sidebarFilter: state.sidebarFilter,
+        view:          state.view,
+      }));
+    } catch {}
+  }, [state.section, state.sidebarFilter, state.view]);
 
   // ── Firestore sync ──────────────────────────────────────────
   useEffect(() => {
