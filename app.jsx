@@ -17,6 +17,7 @@ const initialState = {
     type: [],
     assignee: [],
     priority: [],
+    client: [],
   },
   openProjectId: null,
   showNewProject: false,
@@ -75,7 +76,7 @@ function reducer(state, action) {
       return { ...state, filters: { ...state.filters, [action.key]: next } };
     }
     case 'clear_filter':   return { ...state, filters: { ...state.filters, [action.key]: state.filters[action.key].filter(x => x !== action.value) } };
-    case 'clear_all_filters': return { ...state, filters: { status: [], type: [], assignee: [], priority: [] }, search: '' };
+    case 'clear_all_filters': return { ...state, filters: { status: [], type: [], assignee: [], priority: [], client: [] }, search: '' };
     case 'set_projects':       return { ...state, projects: action.projects, loading: false };
     case 'delete_project':     return { ...state, projects: state.projects.filter(p => p.id !== action.id), openProjectId: state.openProjectId === action.id ? null : state.openProjectId };
     case 'set_sidebar_filter': return { ...state, sidebarFilter: action.filter, section: action.filter === 'trash' ? 'trash' : 'projects' };
@@ -433,8 +434,9 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
   const activeFilters = [
     ...state.filters.status.map(v => ({ key: 'status', value: v, label: getStatus(v).label, color: getStatus(v).color })),
     ...state.filters.type.map(v => ({ key: 'type', value: v, label: getType(v).label, color: getType(v).color })),
-    ...state.filters.assignee.map(v => ({ key: 'assignee', value: v, label: getUser(v).name, color: getUser(v).color })),
+    ...state.filters.assignee.map(v => ({ key: 'assignee', value: v, label: getUser(v)?.name ?? v, color: getUser(v)?.color ?? '#9A9AA3' })),
     ...state.filters.priority.map(v => ({ key: 'priority', value: v, label: getPrio(v).label, color: getPrio(v).color })),
+    ...(state.filters.client || []).map(v => { const cl = (state.clients || []).find(c => c.name === v); return { key: 'client', value: v, label: v, color: cl?.color || '#9A9AA3' }; }),
   ];
 
   return (
@@ -477,10 +479,11 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
         </div>
 
         {/* Filter dropdowns */}
-        <FilterDropdown label="Estado"    icon="dot"   filterKey="status"   options={state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES}    state={state} dispatch={dispatch} />
-        <FilterDropdown label="Tipo"      icon="film"  filterKey="type"     options={state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES}    state={state} dispatch={dispatch} />
-        <FilterDropdown label="Prioridad" icon="flag"  filterKey="priority" options={PRIORITIES}                                                              state={state} dispatch={dispatch} />
-        <FilterDropdown label="Equipo"    icon="users" filterKey="assignee" options={(state.team || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
+        <FilterDropdown label="Estado"    icon="dot"       filterKey="status"   options={state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES}    state={state} dispatch={dispatch} />
+        <FilterDropdown label="Tipo"      icon="film"      filterKey="type"     options={state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES}    state={state} dispatch={dispatch} />
+        <FilterDropdown label="Prioridad" icon="flag"      filterKey="priority" options={PRIORITIES}                                                              state={state} dispatch={dispatch} />
+        <FilterDropdown label="Equipo"    icon="users"     filterKey="assignee" options={(state.team || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
+        <FilterDropdown label="Cliente"   icon="briefcase" filterKey="client"   options={[...new Map((state.projects || []).filter(p => p.client).map(p => { const cl = (state.clients || []).find(c => c.name === p.client); return [p.client, { id: p.client, label: p.client, color: cl?.color || '#9A9AA3' }]; })).values()]} state={state} dispatch={dispatch} />
 
         <div className="flex-1"></div>
 
@@ -592,6 +595,7 @@ const applyFilters = (state) => {
     if (state.filters.type.length     && !state.filters.type.includes(p.type))                                  return false;
     if (state.filters.priority.length && !state.filters.priority.includes(p.priority))                          return false;
     if (state.filters.assignee.length && !p.assignees.some(a => state.filters.assignee.includes(a)))            return false;
+    if (state.filters.client.length   && !state.filters.client.includes(p.client))                              return false;
     return true;
   });
 };
