@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 // ── Project mini card (used in calendar + kanban) ──────────────
-const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete, onDuplicate, previewFields = {} }) => {
+const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete, onDuplicate, onToggleFavorite, previewFields = {} }) => {
   const pf = previewFields;
   const t = getType(project.type);
   const days = daysUntil(project.deadline);
@@ -40,6 +40,16 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
             )}
             {pf.prioridad !== false && isOverdue && (
               <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
+            )}
+            {onToggleFavorite && !confirmDel && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleFavorite(project.id); }}
+                className={`p-1 rounded transition-all ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 hover:text-[#FFD166]'}`}
+                style={{ color: project.favorite ? '#FFD166' : 'var(--text-muted)' }}
+                title={project.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              >
+                <Icon name="star" size={11} fill={project.favorite ? 'currentColor' : 'none'} />
+              </button>
             )}
             {!confirmDel && onDuplicate && (
               <button onClick={(e) => { e.stopPropagation(); onDuplicate(project.id); }}
@@ -238,7 +248,7 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
 // ── KANBAN VIEW ─────────────────────────────────────────────────
 const CARD_LIMIT = 5; // tarjetas visibles por defecto en cada columna
 
-const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, onDuplicateProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
+const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, onDuplicateProject, onToggleFavorite, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
   const [draggingId,    setDraggingId]    = useState(null);   // card drag
   const [draggingColId, setDraggingColId] = useState(null);   // column drag
   const [dragOverCol,   setDragOverCol]   = useState(null);
@@ -392,6 +402,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     dragging={draggingId === p.id}
                     onDelete={onDeleteProject}
                     onDuplicate={onDuplicateProject}
+                    onToggleFavorite={onToggleFavorite}
                     previewFields={previewFields}
                   />
                 ))}
@@ -479,7 +490,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
 };
 
 // ── CALENDAR VIEW ───────────────────────────────────────────────
-const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, previewFields = {} }) => {
+const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, previewFields = {} }) => {
   const [refDate, setRefDate] = useState(new Date(TODAY));
   const [mode, setMode] = useState('month'); // month | week | day
   const [dragging, setDragging]       = useState(null); // { id, kind }
@@ -693,16 +704,16 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
       )}
 
       {mode === 'week' && (
-        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onUpdateProject={onUpdateProject} previewFields={previewFields} />
+        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onUpdateProject={onUpdateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />
       )}
       {mode === 'day' && (
-        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} previewFields={previewFields} />
+        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />
       )}
     </div>
   );
 };
 
-const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, previewFields = {} }) => {
+const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, previewFields = {} }) => {
   const [dragging, setDragging]         = React.useState(null); // { id, kind }
   const [dragOverDate, setDragOverDate] = React.useState(null);
   const lastOverRef                     = React.useRef(null);
@@ -801,6 +812,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                   compact
                   onDelete={onDeleteProject}
                   onDuplicate={onDuplicateProject}
+                  onToggleFavorite={onToggleFavorite}
                   previewFields={previewFields}
                 />
               ))}
@@ -812,7 +824,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
   );
 };
 
-const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, previewFields = {} }) => {
+const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, previewFields = {} }) => {
   const iso = refDate.toISOString().slice(0, 10);
   const items = projectsByDate[iso] || [];
   return (
@@ -830,7 +842,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
           </div>
         )}
         {items.map(p => (
-          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} previewFields={previewFields} />
+          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />
         ))}
       </div>
     </div>
@@ -838,18 +850,18 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
 };
 
 // ── GALLERY VIEW ────────────────────────────────────────────────
-const GalleryView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, previewFields = {} }) => {
+const GalleryView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, previewFields = {} }) => {
   if (projects.length === 0) return <EmptyState />;
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-        {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} previewFields={previewFields} />)}
+        {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />)}
       </div>
     </div>
   );
 };
 
-const GalleryCard = ({ project, onClick, onDelete, onDuplicate, previewFields = {} }) => {
+const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite, previewFields = {} }) => {
   const pf = previewFields;
   const t = getType(project.type);
   const progress = progressOf(project);
@@ -874,6 +886,16 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, previewFields = 
           <div className="flex items-center gap-1.5 ml-auto">
             {pf.prioridad !== false && isUrgent && (
               <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URGENTE</span>
+            )}
+            {onToggleFavorite && !confirmDel && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleFavorite(project.id); }}
+                className={`p-1.5 rounded-md transition-all ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                style={{ background: 'rgba(0,0,0,0.55)', color: project.favorite ? '#FFD166' : 'white', backdropFilter: 'blur(4px)' }}
+                title={project.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              >
+                <Icon name="star" size={12} fill={project.favorite ? 'currentColor' : 'none'} />
+              </button>
             )}
             {!confirmDel && onDuplicate && (
               <button onClick={(e) => { e.stopPropagation(); onDuplicate(project.id); }}
@@ -949,7 +971,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, previewFields = 
 };
 
 // ── LIST VIEW ───────────────────────────────────────────────────
-const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject }) => {
+const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite }) => {
   const t = getType(p.type);
   const days = daysUntil(p.deadline);
   const isUrgent = days >= 0 && days < 3 && p.status !== 'delivered' && p.status !== 'archived';
@@ -1000,6 +1022,16 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject }) => {
       <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
         {!confirmDel && (
           <div className="opacity-0 group-hover:opacity-100 flex items-center justify-end gap-1 transition-all">
+            {onToggleFavorite && (
+              <button
+                onClick={() => onToggleFavorite(p.id)}
+                className="p-1.5 rounded-md transition-colors"
+                style={{ color: p.favorite ? '#FFD166' : 'var(--text-muted)' }}
+                title={p.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              >
+                <Icon name="star" size={13} fill={p.favorite ? 'currentColor' : 'none'} />
+              </button>
+            )}
             {onDuplicateProject && (
               <button
                 onClick={() => onDuplicateProject(p.id)}
@@ -1040,7 +1072,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject }) => {
   );
 };
 
-const ListView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject }) => {
+const ListView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite }) => {
   if (projects.length === 0) return <EmptyState />;
   return (
     <div className="h-full overflow-auto">
@@ -1055,12 +1087,12 @@ const ListView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Deadline</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Prio</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app w-[110px]">Progreso</th>
-            <th className="text-left px-3 py-3 font-semibold border-b border-app w-[60px]"></th>
+            <th className="text-left px-3 py-3 font-semibold border-b border-app w-[80px]"></th>
           </tr>
         </thead>
         <tbody>
           {projects.map(p => (
-            <ListRow key={p.id} p={p} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} />
+            <ListRow key={p.id} p={p} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onToggleFavorite={onToggleFavorite} />
           ))}
         </tbody>
       </table>

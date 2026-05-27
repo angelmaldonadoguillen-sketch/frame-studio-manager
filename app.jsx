@@ -142,6 +142,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
 
   const counts = {
     all:       state.projects.filter(p => p.status !== 'archived').length,
+    favorites: state.projects.filter(p => p.favorite).length,
     mine:      state.projects.filter(p => p.assignees.includes(state.currentUserId) && p.status !== 'archived').length,
     urgent:    state.projects.filter(p => { const d = daysUntil(p.deadline); return d >= 0 && d < 3 && p.status !== 'delivered' && p.status !== 'archived'; }).length,
     delivered: state.projects.filter(p => p.status === 'delivered').length,
@@ -187,11 +188,12 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5">Espacios</div>
-        <NavItem icon="layers"  label="Todos los proyectos" count={counts.all}       active={sf === 'all'}       onClick={() => setFilter('all')} />
-        <NavItem icon="users"   label="Asignados a mí"     count={counts.mine}      active={sf === 'mine'}      onClick={() => setFilter('mine')} />
-        <NavItem icon="alert"   label="Deadlines urgentes" count={counts.urgent}    active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
-        <NavItem icon="check"   label="Entregados"         count={counts.delivered} active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
-        <NavItem icon="trash"   label="Papelera"           count={counts.trash || undefined} active={sf === 'trash'} onClick={() => setFilter('trash')} />
+        <NavItem icon="layers"  label="Todos los proyectos" count={counts.all}                    active={sf === 'all'}       onClick={() => setFilter('all')} />
+        <NavItem icon="star"    label="Favoritos"           count={counts.favorites || undefined} active={sf === 'favorites'} onClick={() => setFilter('favorites')} />
+        <NavItem icon="users"   label="Asignados a mí"     count={counts.mine}                   active={sf === 'mine'}      onClick={() => setFilter('mine')} />
+        <NavItem icon="alert"   label="Deadlines urgentes" count={counts.urgent}                 active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
+        <NavItem icon="check"   label="Entregados"         count={counts.delivered}              active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
+        <NavItem icon="trash"   label="Papelera"           count={counts.trash || undefined}     active={sf === 'trash'}     onClick={() => setFilter('trash')} />
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4">Trabajo</div>
         <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
@@ -573,6 +575,7 @@ const applyFilters = (state) => {
   const q = state.search.trim().toLowerCase();
   return state.projects.filter(p => {
     // ── Sidebar filter ──
+    if (state.sidebarFilter === 'favorites' && !p.favorite) return false;
     if (state.sidebarFilter === 'mine' && !p.assignees.includes(state.currentUserId)) return false;
     if (state.sidebarFilter === 'urgent') {
       const d = daysUntil(p.deadline);
@@ -1256,6 +1259,15 @@ const App = () => {
       .catch(err => console.error('Error al crear proyecto:', err));
   };
 
+  const handleToggleFavorite = (id) => {
+    const project = state.projects.find(p => p.id === id);
+    if (!project) return;
+    const updated = { ...project, favorite: !project.favorite };
+    dispatch({ type: 'update_project', project: updated });
+    window.db.collection('frame_projects').doc(id).set(updated)
+      .catch(err => console.error('[FRAME] Error al guardar favorito:', err));
+  };
+
   const handleDeleteMember = (id) => {
     dispatch({ type: 'delete_member', id });
     window.db.collection('frame_users').doc(id).delete()
@@ -1403,6 +1415,7 @@ const App = () => {
                   onUpdateProject={handleUpdateProject}
                   onDeleteProject={handleDeleteProject}
                   onDuplicateProject={handleDuplicateProject}
+                  onToggleFavorite={handleToggleFavorite}
                   columns={state.kanbanColumns}
                   onUpdateColumn={handleUpdateColumn}
                   onAddColumn={handleAddColumn}
@@ -1410,9 +1423,9 @@ const App = () => {
                   onReorderColumns={handleReorderColumns}
                   previewFields={state.previewFields}
                 />}
-                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onUpdateProject={handleUpdateProject} previewFields={state.previewFields} />}
-                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} previewFields={state.previewFields} />}
-                {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} />}
+                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} onUpdateProject={handleUpdateProject} previewFields={state.previewFields} />}
+                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} previewFields={state.previewFields} />}
+                {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} />}
               </>
             )}
           </div>
