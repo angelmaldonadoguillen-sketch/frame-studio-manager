@@ -76,37 +76,70 @@ const LoginScreen = () => {
       const cred = await firebase.auth().createUserWithEmailAndPassword(email.trim(), password);
       await cred.user.updateProfile({ displayName: name.trim() });
 
-      // ¿Ya existe un perfil en frame_users con este email?
-      const col       = window.db.collection('frame_users');
-      const existing  = await col.where('email', '==', email.trim().toLowerCase()).get();
+      const col = window.db.collection('frame_users');
 
+      // ¿Hay usuarios existentes en el estudio? El primero en registrarse es admin activo.
+      const allUsersSnap = await col.get();
+      const isFirstUser  = allUsersSnap.empty;
+
+      const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      const colors   = typeof TEAM_COLORS !== 'undefined'
+        ? TEAM_COLORS
+        : ['#D4FF4F','#FF7A59','#6CC4FF','#C089FF','#FFD166','#FB7185','#7DD3C0'];
+
+      const newProfile = {
+        id:           cred.user.uid,
+        name:         name.trim(),
+        role:         role.trim() || 'Colaborador',
+        initials,
+        color:        colors[Math.floor(Math.random() * colors.length)],
+        email:        email.trim().toLowerCase(),
+        phone:        '—',
+        skills:       [],
+        bio:          '',
+        availability: 'available',
+        joinedAt:     new Date().toISOString().slice(0, 10),
+        status:       isFirstUser ? 'active' : 'pending',
+      };
+
+      // ¿Ya existe un perfil con este email? (vinculación)
+      const existing = await col.where('email', '==', email.trim().toLowerCase()).get();
       if (existing.empty) {
-        // Crear perfil nuevo
-        const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
-        const colors   = typeof TEAM_COLORS !== 'undefined'
-          ? TEAM_COLORS
-          : ['#D4FF4F','#FF7A59','#6CC4FF','#C089FF','#FFD166','#FB7185','#7DD3C0'];
-        await col.doc(cred.user.uid).set({
-          id:           cred.user.uid,
-          name:         name.trim(),
-          role:         role.trim() || 'Colaborador',
-          initials,
-          color:        colors[Math.floor(Math.random() * colors.length)],
-          email:        email.trim().toLowerCase(),
-          phone:        '—',
-          skills:       [],
-          bio:          '',
-          availability: 'available',
-          joinedAt:     new Date().toISOString().slice(0, 10),
-        });
+        await col.doc(cred.user.uid).set(newProfile);
       } else {
-        // Vincular perfil existente al uid de Firebase Auth
         const old = existing.docs[0];
         if (old.id !== cred.user.uid) {
-          await col.doc(cred.user.uid).set({ ...old.data(), id: cred.user.uid });
+          await col.doc(cred.user.uid).set({ ...old.data(), ...newProfile, id: cred.user.uid });
           await col.doc(old.id).delete();
         }
+        // Si ya existe con el mismo UID no sobreescribimos el status que ya tenga
       }
+
+      // Notificar a todos los usuarios existentes cuando hay un nuevo pendiente
+      if (!isFirstUser) {
+        const batch = window.db.batch();
+        allUsersSnap.docs.forEach(userDoc => {
+          if (userDoc.id === cred.user.uid) return; // no auto-notificarse
+          const notifRef = window.db
+            .collection('frame_notifications')
+            .doc(userDoc.id)
+            .collection('items')
+            .doc();
+          batch.set(notifRef, {
+            type:         'approval_request',
+            userId:       cred.user.uid,
+            userName:     name.trim(),
+            userEmail:    email.trim().toLowerCase(),
+            userInitials: initials,
+            body:         `${name.trim()} solicita acceso al estudio`,
+            createdAt:    new Date().toISOString(),
+            read:         false,
+            resolved:     false,
+          });
+        });
+        await batch.commit();
+      }
+
     } catch (err) {
       if (err.code === 'auth/operation-not-allowed') setShowSetup(true);
       else setError(getError(err.code));

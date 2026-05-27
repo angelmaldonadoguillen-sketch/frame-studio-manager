@@ -117,6 +117,7 @@ function reducer(state, action) {
     case 'set_notifs':           return { ...state, notifications: action.notifications, notifsLoading: false };
     case 'mark_notif_read':      return { ...state, notifications: state.notifications.map(n => n.id === action.id ? { ...n, read: true } : n) };
     case 'mark_all_notifs_read': return { ...state, notifications: state.notifications.map(n => ({ ...n, read: true })) };
+    case 'resolve_notif':        return { ...state, notifications: state.notifications.map(n => n.id === action.id ? { ...n, read: true, resolved: true, resolvedAction: action.action } : n) };
     default: return state;
   }
 }
@@ -255,7 +256,7 @@ const NavItem = ({ icon, label, count, active, accent, onClick }) => (
 );
 
 // ── Notification Panel ──────────────────────────────────────────
-const NotificationPanel = ({ notifications, onMarkRead, onMarkAllRead, onOpenProject }) => {
+const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead, onOpenProject, onApproveUser, onRejectUser }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const unread = notifications.filter(n => !n.read).length;
@@ -278,10 +279,16 @@ const NotificationPanel = ({ notifications, onMarkRead, onMarkAllRead, onOpenPro
   };
 
   const notifIcon = (type) => {
-    if (type === 'mention') return 'at';
-    if (type === 'comment') return 'message';
-    if (type === 'status')  return 'zap';
+    if (type === 'mention')          return 'at';
+    if (type === 'comment')          return 'message';
+    if (type === 'status')           return 'zap';
+    if (type === 'approval_request') return 'users';
     return 'bell';
+  };
+
+  const notifColor = (type, read) => {
+    if (type === 'approval_request') return { bg: read ? 'var(--surface-3)' : '#6CC4FF22', fg: '#6CC4FF' };
+    return { bg: read ? 'var(--surface-3)' : 'var(--accent-soft)', fg: read ? 'var(--text-muted)' : 'var(--accent)' };
   };
 
   return (
@@ -322,43 +329,96 @@ const NotificationPanel = ({ notifications, onMarkRead, onMarkAllRead, onOpenPro
           </div>
 
           {/* List */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[420px] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <Icon name="bell" size={22} className="mx-auto mb-2 text-[var(--text-muted)]" />
                 <div className="text-[12px] text-[var(--text-muted)]">Sin notificaciones</div>
               </div>
             ) : (
-              notifications.slice(0, 25).map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => {
-                    onMarkRead(n.id);
-                    if (n.projectId) { onOpenProject(n.projectId); setOpen(false); }
-                  }}
-                  className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-app hover:bg-[var(--surface-2)] transition-colors last:border-b-0 ${!n.read ? 'bg-[var(--accent-soft)]' : ''}`}
-                >
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{
-                      background: n.read ? 'var(--surface-3)' : 'var(--accent-soft)',
-                      color: n.read ? 'var(--text-muted)' : 'var(--accent)',
+              notifications.slice(0, 25).map(n => {
+                const nc = notifColor(n.type, n.read);
+
+                // ── Solicitud de acceso ──────────────────────────
+                if (n.type === 'approval_request') {
+                  const reqUser  = team.find(m => m.id === n.userId);
+                  const isPending = !n.resolved && (!reqUser || reqUser.status === 'pending');
+                  const wasApproved = n.resolvedAction === 'approved' || reqUser?.status === 'active';
+                  return (
+                    <div
+                      key={n.id}
+                      className={`px-4 py-3 border-b border-app ${!n.read ? 'bg-[var(--accent-soft)]' : ''}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ background: nc.bg, color: nc.fg }}>
+                          <Icon name="users" size={13} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] leading-snug font-medium">{n.body}</div>
+                          <div className="text-[11px] mt-0.5 font-mono" style={{ color: 'var(--text-muted)' }}>{n.userEmail}</div>
+                          <div className="text-[10px] mt-0.5 font-mono" style={{ color: 'var(--text-muted)' }}>{timeAgo(n.createdAt)}</div>
+                          {isPending ? (
+                            <div className="flex gap-1.5 mt-2.5">
+                              <button
+                                onClick={() => { onApproveUser && onApproveUser(n.userId, n.id); }}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-bold transition-all hover:brightness-110"
+                                style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+                              >
+                                <Icon name="check" size={11} strokeWidth={2.5} />
+                                Aprobar
+                              </button>
+                              <button
+                                onClick={() => { onRejectUser && onRejectUser(n.userId, n.id); }}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-medium transition-all hover:bg-[#FF6B6B14] hover:text-[#FF6B6B]"
+                                style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}
+                              >
+                                Rechazar
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="mt-1.5 text-[11px] font-semibold flex items-center gap-1"
+                              style={{ color: wasApproved ? 'var(--accent)' : '#FF6B6B' }}>
+                              <Icon name={wasApproved ? 'check' : 'x'} size={11} strokeWidth={2.5} />
+                              {wasApproved ? 'Acceso aprobado' : 'Acceso denegado'}
+                            </div>
+                          )}
+                        </div>
+                        {!n.read && (
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2.5" style={{ background: 'var(--accent)' }}></span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // ── Notificación regular ─────────────────────────
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => {
+                      onMarkRead(n.id);
+                      if (n.projectId) { onOpenProject(n.projectId); setOpen(false); }
                     }}
+                    className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-app hover:bg-[var(--surface-2)] transition-colors last:border-b-0 ${!n.read ? 'bg-[var(--accent-soft)]' : ''}`}
                   >
-                    <Icon name={notifIcon(n.type)} size={13} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12px] leading-snug">{n.body}</div>
-                    {n.projectTitle && (
-                      <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">{n.projectTitle}</div>
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                      style={{ background: nc.bg, color: nc.fg }}>
+                      <Icon name={notifIcon(n.type)} size={13} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] leading-snug">{n.body}</div>
+                      {n.projectTitle && (
+                        <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">{n.projectTitle}</div>
+                      )}
+                      <div className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">{timeAgo(n.createdAt)}</div>
+                    </div>
+                    {!n.read && (
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2.5" style={{ background: 'var(--accent)' }}></span>
                     )}
-                    <div className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">{timeAgo(n.createdAt)}</div>
-                  </div>
-                  {!n.read && (
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2.5" style={{ background: 'var(--accent)' }}></span>
-                  )}
-                </button>
-              ))
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
@@ -368,7 +428,7 @@ const NotificationPanel = ({ notifications, onMarkRead, onMarkAllRead, onOpenPro
 };
 
 // ── Header ──────────────────────────────────────────────────────
-const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject }) => {
+const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject, onApproveUser, onRejectUser }) => {
   const me = getUser(state.currentUserId);
   const activeFilters = [
     ...state.filters.status.map(v => ({ key: 'status', value: v, label: getStatus(v).label, color: getStatus(v).color })),
@@ -426,9 +486,12 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
 
         <NotificationPanel
           notifications={notifications}
+          team={state.team}
           onMarkRead={onMarkRead}
           onMarkAllRead={onMarkAllRead}
           onOpenProject={onOpenProject}
+          onApproveUser={onApproveUser}
+          onRejectUser={onRejectUser}
         />
 
         <button
@@ -677,6 +740,82 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
     </div>
   );
 };
+
+// ── Pantalla: esperando aprobación ──────────────────────────────
+const PendingApprovalScreen = ({ member, onSignOut }) => (
+  <div className="h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
+    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--accent)', boxShadow: '0 0 40px rgba(212,255,79,0.2)' }}>
+      <span className="font-display font-black text-[26px]" style={{ color: '#0a0a0b', letterSpacing: '-0.04em' }}>F</span>
+    </div>
+    <div className="flex gap-1.5">
+      {[0, 1, 2].map(i => (
+        <div key={i} className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--text-muted)', animationDelay: `${i * 200}ms` }}></div>
+      ))}
+    </div>
+    <div className="text-center max-w-sm">
+      <h2 className="font-display text-[22px] font-bold mb-2" style={{ letterSpacing: '-0.02em' }}>Esperando aprobación</h2>
+      <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        Tu solicitud fue recibida. Un miembro del estudio revisará tu acceso y te dará ingreso en breve.
+      </p>
+    </div>
+    {member && (
+      <div className="rounded-xl border px-5 py-3 flex items-center gap-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] flex-shrink-0"
+          style={{ background: member.color + '1a', color: member.color, border: `1.5px solid ${member.color}44` }}
+        >
+          {member.avatar
+            ? <img src={member.avatar} alt={member.initials} className="w-9 h-9 rounded-full object-cover" />
+            : member.initials}
+        </div>
+        <div>
+          <div className="text-[13px] font-semibold">{member.name}</div>
+          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{member.email}</div>
+        </div>
+        <span className="ml-2 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FFD16622', color: '#FFD166' }}>
+          Pendiente
+        </span>
+      </div>
+    )}
+    <button onClick={onSignOut} className="flex items-center gap-1.5 text-[12px] transition-colors hover:text-white" style={{ color: 'var(--text-muted)' }}>
+      <Icon name="logOut" size={13} />
+      Cerrar sesión
+    </button>
+  </div>
+);
+
+// ── Pantalla: acceso denegado ────────────────────────────────────
+const RejectedScreen = ({ member, onSignOut }) => (
+  <div className="h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
+    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: '#FF6B6B14', border: '1.5px solid #FF6B6B33' }}>
+      <Icon name="x" size={24} style={{ color: '#FF6B6B' }} />
+    </div>
+    <div className="text-center max-w-sm">
+      <h2 className="font-display text-[22px] font-bold mb-2" style={{ letterSpacing: '-0.02em', color: '#FF6B6B' }}>Acceso denegado</h2>
+      <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        Tu solicitud fue rechazada. Contactá al administrador del estudio para más información.
+      </p>
+    </div>
+    {member && (
+      <div className="rounded-xl border px-5 py-3 flex items-center gap-3" style={{ background: 'var(--surface)', borderColor: '#FF6B6B33' }}>
+        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] flex-shrink-0"
+          style={{ background: member.color + '1a', color: member.color, border: `1.5px solid ${member.color}44` }}>
+          {member.initials}
+        </div>
+        <div>
+          <div className="text-[13px] font-semibold">{member.name}</div>
+          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{member.email}</div>
+        </div>
+      </div>
+    )}
+    <button onClick={onSignOut}
+      className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12.5px] font-medium transition-colors hover:text-white"
+      style={{ background: 'var(--surface)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}>
+      <Icon name="logOut" size={13} />
+      Cerrar sesión
+    </button>
+  </div>
+);
 
 // ── Loading screen ───────────────────────────────────────────────
 const LoadingScreen = () => (
@@ -1125,6 +1264,35 @@ const App = () => {
       .catch(err => console.error('Error al eliminar integrante:', err));
   };
 
+  // ── Aprobación de nuevos usuarios ──────────────────────────────
+  const handleApproveUser = (userId, notifId) => {
+    const member = state.team.find(m => m.id === userId);
+    if (member) dispatch({ type: 'update_member', member: { ...member, status: 'active' } });
+    window.db.collection('frame_users').doc(userId).update({ status: 'active' })
+      .catch(err => console.error('[FRAME] Error al aprobar usuario:', err));
+    if (notifId) {
+      dispatch({ type: 'resolve_notif', id: notifId, action: 'approved' });
+      window.db.collection('frame_notifications')
+        .doc(state.currentUserId).collection('items').doc(notifId)
+        .update({ read: true, resolved: true, resolvedAction: 'approved' })
+        .catch(err => console.error('[FRAME] Error al resolver notif:', err));
+    }
+  };
+
+  const handleRejectUser = (userId, notifId) => {
+    const member = state.team.find(m => m.id === userId);
+    if (member) dispatch({ type: 'update_member', member: { ...member, status: 'rejected' } });
+    window.db.collection('frame_users').doc(userId).update({ status: 'rejected' })
+      .catch(err => console.error('[FRAME] Error al rechazar usuario:', err));
+    if (notifId) {
+      dispatch({ type: 'resolve_notif', id: notifId, action: 'rejected' });
+      window.db.collection('frame_notifications')
+        .doc(state.currentUserId).collection('items').doc(notifId)
+        .update({ read: true, resolved: true, resolvedAction: 'rejected' })
+        .catch(err => console.error('[FRAME] Error al resolver notif:', err));
+    }
+  };
+
   const handleUpdateMember = (member) => {
     dispatch({ type: 'update_member', member });
     window.db.collection('frame_users').doc(member.id).set(member)
@@ -1155,8 +1323,15 @@ const App = () => {
       .catch(err => console.error('Error al crear cliente:', err));
   };
 
-  if (!authChecked)  return <LoadingScreen />;
-  if (!authUser)     return <LoginScreen />;
+  if (!authChecked || state.teamLoading) return <LoadingScreen />;
+  if (!authUser) return <LoginScreen />;
+
+  // Verificar estado de aprobación del usuario autenticado
+  const _authEmail  = (authUser.email || '').toLowerCase();
+  const _authMember = state.team.find(m => (m.email || '').toLowerCase() === _authEmail);
+  if (_authMember?.status === 'pending')  return <PendingApprovalScreen member={_authMember} onSignOut={() => firebase.auth().signOut()} />;
+  if (_authMember?.status === 'rejected') return <RejectedScreen        member={_authMember} onSignOut={() => firebase.auth().signOut()} />;
+
   if (state.loading) return <LoadingScreen />;
 
   return (
@@ -1214,6 +1389,8 @@ const App = () => {
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
             onOpenProject={(id) => dispatch({ type: 'open_project', id })}
+            onApproveUser={handleApproveUser}
+            onRejectUser={handleRejectUser}
           />
           {state.view === 'kanban' && <StatusStatsBar projects={filtered} />}
 

@@ -183,10 +183,22 @@ const MemberCard = ({ member, projects, onClick }) => {
           />
         </div>
 
-        {/* Availability dot */}
+        {/* Availability dot + status badge */}
         <div className="flex items-center gap-1.5 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: avail.color }}></span>
-          <span className="text-[11px]" style={{ color: avail.color }}>{avail.label}</span>
+          {member.status === 'pending' ? (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FFD16622', color: '#FFD166' }}>
+              ⏳ Pendiente de aprobación
+            </span>
+          ) : member.status === 'rejected' ? (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FF6B6B18', color: '#FF6B6B' }}>
+              ✕ Sin acceso
+            </span>
+          ) : (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: avail.color }}></span>
+              <span className="text-[11px]" style={{ color: avail.color }}>{avail.label}</span>
+            </>
+          )}
         </div>
 
         {/* Skills */}
