@@ -22,7 +22,7 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`group lift cursor-pointer rounded-lg border surface-2 overflow-hidden relative ${dragging ? 'dragging' : ''}`}
+      className={`group lift cursor-pointer rounded-lg border surface-2 overflow-hidden relative select-none ${dragging ? 'dragging' : ''}`}
       style={{ borderColor: 'var(--border)' }}
     >
       <div className="h-1" style={{ background: t.color }}></div>
@@ -884,7 +884,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
   return (
     <div
       onClick={onClick}
-      className="group lift cursor-pointer rounded-xl overflow-hidden border surface-2"
+      className="group lift cursor-pointer rounded-xl overflow-hidden border surface-2 select-none"
       style={{ borderColor: 'var(--border)' }}
     >
       <div className="relative aspect-[4/3] overflow-hidden" style={{ background: project.cover.type === 'color' ? project.cover.value : 'var(--surface-3)' }}>
@@ -994,7 +994,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
     <tr
       key={p.id}
       onClick={() => onOpenProject(p.id)}
-      className="group cursor-pointer border-b border-app hover:bg-[var(--surface-2)] transition-colors"
+      className="group cursor-pointer border-b border-app hover:bg-[var(--surface-2)] transition-colors select-none"
     >
       <td className="px-5 py-3">
         <div className="flex items-center gap-2.5">

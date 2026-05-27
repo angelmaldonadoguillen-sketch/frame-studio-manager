@@ -141,6 +141,18 @@
 
   /* Modal backdrop */
   .backdrop { background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); }
+
+  /* Buttons: sin outline ni subrayado al hacer clic (solo focus-visible para teclado) */
+  button { -webkit-tap-highlight-color: transparent; text-decoration: none; }
+  button:focus { outline: none; }
+  button:focus-visible {
+    outline: 2px solid rgba(212, 255, 79, 0.5);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* UI chrome sin selección de texto (nav, sidebar, tarjetas) */
+  .no-select { -webkit-user-select: none; user-select: none; }
 </style>
 </head>
 <body class="noise">

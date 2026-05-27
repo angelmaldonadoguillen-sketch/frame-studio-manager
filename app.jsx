@@ -182,7 +182,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
       <div className="px-3 py-3 border-b border-app">
         <div className="flex items-center gap-2.5 px-2 py-1.5">
           <Avatar user={me} size={32} />
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 select-none">
             <div className="text-[12.5px] font-semibold truncate">{me.name}</div>
             <div className="text-[10px] text-[var(--text-muted)] truncate">{me.role}</div>
           </div>
@@ -198,7 +198,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5">Espacios</div>
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 select-none">Espacios</div>
         <NavItem icon="layers"  label="Todos los proyectos" count={counts.all}                    active={sf === 'all'}       onClick={() => setFilter('all')} />
         <NavItem icon="star"    label="Favoritos"           count={counts.favorites || undefined} active={sf === 'favorites'} onClick={() => setFilter('favorites')} />
         <NavItem icon="users"   label="Asignados a mí"     count={counts.mine}                   active={sf === 'mine'}      onClick={() => setFilter('mine')} />
@@ -206,7 +206,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
         <NavItem icon="check"   label="Entregados"         count={counts.delivered}              active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
         <NavItem icon="trash"   label="Papelera"           count={counts.trash || undefined}     active={sf === 'trash'}     onClick={() => setFilter('trash')} />
 
-        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4">Trabajo</div>
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4 select-none">Trabajo</div>
         <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
         <NavItem icon="users"     label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
         <NavItem icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
@@ -214,7 +214,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
 
         <div className="mt-5">
           <div className="flex items-center justify-between px-2 py-1.5">
-            <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)]">Recientes</div>
+            <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] select-none">Recientes</div>
             <Icon name="chevronDown" size={11} className="text-[var(--text-muted)]" />
           </div>
           <div className="space-y-0.5">
@@ -234,7 +234,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
 
       {/* Team */}
       <div className="border-t border-app p-3">
-        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1">Equipo en línea</div>
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1 select-none">Equipo en línea</div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {(state.team || []).slice(0, 5).map(u => (
             <div key={u.id} className="relative" title={u.name}>
