@@ -236,14 +236,20 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
 };
 
 // ── KANBAN VIEW ─────────────────────────────────────────────────
+const CARD_LIMIT = 5; // tarjetas visibles por defecto en cada columna
+
 const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, onDuplicateProject, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
   const [draggingId,    setDraggingId]    = useState(null);   // card drag
   const [draggingColId, setDraggingColId] = useState(null);   // column drag
   const [dragOverCol,   setDragOverCol]   = useState(null);
   const [addingCol,     setAddingCol]     = useState(false);
   const [newColLabel,   setNewColLabel]   = useState('');
+  const [expandedCols,  setExpandedCols]  = useState({});     // colId → true cuando está expandida
   // Ref to throttle dragOver: only call setState when the hovered column actually changes
   const lastOverRef = useRef(null);
+
+  const toggleExpand = (colId) =>
+    setExpandedCols(prev => ({ ...prev, [colId]: !prev[colId] }));
 
   const baseCols = (columns && columns.length > 0)
     ? columns
@@ -313,6 +319,10 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
           const isColOver       = dragOverCol === s.id && !!draggingColId && draggingColId !== s.id;
           const isBeingDragged  = draggingColId === s.id;
 
+          const isExpanded   = !!expandedCols[s.id];
+          const visibleItems = isExpanded ? items : items.slice(0, CARD_LIMIT);
+          const hiddenCount  = Math.max(0, items.length - CARD_LIMIT);
+
           return (
             <div
               key={s.id}
@@ -342,7 +352,6 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                 style={{ cursor: onReorderColumns ? 'grab' : 'default' }}
                 onDragStart={(e) => {
                   e.stopPropagation();
-                  // Use setTimeout so the drag image renders before opacity change
                   setTimeout(() => setDraggingColId(s.id), 0);
                   setDraggingId(null);
                   e.dataTransfer.effectAllowed = 'move';
@@ -372,7 +381,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
 
               {/* Cards */}
               <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                {items.map(p => (
+                {visibleItems.map(p => (
                   <ProjectCardMini
                     key={p.id}
                     project={p}
@@ -386,11 +395,34 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     previewFields={previewFields}
                   />
                 ))}
+
                 {items.length === 0 && (
                   <div className="text-center py-10 px-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-2)' }}>
                     <div className="text-[var(--text-muted)] text-[11px]">Sin proyectos en {s.label.toLowerCase()}</div>
                     <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Arrastrá una tarjeta acá</div>
                   </div>
+                )}
+
+                {/* Ver más / Ver menos */}
+                {hiddenCount > 0 && !isExpanded && (
+                  <button
+                    onClick={() => toggleExpand(s.id)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11.5px] font-medium transition-colors hover:bg-[var(--surface-2)] hover:text-white"
+                    style={{ color: 'var(--text-muted)', border: '1px dashed var(--border-2)' }}
+                  >
+                    <Icon name="chevronDown" size={12} />
+                    Ver {hiddenCount} más
+                  </button>
+                )}
+                {isExpanded && items.length > CARD_LIMIT && (
+                  <button
+                    onClick={() => toggleExpand(s.id)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11.5px] font-medium transition-colors hover:bg-[var(--surface-2)] hover:text-white"
+                    style={{ color: 'var(--text-muted)', border: '1px dashed var(--border-2)' }}
+                  >
+                    <Icon name="chevronDown" size={12} style={{ transform: 'rotate(180deg)' }} />
+                    Ver menos
+                  </button>
                 )}
               </div>
             </div>
@@ -1170,40 +1202,42 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {isConfirming ? (
-                      <>
-                        <span className="text-[11px] font-medium" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
+                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl" style={{ background: '#FF6B6B0d', border: '1px solid #FF6B6B33' }}>
+                        <span className="text-[11.5px] font-semibold mr-1" style={{ color: '#FF6B6B' }}>¿Eliminar para siempre?</span>
                         <button
                           onClick={() => { onPermanentDelete(item.id); setConfirmId(null); }}
-                          className="px-2.5 py-1 rounded-lg text-[12px] font-semibold"
-                          style={{ background: '#FF6B6B22', color: '#FF6B6B' }}
+                          className="px-2.5 py-1 rounded-md text-[12px] font-bold transition-colors hover:brightness-110"
+                          style={{ background: '#FF6B6B', color: '#0a0a0b' }}
                         >
                           Sí
                         </button>
                         <button
                           onClick={() => setConfirmId(null)}
-                          className="px-2.5 py-1 rounded-lg text-[12px]"
-                          style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+                          className="px-2.5 py-1 rounded-md text-[12px] transition-colors hover:text-white"
+                          style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}
                         >
                           No
                         </button>
-                      </>
+                      </div>
                     ) : (
                       <>
                         <button
                           onClick={() => onRestore(item)}
-                          className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors hover:opacity-90"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors hover:opacity-90"
                           style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                           title="Restaurar proyecto"
                         >
+                          <Icon name="arrowUpRight" size={12} />
                           Restaurar
                         </button>
                         <button
                           onClick={() => setConfirmId(item.id)}
-                          className="p-1.5 rounded-lg transition-colors hover:bg-[#FF6B6B18] hover:text-[#FF6B6B]"
-                          style={{ color: 'var(--text-muted)' }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[#FF6B6B14] hover:text-[#FF6B6B]"
+                          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
                           title="Eliminar permanentemente"
                         >
-                          <Icon name="x" size={14} />
+                          <Icon name="trash" size={12} />
+                          Eliminar
                         </button>
                       </>
                     )}
