@@ -210,7 +210,6 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
         <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
         <NavItem icon="users"     label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
         <NavItem icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
-        <NavItem icon="sun"       label="Rutina"    active={state.section === 'routine'}   onClick={() => dispatch({ type: 'set_section', section: 'routine' })} />
         <NavItem icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} />
 
         <div className="mt-5">
@@ -1390,8 +1389,6 @@ const App = () => {
           team={state.team}
           currentUserId={state.currentUserId}
         />
-      ) : state.section === 'routine' ? (
-        <RoutineSection />
       ) : state.section === 'settings' ? (
         <SettingsSection
           previewFields={state.previewFields}
@@ -1475,6 +1472,9 @@ const App = () => {
           customTypes={state.customTypes}
         />
       )}
+
+      {/* Widget flotante de rutina diaria */}
+      <RoutineWidget />
     </div>
   );
 };

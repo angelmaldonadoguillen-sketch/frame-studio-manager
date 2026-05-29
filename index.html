@@ -142,6 +142,15 @@
   /* Modal backdrop */
   .backdrop { background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); }
 
+  /* Routine widget — beacon pulsante cuando hay tareas pendientes */
+  @keyframes routine-beacon {
+    0%   { box-shadow: 0 0 0 0 rgba(212,255,79,0.45), 0 4px 20px rgba(0,0,0,0.4); }
+    65%  { box-shadow: 0 0 0 11px rgba(212,255,79,0), 0 4px 20px rgba(0,0,0,0.4); }
+    100% { box-shadow: 0 0 0 0 rgba(212,255,79,0), 0 4px 20px rgba(0,0,0,0.4); }
+  }
+  .routine-pending { animation: routine-beacon 2.6s ease-out infinite; }
+  .routine-done    { animation: none !important; }
+
   /* Buttons: sin outline ni subrayado al hacer clic (solo focus-visible para teclado) */
   button { -webkit-tap-highlight-color: transparent; text-decoration: none; }
   button:focus { outline: none; }
