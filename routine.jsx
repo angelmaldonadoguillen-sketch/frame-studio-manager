@@ -20,6 +20,10 @@ const RoutineWidget = () => {
   const [history, setHistory] = useState([]);
   const [loaded,  setLoaded]  = useState(false);
 
+  // Evita que el reset se ejecute dos veces cuando onSnapshot dispara
+  // dos veces al iniciar (cache + network) antes de que el write se aplique
+  const resetDoneRef = useRef(false);
+
   const todayISO = localISO(new Date()); // global de views.jsx
 
   // ── Firestore listener ────────────────────────────────────────
@@ -39,19 +43,41 @@ const RoutineWidget = () => {
       const storedToday   = data.today   || { date: todayISO, checks: {} };
       const storedHistory = data.history || [];
 
-      // Auto-reset si cambió el día
+      // ── Limpiar historial duplicado (bug anterior) ──
+      const seen = new Set();
+      const cleanHistory = storedHistory.filter(e => {
+        if (!e.date || seen.has(e.date)) return false;
+        seen.add(e.date);
+        return true;
+      });
+      if (cleanHistory.length !== storedHistory.length) {
+        // Guardar historial limpio en Firestore en silencio
+        ref.update({ history: cleanHistory }).catch(() => {});
+      }
+
+      // ── Auto-reset si cambió el día ──
       if (storedToday.date && storedToday.date !== todayISO) {
+        // Si el reset ya fue iniciado en esta sesión, ignorar snapshot duplicado
+        if (resetDoneRef.current) {
+          setTasks(storedTasks);
+          setLoaded(true);
+          return;
+        }
+        resetDoneRef.current = true;
+
         const prevCompleted = storedTasks.filter(t => storedToday.checks?.[t.id]).length;
         const prevTotal     = storedTasks.length;
         const entry         = { date: storedToday.date, completed: prevCompleted, total: prevTotal };
-        const updatedHist   = [entry, ...storedHistory].slice(0, 60);
+        const updatedHist   = [entry, ...cleanHistory].slice(0, 60);
+
         ref.update({ today: { date: todayISO, checks: {} }, history: updatedHist })
           .catch(err => console.error('[FRAME] Routine reset:', err));
+
         setChecks({});
         setHistory(updatedHist);
       } else {
         setChecks(storedToday.checks || {});
-        setHistory(storedHistory);
+        setHistory(cleanHistory);
       }
 
       setTasks(storedTasks);
