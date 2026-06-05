@@ -15,10 +15,12 @@ const RoutineWidget = () => {
   const panelRef    = useRef(null);
 
   // ── Routine data ──────────────────────────────────────────────
-  const [tasks,   setTasks]   = useState([]);
-  const [checks,  setChecks]  = useState({});
-  const [history, setHistory] = useState([]);
-  const [loaded,  setLoaded]  = useState(false);
+  const [tasks,     setTasks]     = useState([]);
+  const [checks,    setChecks]    = useState({});
+  const [history,   setHistory]   = useState([]);
+  const [debt,      setDebt]      = useState({}); // { taskId: diasAcumulados }
+  const [carryOver, setCarryOver] = useState(false);
+  const [loaded,    setLoaded]    = useState(false);
 
   // Evita que el reset se ejecute dos veces cuando onSnapshot dispara
   // dos veces al iniciar (cache + network) antes de que el write se aplique
@@ -42,6 +44,9 @@ const RoutineWidget = () => {
       const storedTasks   = data.tasks   || [];
       const storedToday   = data.today   || { date: todayISO, checks: {} };
       const storedHistory = data.history || [];
+      const storedCarry   = data.config?.carryOver || false;
+
+      setCarryOver(storedCarry);
 
       // ── Limpiar historial duplicado (bug anterior) ──
       const seen = new Set();
@@ -51,7 +56,6 @@ const RoutineWidget = () => {
         return true;
       });
       if (cleanHistory.length !== storedHistory.length) {
-        // Guardar historial limpio en Firestore en silencio
         ref.update({ history: cleanHistory }).catch(() => {});
       }
 
@@ -70,13 +74,31 @@ const RoutineWidget = () => {
         const entry         = { date: storedToday.date, completed: prevCompleted, total: prevTotal };
         const updatedHist   = [entry, ...cleanHistory].slice(0, 60);
 
-        ref.update({ today: { date: todayISO, checks: {} }, history: updatedHist })
-          .catch(err => console.error('[FRAME] Routine reset:', err));
+        // Calcular deuda acumulada si carry-over está activo
+        let newDebt = {};
+        if (storedCarry) {
+          const prevDebt = storedToday.debt || {};
+          storedTasks.forEach(t => {
+            if (storedToday.checks?.[t.id]) {
+              // Completada: limpiar deuda
+            } else {
+              // No completada: sumar un día
+              newDebt[t.id] = (prevDebt[t.id] || 0) + 1;
+            }
+          });
+        }
+
+        ref.update({
+          today:   { date: todayISO, checks: {}, debt: newDebt },
+          history: updatedHist,
+        }).catch(err => console.error('[FRAME] Routine reset:', err));
 
         setChecks({});
+        setDebt(newDebt);
         setHistory(updatedHist);
       } else {
         setChecks(storedToday.checks || {});
+        setDebt(storedToday.debt    || {});
         setHistory(cleanHistory);
       }
 
@@ -107,8 +129,16 @@ const RoutineWidget = () => {
   const toggleCheck = (taskId) => {
     const next = { ...checks, [taskId]: !checks[taskId] };
     setChecks(next);
+    const updates = { 'today.checks': next };
+    // Si se completa una tarea con deuda, limpiar su contador
+    if (next[taskId] && debt[taskId]) {
+      const nextDebt = { ...debt };
+      delete nextDebt[taskId];
+      setDebt(nextDebt);
+      updates['today.debt'] = nextDebt;
+    }
     window.db.collection('frame_config').doc('daily_routine')
-      .update({ 'today.checks': next })
+      .update(updates)
       .catch(err => console.error('[FRAME] Routine toggle:', err));
   };
 
@@ -289,6 +319,7 @@ const RoutineWidget = () => {
               const done    = !!checks[task.id];
               const editing = editingId === task.id;
               const isLast  = idx === tasks.length - 1;
+              const daysOwed = (!done && carryOver) ? (debt[task.id] || 0) : 0;
 
               return (
                 <div
@@ -372,6 +403,21 @@ const RoutineWidget = () => {
                         <Icon name="trash" size={12} />
                       </button>
                     </div>
+                  )}
+
+                  {/* Badge deuda (carry-over) */}
+                  {daysOwed > 0 && !editMode && (
+                    <span
+                      className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md select-none"
+                      style={{
+                        background: daysOwed >= 3 ? 'rgba(255,107,107,0.18)' : 'rgba(255,122,89,0.15)',
+                        color:      daysOwed >= 3 ? '#FF6B6B'                 : '#FF7A59',
+                        border: `1px solid ${daysOwed >= 3 ? 'rgba(255,107,107,0.35)' : 'rgba(255,122,89,0.3)'}`,
+                      }}
+                      title={`Sin completar hace ${daysOwed} ${daysOwed === 1 ? 'día' : 'días'}`}
+                    >
+                      +{daysOwed}d
+                    </span>
                   )}
 
                   {/* Número en modo vista */}

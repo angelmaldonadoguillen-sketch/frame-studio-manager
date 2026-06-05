@@ -860,62 +860,115 @@ const PREVIEW_FIELD_LABELS = [
   { key: 'progreso',     label: 'Progreso',       icon: 'layers'   },
 ];
 
-const SettingsSection = ({ previewFields, onToggle }) => (
-  <div className="flex-1 overflow-y-auto p-8">
-    <div className="max-w-2xl mx-auto space-y-8">
-      <div>
-        <h1 className="font-display text-2xl font-bold mb-1" style={{ letterSpacing: '-0.02em' }}>Ajustes</h1>
-        <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Configuración del espacio de trabajo</p>
-      </div>
+const SettingsSection = ({ previewFields, onToggle }) => {
+  const [carryOver, setCarryOver] = useState(false);
 
-      {/* Vista previa */}
-      <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-2 mb-1">
-          <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
-          <h2 className="font-display font-semibold text-[16px]">Vista previa de tarjetas</h2>
+  useEffect(() => {
+    const ref = window.db.collection('frame_config').doc('daily_routine');
+    const unsub = ref.onSnapshot(snap => {
+      if (snap.exists) setCarryOver(snap.data()?.config?.carryOver || false);
+    }, () => {});
+    return () => unsub();
+  }, []);
+
+  const toggleCarryOver = () => {
+    const next = !carryOver;
+    setCarryOver(next);
+    window.db.collection('frame_config').doc('daily_routine')
+      .update({ 'config.carryOver': next })
+      .catch(err => console.error('[FRAME] CarryOver toggle:', err));
+    // Al desactivar, limpiar deuda acumulada
+    if (!next) {
+      window.db.collection('frame_config').doc('daily_routine')
+        .update({ 'today.debt': {} })
+        .catch(() => {});
+    }
+  };
+
+  const ToggleRow = ({ active, onClick, icon, label, description }) => (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all text-left w-full"
+      style={{
+        background:  active ? 'var(--accent-soft)'    : 'var(--surface-2)',
+        borderColor: active ? 'rgba(212,255,79,0.3)'  : 'var(--border)',
+      }}
+    >
+      <div
+        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
+        style={{
+          background: active ? 'var(--accent)'    : 'var(--surface-3)',
+          border:     active ? 'none'              : '1.5px solid var(--border-2)',
+        }}
+      >
+        {active && <Icon name="check" size={10} strokeWidth={3} style={{ color: '#0a0a0b' }} />}
+      </div>
+      <Icon name={icon} size={13} style={{ color: active ? 'var(--accent)' : 'var(--text-muted)' }} />
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium" style={{ color: active ? 'var(--text)' : 'var(--text-dim)' }}>
+          {label}
         </div>
-        <p className="text-[12px] mb-5" style={{ color: 'var(--text-muted)' }}>
-          Elegí qué campos se muestran en las tarjetas del tablero, calendario y galería.
-        </p>
-        <div className="grid grid-cols-1 gap-1">
-          {PREVIEW_FIELD_LABELS.map(({ key, label, icon }) => {
-            const active = previewFields[key];
-            return (
-              <button
+        {description && (
+          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{description}</div>
+        )}
+      </div>
+    </button>
+  );
+
+  return (
+    <div className="flex-1 overflow-y-auto p-8">
+      <div className="max-w-2xl mx-auto space-y-8">
+        <div>
+          <h1 className="font-display text-2xl font-bold mb-1" style={{ letterSpacing: '-0.02em' }}>Ajustes</h1>
+          <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Configuración del espacio de trabajo</p>
+        </div>
+
+        {/* Vista previa de tarjetas */}
+        <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
+            <h2 className="font-display font-semibold text-[16px]">Vista previa de tarjetas</h2>
+          </div>
+          <p className="text-[12px] mb-5" style={{ color: 'var(--text-muted)' }}>
+            Elegí qué campos se muestran en las tarjetas del tablero, calendario y galería.
+          </p>
+          <div className="grid grid-cols-1 gap-1">
+            {PREVIEW_FIELD_LABELS.map(({ key, label, icon }) => (
+              <ToggleRow
                 key={key}
+                active={previewFields[key]}
                 onClick={() => onToggle(key)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all text-left"
-                style={{
-                  background:   active ? 'var(--accent-soft)'       : 'var(--surface-2)',
-                  borderColor:  active ? 'rgba(212,255,79,0.3)'      : 'var(--border)',
-                }}
-              >
-                {/* Checkbox visual */}
-                <div
-                  className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
-                  style={{
-                    background:  active ? 'var(--accent)' : 'var(--surface-3)',
-                    borderColor: active ? 'var(--accent)' : 'var(--border-2)',
-                    border: active ? 'none' : '1.5px solid var(--border-2)',
-                  }}
-                >
-                  {active && <Icon name="check" size={10} strokeWidth={3} style={{ color: '#0a0a0b' }} />}
-                </div>
-                <Icon name={icon} size={13} style={{ color: active ? 'var(--accent)' : 'var(--text-muted)' }} />
-                <span className="text-[13px] font-medium" style={{ color: active ? 'var(--text)' : 'var(--text-dim)' }}>
-                  {label}
-                </span>
-              </button>
-            );
-          })}
+                icon={icon}
+                label={label}
+              />
+            ))}
+          </div>
+          <p className="text-[11px] mt-4" style={{ color: 'var(--text-muted)' }}>
+            Los cambios se aplican instantáneamente en todas las vistas y se sincronizan en la nube.
+          </p>
         </div>
-        <p className="text-[11px] mt-4" style={{ color: 'var(--text-muted)' }}>
-          Los cambios se aplican instantáneamente en todas las vistas y se sincronizan en la nube.
-        </p>
+
+        {/* Rutina diaria */}
+        <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Icon name="sun" size={15} style={{ color: 'var(--accent)' }} />
+            <h2 className="font-display font-semibold text-[16px]">Rutina diaria</h2>
+          </div>
+          <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
+            Comportamiento de las tareas cuando no se completan en el día.
+          </p>
+          <ToggleRow
+            active={carryOver}
+            onClick={toggleCarryOver}
+            icon="alert"
+            label="Arrastrar tareas pendientes al día siguiente"
+            description="Las tareas sin completar acumulan días (+1d, +2d…) y se marcan como urgentes hasta que las hagás"
+          />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ── App root ────────────────────────────────────────────────────
 const App = () => {
