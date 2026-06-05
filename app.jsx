@@ -55,6 +55,8 @@ const initialState = {
     deadline: true, presupuesto: false,
     tags: false, progreso: true,
   },
+  // ── Carry-over de proyectos ──
+  carryOverProjects: false,
 };
 
 function reducer(state, action) {
@@ -115,6 +117,8 @@ function reducer(state, action) {
     // ── Vista previa ──
     case 'set_preview_fields':    return { ...state, previewFields: action.fields };
     case 'toggle_preview_field':  return { ...state, previewFields: { ...state.previewFields, [action.key]: !state.previewFields[action.key] } };
+    // ── Carry-over proyectos ──
+    case 'set_carryover_projects': return { ...state, carryOverProjects: action.value };
     // ── Tipos personalizados ──
     case 'set_custom_types':    return { ...state, customTypes: action.types };
     case 'add_custom_type':     return { ...state, customTypes: [...state.customTypes, action.typeObj] };
@@ -860,7 +864,7 @@ const PREVIEW_FIELD_LABELS = [
   { key: 'progreso',     label: 'Progreso',       icon: 'layers'   },
 ];
 
-const SettingsSection = ({ previewFields, onToggle }) => {
+const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleCarryOverProjects }) => {
   const [carryOver, setCarryOver] = useState(false);
 
   useEffect(() => {
@@ -965,6 +969,25 @@ const SettingsSection = ({ previewFields, onToggle }) => {
             description="Las tareas sin completar acumulan días (+1d, +2d…) y se marcan como urgentes hasta que las hagás"
           />
         </div>
+
+        {/* Proyectos */}
+        <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
+            <h2 className="font-display font-semibold text-[16px]">Proyectos</h2>
+          </div>
+          <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
+            Automatizaciones sobre las tarjetas de proyecto al iniciar cada día.
+          </p>
+          <ToggleRow
+            active={carryOverProjects}
+            onClick={onToggleCarryOverProjects}
+            icon="alert"
+            label="Mover proyectos con checklist pendiente al día siguiente"
+            description="Al abrir la app, los proyectos con checklist incompleta y fecha de sesión pasada se replazan a hoy automáticamente"
+          />
+        </div>
+
       </div>
     </div>
   );
@@ -1052,13 +1075,14 @@ const App = () => {
     }
   }, [authUser, state.team.length]);
 
-  // ── Firestore: vista previa ────────────────────────────────
+  // ── Firestore: display settings (vista previa + carry-over) ───
   useEffect(() => {
     const ref = window.db.collection('frame_config').doc('display_settings');
     const unsub = ref.onSnapshot((snap) => {
-      if (snap.exists && snap.data().previewFields) {
-        dispatch({ type: 'set_preview_fields', fields: snap.data().previewFields });
-      }
+      if (!snap.exists) return;
+      const data = snap.data();
+      if (data.previewFields)     dispatch({ type: 'set_preview_fields',    fields: data.previewFields });
+      if (data.carryOverProjects !== undefined) dispatch({ type: 'set_carryover_projects', value: data.carryOverProjects });
     }, (err) => console.error('Display settings error:', err));
     return () => unsub();
   }, []);
@@ -1066,9 +1090,50 @@ const App = () => {
   const handleTogglePreviewField = (key) => {
     const next = { ...state.previewFields, [key]: !state.previewFields[key] };
     dispatch({ type: 'set_preview_fields', fields: next });
-    window.db.collection('frame_config').doc('display_settings').set({ previewFields: next })
+    window.db.collection('frame_config').doc('display_settings')
+      .set({ previewFields: next }, { merge: true })
       .catch(err => console.error('Error guardando display settings:', err));
   };
+
+  const handleToggleCarryOverProjects = () => {
+    const next = !state.carryOverProjects;
+    dispatch({ type: 'set_carryover_projects', value: next });
+    window.db.collection('frame_config').doc('display_settings')
+      .set({ carryOverProjects: next }, { merge: true })
+      .catch(err => console.error('[FRAME] CarryOver projects toggle:', err));
+  };
+
+  // ── Carry-over de proyectos con checklist pendiente ───────────
+  useEffect(() => {
+    if (!state.carryOverProjects || state.loading || state.projects.length === 0) return;
+
+    const today = localISO(new Date());
+    const storageKey = 'frame_carryover_' + today;
+    if (localStorage.getItem(storageKey)) return; // Ya corrió hoy
+    localStorage.setItem(storageKey, '1');
+
+    const toUpdate = state.projects.filter(p => {
+      // Solo con checklist parcial (tiene ítems y al menos uno sin completar)
+      if (!p.checklist?.length || progressOf(p) >= 100) return false;
+      // No archivar ni entregados
+      if (p.status === 'delivered' || p.status === 'archived') return false;
+      // La fecha de sesión o deadline tiene que ser pasada
+      const refDate = p.sessionDate || p.deadline;
+      return refDate && refDate < today;
+    });
+
+    if (toUpdate.length === 0) return;
+
+    const batch = window.db.batch();
+    toUpdate.forEach(p => {
+      const updated = { ...p, sessionDate: today };
+      dispatch({ type: 'update_project', project: updated });
+      batch.set(window.db.collection('frame_projects').doc(p.id), updated);
+    });
+    batch.commit()
+      .then(() => console.log(`[FRAME] CarryOver: ${toUpdate.length} proyecto(s) movido(s) a hoy`))
+      .catch(err => console.error('[FRAME] CarryOver batch error:', err));
+  }, [state.carryOverProjects, state.loading, state.projects.length]);
 
   // ── Firestore: columnas Kanban ─────────────────────────────
   useEffect(() => {
@@ -1446,6 +1511,8 @@ const App = () => {
         <SettingsSection
           previewFields={state.previewFields}
           onToggle={handleTogglePreviewField}
+          carryOverProjects={state.carryOverProjects}
+          onToggleCarryOverProjects={handleToggleCarryOverProjects}
         />
       ) : state.section === 'trash' ? (
         <TrashSection
