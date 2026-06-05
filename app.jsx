@@ -9,6 +9,8 @@ const _savedNav = (() => {
   try { return JSON.parse(localStorage.getItem('frame_nav') || '{}'); }
   catch { return {}; }
 })();
+// Vista fija: si hay una pinneada, se abre siempre en esa (anula el historial de nav)
+const _pinnedView = localStorage.getItem('frame_pinned_view') || null;
 
 // ── Initial state + reducer ─────────────────────────────────────
 const initialState = {
@@ -16,7 +18,8 @@ const initialState = {
   projects: [],
   loading: true,
   currentUserId: 'u1',
-  view: _savedNav.view || 'kanban', // calendar | kanban | gallery | list
+  view: _pinnedView || _savedNav.view || 'kanban', // fija > historial > default
+  pinnedView: _pinnedView,          // null | 'kanban' | 'calendar' | 'gallery' | 'list'
   search: '',
   filters: {
     status: [],
@@ -119,6 +122,8 @@ function reducer(state, action) {
     case 'toggle_preview_field':  return { ...state, previewFields: { ...state.previewFields, [action.key]: !state.previewFields[action.key] } };
     // ── Carry-over proyectos ──
     case 'set_carryover_projects': return { ...state, carryOverProjects: action.value };
+    // ── Vista fija ──
+    case 'set_pinned_view': return { ...state, pinnedView: action.view };
     // ── Tipos personalizados ──
     case 'set_custom_types':    return { ...state, customTypes: action.types };
     case 'add_custom_type':     return { ...state, customTypes: [...state.customTypes, action.typeObj] };
@@ -168,7 +173,11 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
       {/* Logo — click va a inicio */}
       <div className="px-5 py-5 border-b border-app">
         <button
-          onClick={() => { dispatch({ type: 'set_section', section: 'projects' }); dispatch({ type: 'set_sidebar_filter', filter: 'all' }); }}
+          onClick={() => {
+            dispatch({ type: 'set_section', section: 'projects' });
+            dispatch({ type: 'set_sidebar_filter', filter: 'all' });
+            if (state.pinnedView) dispatch({ type: 'set_view', view: state.pinnedView });
+          }}
           className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
           title="Ir al inicio"
         >
@@ -443,7 +452,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
 };
 
 // ── Header ──────────────────────────────────────────────────────
-const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject, onApproveUser, onRejectUser }) => {
+const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject, onApproveUser, onRejectUser, onPinView }) => {
   const me = getUser(state.currentUserId);
   const activeFilters = [
     ...state.filters.status.map(v => ({ key: 'status', value: v, label: getStatus(v).label, color: getStatus(v).color })),
@@ -464,16 +473,40 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
             { id: 'calendar', icon: 'calendar', label: 'Calendario' },
             { id: 'gallery',  icon: 'grid',     label: 'Galería' },
             { id: 'list',     icon: 'list',     label: 'Lista' },
-          ].map(v => (
-            <button
-              key={v.id}
-              onClick={() => dispatch({ type: 'set_view', view: v.id })}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] font-medium transition-all ${state.view === v.id ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-dim)] hover:text-white'}`}
-            >
-              <Icon name={v.icon} size={13} />
-              <span>{v.label}</span>
-            </button>
-          ))}
+          ].map(v => {
+            const isPinned = state.pinnedView === v.id;
+            return (
+              <div key={v.id} className="relative group">
+                {/* Botón de vista */}
+                <button
+                  onClick={() => dispatch({ type: 'set_view', view: v.id })}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] font-medium transition-all select-none ${state.view === v.id ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-dim)] hover:text-white'}`}
+                >
+                  <Icon name={v.icon} size={13} />
+                  <span>{v.label}</span>
+                  {/* Dot indicador cuando está fijada */}
+                  {isPinned && (
+                    <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+                  )}
+                </button>
+                {/* Pin button — aparece al hover, siempre visible si está fijada */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onPinView && onPinView(v.id); }}
+                  className={`absolute -top-1.5 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center transition-all ${isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  style={{
+                    background: isPinned ? 'var(--accent)' : 'var(--surface-3)',
+                    color:      isPinned ? '#0a0a0b'       : 'var(--text-muted)',
+                    border:     `1px solid ${isPinned ? 'transparent' : 'var(--border)'}`,
+                    boxShadow:  '0 1px 6px rgba(0,0,0,0.4)',
+                    zIndex: 10,
+                  }}
+                  title={isPinned ? 'Quitar vista fija' : 'Fijar como vista principal'}
+                >
+                  <Icon name="pin" size={9} />
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {/* Search */}
@@ -1081,8 +1114,15 @@ const App = () => {
     const unsub = ref.onSnapshot((snap) => {
       if (!snap.exists) return;
       const data = snap.data();
-      if (data.previewFields)     dispatch({ type: 'set_preview_fields',    fields: data.previewFields });
+      if (data.previewFields)               dispatch({ type: 'set_preview_fields',    fields: data.previewFields });
       if (data.carryOverProjects !== undefined) dispatch({ type: 'set_carryover_projects', value: data.carryOverProjects });
+      // Sincronizar vista fija desde Firestore (cross-device)
+      if ('pinnedView' in data) {
+        const pv = data.pinnedView || null;
+        dispatch({ type: 'set_pinned_view', view: pv });
+        if (pv) localStorage.setItem('frame_pinned_view', pv);
+        else    localStorage.removeItem('frame_pinned_view');
+      }
     }, (err) => console.error('Display settings error:', err));
     return () => unsub();
   }, []);
@@ -1093,6 +1133,17 @@ const App = () => {
     window.db.collection('frame_config').doc('display_settings')
       .set({ previewFields: next }, { merge: true })
       .catch(err => console.error('Error guardando display settings:', err));
+  };
+
+  const handlePinView = (view) => {
+    const next = state.pinnedView === view ? null : view; // toggle: misma → quitar
+    dispatch({ type: 'set_pinned_view', view: next });
+    dispatch({ type: 'set_view',        view: next || view }); // ir a la vista al pinear
+    if (next) localStorage.setItem('frame_pinned_view', next);
+    else      localStorage.removeItem('frame_pinned_view');
+    window.db.collection('frame_config').doc('display_settings')
+      .set({ pinnedView: next }, { merge: true })
+      .catch(err => console.error('[FRAME] PinView:', err));
   };
 
   const handleToggleCarryOverProjects = () => {
@@ -1532,6 +1583,7 @@ const App = () => {
             onOpenProject={(id) => dispatch({ type: 'open_project', id })}
             onApproveUser={handleApproveUser}
             onRejectUser={handleRejectUser}
+            onPinView={handlePinView}
           />
           {state.view === 'kanban' && <StatusStatsBar projects={filtered} />}
 
