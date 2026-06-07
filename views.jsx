@@ -759,16 +759,17 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
   );
 };
 
-// ── Tarjeta ultra-compacta para la vista semanal ────────────────
-// Diseñada para columnas de ~140-180px: borde de color, 1 línea de título,
-// fila secundaria con cliente + fecha, barra de progreso de 2px.
-const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, previewFields: pf = {} }) => {
+// ── Tarjeta vertical estilo Notion para vista semanal ────────────
+// Cada property en su propia fila → el título puede wrappear libremente
+// y la tarjeta se adapta a cualquier ancho de columna sin aplastar nada.
+const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, onToggleFavorite, previewFields: pf = {} }) => {
   const t        = getType(project.type);
   const st       = getStatus(project.status);
   const days     = daysUntil(project.deadline);
   const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
   const isOver   = days < 0  && project.status !== 'delivered' && project.status !== 'archived';
   const progress = progressOf(project);
+  const hasTags  = pf.tags && project.tags?.length > 0;
 
   return (
     <div
@@ -776,55 +777,72 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`cursor-pointer rounded-md overflow-hidden select-none transition-all hover:brightness-110 ${dragging ? 'opacity-40' : ''}`}
-      style={{ background: t.color + '1a', borderLeft: `2px solid ${t.color}` }}
-      title={project.title}
+      className={`group cursor-pointer rounded-lg overflow-hidden select-none border lift ${dragging ? 'dragging' : ''}`}
+      style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', borderTop: `3px solid ${t.color}` }}
     >
-      {/* Fila principal: ícono + título + indicadores */}
-      <div className="flex items-center gap-1 px-1.5 pt-1 pb-0.5 min-w-0">
+      <div className="p-2.5 flex flex-col gap-1.5">
+
+        {/* Tipo + urgencia — fila propia */}
         {pf.tipo !== false && (
-          <Icon name={t.icon} size={9} style={{ color: t.color, flexShrink: 0 }} />
+          <div className="flex items-center gap-1 flex-wrap">
+            <TypePill type={project.type} />
+            {pf.prioridad !== false && isUrgent && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>
+            )}
+            {pf.prioridad !== false && isOver && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
+            )}
+          </div>
         )}
-        <span
-          className="flex-1 text-[11px] font-semibold truncate"
-          style={{ color: 'var(--text)', lineHeight: '1.3' }}
-        >
+
+        {/* Título — wrappea libremente */}
+        <div className="font-display font-semibold text-[12.5px] leading-snug pretty" style={{ color: 'var(--text)' }}>
           {project.title}
-        </span>
-        {/* Indicadores de urgencia y estado */}
-        {pf.prioridad !== false && isUrgent && (
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#FF6B6B' }} title="Urgente" />
+        </div>
+
+        {/* Cliente */}
+        {pf.cliente !== false && project.client && (
+          <div className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>{project.client}</div>
         )}
-        {pf.estado !== false && st && (
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: st.color }} title={st.label} />
+
+        {/* Estado */}
+        {pf.estado !== false && (
+          <div><StatusPill status={project.status} size="sm" /></div>
         )}
+
+        {/* Tags */}
+        {hasTags && (
+          <div className="flex flex-wrap gap-1">
+            {project.tags.slice(0, 3).map(tag => (
+              <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
+            ))}
+          </div>
+        )}
+
+        {/* Barra de progreso */}
+        {pf.progreso !== false && (
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+              <div className="h-full rounded-full" style={{ width: progress + '%', background: t.color, transition: 'width 400ms' }} />
+            </div>
+            <span className="text-[9px] font-mono flex-shrink-0" style={{ color: t.color }}>{progress}%</span>
+          </div>
+        )}
+
+        {/* Responsables + deadline — fila final */}
+        {(pf.responsables !== false || pf.deadline !== false) && (
+          <div className="flex items-center justify-between gap-1 mt-0.5">
+            {pf.responsables !== false ? <AvatarStack ids={project.assignees} size={16} max={3} /> : <span />}
+            {pf.deadline !== false && project.deadline && (
+              <div className="flex items-center gap-0.5 text-[9.5px] font-mono" style={{ color: isOver ? '#FF6B6B' : 'var(--text-muted)' }}>
+                <Icon name="calendar" size={9} />
+                {fmtDate(project.deadline)}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
-
-      {/* Fila secundaria: cliente + deadline */}
-      {(pf.cliente !== false || pf.deadline !== false) && (
-        <div className="flex items-center justify-between gap-1 px-1.5 pb-1 min-w-0">
-          {pf.cliente !== false && (
-            <span className="text-[9px] truncate flex-1" style={{ color: t.color + 'bb' }}>
-              {project.client}
-            </span>
-          )}
-          {pf.deadline !== false && project.deadline && (
-            <span
-              className="text-[8.5px] font-mono flex-shrink-0"
-              style={{ color: isOver ? '#FF6B6B' : 'var(--text-muted)' }}
-            >
-              {fmtDate(project.deadline)}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Barra de progreso (2px) */}
-      {pf.progreso !== false && (
-        <div style={{ height: 2, background: 'rgba(0,0,0,0.15)' }}>
-          <div style={{ height: '100%', width: progress + '%', background: t.color, transition: 'width 300ms' }} />
-        </div>
-      )}
     </div>
   );
 };
@@ -880,7 +898,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
     // overflow-x-auto: scroll horizontal cuando las 7 columnas no caben
     // Cada columna tiene min-width 190px para que las tarjetas no se aplasten
     <div className="flex-1 overflow-x-auto overflow-y-hidden">
-      <div className="flex h-full" style={{ minWidth: 'calc(7 * 190px)' }}>
+      <div className="flex h-full" style={{ minWidth: 'calc(7 * 160px)' }}>
         {days.map((dt, i) => {
           const iso        = localISO(dt);
           const items      = projectsByDate[iso] || [];
@@ -892,7 +910,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
               className="border-r border-app overflow-y-auto transition-colors flex-shrink-0"
               style={{
                 width: 'calc(100% / 7)',
-                minWidth: 190,
+                minWidth: 160,
                 background:   isDragOver ? 'rgba(212,255,79,0.08)' : isToday ? 'var(--accent-soft)' : 'transparent',
                 borderColor:  isDragOver ? 'rgba(212,255,79,0.4)'  : 'var(--border)',
               }}
@@ -916,7 +934,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                 )}
               </div>
 
-              {/* Cards — misma ProjectCardMini compact de siempre */}
+              {/* WeekCard: layout vertical estilo Notion */}
               <div className="p-2 space-y-2">
                 {items.length === 0 && (
                   <div className="text-[10px] text-center py-6" style={{ color: isDragOver ? 'var(--accent)' : 'var(--text-muted)' }}>
@@ -924,7 +942,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                   </div>
                 )}
                 {items.map(p => (
-                  <ProjectCardMini
+                  <WeekCard
                     key={p.id + p._kind}
                     project={p}
                     onClick={() => !dragging && onOpenProject(p.id)}
@@ -932,9 +950,6 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                     onDragStart={(e) => handleDragStart(e, p)}
                     onDragEnd={handleDragEnd}
                     dragging={dragging?.id === p.id && dragging?.kind === p._kind}
-                    compact
-                    onDelete={onDeleteProject}
-                    onDuplicate={onDuplicateProject}
                     onToggleFavorite={onToggleFavorite}
                     previewFields={previewFields}
                   />
