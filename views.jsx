@@ -538,12 +538,47 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     return map;
   }, [projects]);
 
-  const monthLabel = refDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
   const isSameDay = (a, b) => a.toDateString() === b.toDateString();
   const todayDt = new Date(TODAY);
 
-  const goPrev = () => setRefDate(new Date(year, month - 1, 1));
-  const goNext = () => setRefDate(new Date(year, month + 1, 1));
+  // Etiqueta del header según el modo
+  const monthLabel = (() => {
+    if (mode === 'month') {
+      return refDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    }
+    if (mode === 'week') {
+      const weekStart = new Date(refDate);
+      const dow = (refDate.getDay() + 6) % 7; // lunes = 0
+      weekStart.setDate(refDate.getDate() - dow);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
+      const sameYear  = weekStart.getFullYear() === weekEnd.getFullYear();
+      const startStr  = weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      const endStr    = weekEnd.toLocaleDateString('es-ES',
+        sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' }
+      );
+      return `${startStr} – ${endStr}${sameYear ? ', ' + weekStart.getFullYear() : ''}`;
+    }
+    // day
+    return refDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  })();
+
+  // Navegación consciente del modo
+  const goPrev = () => {
+    const d = new Date(refDate);
+    if (mode === 'week')  d.setDate(d.getDate() - 7);
+    else if (mode === 'day') d.setDate(d.getDate() - 1);
+    else return setRefDate(new Date(year, month - 1, 1));
+    setRefDate(d);
+  };
+  const goNext = () => {
+    const d = new Date(refDate);
+    if (mode === 'week')  d.setDate(d.getDate() + 7);
+    else if (mode === 'day') d.setDate(d.getDate() + 1);
+    else return setRefDate(new Date(year, month + 1, 1));
+    setRefDate(d);
+  };
   const goToday = () => setRefDate(new Date(TODAY));
 
   // ── Drag handlers ─────────────────────────────────────────────
