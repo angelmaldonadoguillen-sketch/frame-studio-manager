@@ -759,6 +759,76 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
   );
 };
 
+// ── Tarjeta ultra-compacta para la vista semanal ────────────────
+// Diseñada para columnas de ~140-180px: borde de color, 1 línea de título,
+// fila secundaria con cliente + fecha, barra de progreso de 2px.
+const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, previewFields: pf = {} }) => {
+  const t        = getType(project.type);
+  const st       = getStatus(project.status);
+  const days     = daysUntil(project.deadline);
+  const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
+  const isOver   = days < 0  && project.status !== 'delivered' && project.status !== 'archived';
+  const progress = progressOf(project);
+
+  return (
+    <div
+      onClick={onClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={`cursor-pointer rounded-md overflow-hidden select-none transition-all hover:brightness-110 ${dragging ? 'opacity-40' : ''}`}
+      style={{ background: t.color + '1a', borderLeft: `2px solid ${t.color}` }}
+      title={project.title}
+    >
+      {/* Fila principal: ícono + título + indicadores */}
+      <div className="flex items-center gap-1 px-1.5 pt-1 pb-0.5 min-w-0">
+        {pf.tipo !== false && (
+          <Icon name={t.icon} size={9} style={{ color: t.color, flexShrink: 0 }} />
+        )}
+        <span
+          className="flex-1 text-[11px] font-semibold truncate"
+          style={{ color: 'var(--text)', lineHeight: '1.3' }}
+        >
+          {project.title}
+        </span>
+        {/* Indicadores de urgencia y estado */}
+        {pf.prioridad !== false && isUrgent && (
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#FF6B6B' }} title="Urgente" />
+        )}
+        {pf.estado !== false && st && (
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: st.color }} title={st.label} />
+        )}
+      </div>
+
+      {/* Fila secundaria: cliente + deadline */}
+      {(pf.cliente !== false || pf.deadline !== false) && (
+        <div className="flex items-center justify-between gap-1 px-1.5 pb-1 min-w-0">
+          {pf.cliente !== false && (
+            <span className="text-[9px] truncate flex-1" style={{ color: t.color + 'bb' }}>
+              {project.client}
+            </span>
+          )}
+          {pf.deadline !== false && project.deadline && (
+            <span
+              className="text-[8.5px] font-mono flex-shrink-0"
+              style={{ color: isOver ? '#FF6B6B' : 'var(--text-muted)' }}
+            >
+              {fmtDate(project.deadline)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Barra de progreso (2px) */}
+      {pf.progreso !== false && (
+        <div style={{ height: 2, background: 'rgba(0,0,0,0.15)' }}>
+          <div style={{ height: '100%', width: progress + '%', background: t.color, transition: 'width 300ms' }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, previewFields = {} }) => {
   const [dragging, setDragging]         = React.useState(null); // { id, kind }
   const [dragOverDate, setDragOverDate] = React.useState(null);
@@ -807,7 +877,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
   };
 
   return (
-    <div className="flex-1 grid grid-cols-7 overflow-hidden">
+    <div className="flex-1 grid grid-cols-7 overflow-hidden" style={{ minWidth: 0 }}>
       {days.map((dt, i) => {
         const iso        = localISO(dt);
         const items      = projectsByDate[iso] || [];
@@ -816,38 +886,53 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
         return (
           <div
             key={i}
-            className="border-r border-app overflow-y-auto transition-colors"
+            className="border-r border-app overflow-y-auto transition-colors flex flex-col"
             style={{
-              background:   isDragOver ? 'rgba(212,255,79,0.08)' : isToday ? 'var(--accent-soft)' : 'transparent',
+              background:   isDragOver ? 'rgba(212,255,79,0.06)' : isToday ? 'var(--accent-soft)' : 'transparent',
               borderColor:  isDragOver ? 'rgba(212,255,79,0.4)'  : 'var(--border)',
               borderRightStyle: 'solid',
+              minWidth: 0,
             }}
-            onDragOver={(e)   => handleDragOver(e, iso)}
-            onDragLeave={(e)  => { if (!e.currentTarget.contains(e.relatedTarget)) { setDragOverDate(null); lastOverRef.current = null; } }}
-            onDrop={(e)       => handleDrop(e, iso)}
+            onDragOver={(e)  => handleDragOver(e, iso)}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setDragOverDate(null); lastOverRef.current = null; } }}
+            onDrop={(e)      => handleDrop(e, iso)}
           >
             {/* Day header */}
-            <div className="sticky top-0 px-3 py-2 border-b border-app flex items-baseline gap-2" style={{ background: 'var(--surface)' }}>
-              <span className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)]">
-                {dt.toLocaleDateString('es-ES', { weekday: 'short' })}
-              </span>
-              <span className={`text-lg font-display font-bold`} style={{ color: isToday ? 'var(--accent)' : 'var(--text-dim)' }}>
-                {dt.getDate()}
-              </span>
+            <div
+              className="sticky top-0 flex items-baseline justify-between px-2 py-1.5 border-b border-app select-none"
+              style={{ background: isToday ? 'rgba(212,255,79,0.08)' : 'var(--surface)', zIndex: 1 }}
+            >
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[9px] tracking-[0.15em] uppercase" style={{ color: 'var(--text-muted)' }}>
+                  {dt.toLocaleDateString('es-ES', { weekday: 'short' })}
+                </span>
+                <span
+                  className="font-display font-bold text-[15px]"
+                  style={{ color: isToday ? 'var(--accent)' : 'var(--text-dim)', lineHeight: 1 }}
+                >
+                  {dt.getDate()}
+                </span>
+              </div>
+              {items.length > 0 && (
+                <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{items.length}</span>
+              )}
               {isDragOver && (
-                <span className="ml-auto text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>SOLTAR</span>
+                <span className="text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>↓</span>
               )}
             </div>
 
-            {/* Cards */}
-            <div className="p-2 space-y-2">
+            {/* Tarjetas compactas */}
+            <div className="p-1.5 flex flex-col gap-1 flex-1">
               {items.length === 0 && (
-                <div className="text-[10px] text-center py-6" style={{ color: isDragOver ? 'var(--accent)' : 'var(--text-muted)' }}>
-                  {isDragOver ? '↓' : '—'}
+                <div
+                  className="flex-1 flex items-center justify-center text-[11px]"
+                  style={{ color: isDragOver ? 'var(--accent)' : 'var(--border-2)' }}
+                >
+                  {isDragOver ? '↓' : '·'}
                 </div>
               )}
               {items.map(p => (
-                <ProjectCardMini
+                <WeekCard
                   key={p.id + p._kind}
                   project={p}
                   onClick={() => !dragging && onOpenProject(p.id)}
@@ -855,10 +940,6 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                   onDragStart={(e) => handleDragStart(e, p)}
                   onDragEnd={handleDragEnd}
                   dragging={dragging?.id === p.id && dragging?.kind === p._kind}
-                  compact
-                  onDelete={onDeleteProject}
-                  onDuplicate={onDuplicateProject}
-                  onToggleFavorite={onToggleFavorite}
                   previewFields={previewFields}
                 />
               ))}
