@@ -6,11 +6,12 @@ const RoutineWidget = () => {
   const { useState, useEffect, useRef, useMemo } = React;
 
   // ── Panel open/close ──────────────────────────────────────────
-  const [open,       setOpen]       = useState(false);
-  const [editMode,   setEditMode]   = useState(false);
-  const [newText,    setNewText]    = useState('');
-  const [editingId,  setEditingId]  = useState(null);
-  const [editingTxt, setEditingTxt] = useState('');
+  const [open,          setOpen]          = useState(false);
+  const [editMode,      setEditMode]      = useState(false);
+  const [newText,       setNewText]       = useState('');
+  const [editingId,     setEditingId]     = useState(null);
+  const [editingTxt,    setEditingTxt]    = useState('');
+  const [assignPickerId, setAssignPickerId] = useState(null); // taskId con picker abierto
   const addInputRef = useRef(null);
   const panelRef    = useRef(null);
 
@@ -165,6 +166,16 @@ const RoutineWidget = () => {
     window.db.collection('frame_config').doc('daily_routine')
       .update({ tasks: updatedTasks, 'today.checks': updatedChecks })
       .catch(err => console.error('[FRAME] Routine delete:', err));
+  };
+
+  // ── Asignar tarea a un perfil ────────────────────────────────
+  const assignTask = (taskId, userId) => {
+    const updated = tasks.map(t => t.id === taskId ? { ...t, assignee: userId || null } : t);
+    setTasks(updated);
+    setAssignPickerId(null);
+    window.db.collection('frame_config').doc('daily_routine')
+      .update({ tasks: updated })
+      .catch(err => console.error('[FRAME] Routine assign:', err));
   };
 
   // ── Renombrar tarea ───────────────────────────────────────────
@@ -388,6 +399,53 @@ const RoutineWidget = () => {
                   {/* Botones modo edición */}
                   {editMode && !editing && (
                     <div className="flex items-center gap-0.5 flex-shrink-0">
+
+                      {/* ── Asignar perfil ── */}
+                      <div className="relative" data-picker="true">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setAssignPickerId(assignPickerId === task.id ? null : task.id); }}
+                          className="p-1 rounded transition-colors hover:bg-[var(--surface-3)] flex items-center justify-center"
+                          style={{ color: task.assignee ? 'var(--accent)' : 'var(--text-muted)' }}
+                          title="Asignar a..."
+                        >
+                          {task.assignee && getUser(task.assignee)
+                            ? <Avatar user={getUser(task.assignee)} size={16} />
+                            : <Icon name="users" size={12} />
+                          }
+                        </button>
+                        {assignPickerId === task.id && (
+                          <div
+                            className="absolute right-0 top-full mt-1 rounded-xl border shadow-2xl anim-scale-in overflow-hidden"
+                            style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', minWidth: 180, maxHeight: 220, overflowY: 'auto', zIndex: 9999, transformOrigin: 'top right' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="px-3 py-2 text-[9.5px] tracking-[0.16em] uppercase select-none" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                              Asignar tarea
+                            </div>
+                            <button onClick={() => assignTask(task.id, null)} className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--surface-3)]">
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ border: '1.5px dashed var(--border-2)' }}>
+                                <Icon name="x" size={9} style={{ color: 'var(--text-muted)' }} />
+                              </div>
+                              <span className="text-[11.5px] select-none" style={{ color: 'var(--text-muted)' }}>Sin asignar</span>
+                              {!task.assignee && <Icon name="check" size={10} style={{ color: 'var(--accent)', marginLeft: 'auto' }} />}
+                            </button>
+                            {(window.__liveTeam || []).filter(u => !u.status || u.status === 'active').map(u => (
+                              <button key={u.id} onClick={() => assignTask(task.id, u.id)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--surface-3)]"
+                                style={{ background: task.assignee === u.id ? 'var(--surface-3)' : 'transparent' }}
+                              >
+                                <Avatar user={u} size={20} />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[11.5px] font-medium truncate select-none" style={{ color: 'var(--text)' }}>{u.name}</div>
+                                  <div className="text-[9.5px] truncate select-none" style={{ color: 'var(--text-muted)' }}>{u.role}</div>
+                                </div>
+                                {task.assignee === u.id && <Icon name="check" size={10} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingId(task.id); setEditingTxt(task.text); }}
                         className="p-1.5 rounded transition-colors text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]"
@@ -418,6 +476,13 @@ const RoutineWidget = () => {
                     >
                       +{daysOwed}d
                     </span>
+                  )}
+
+                  {/* Avatar del asignado (modo vista) */}
+                  {!editMode && task.assignee && (
+                    <div className="flex-shrink-0" title={getUser(task.assignee)?.name}>
+                      <Avatar user={getUser(task.assignee)} size={18} />
+                    </div>
                   )}
 
                   {/* Número en modo vista */}
