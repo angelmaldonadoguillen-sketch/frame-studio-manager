@@ -762,7 +762,8 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
 // ── Tarjeta vertical estilo Notion para vista semanal ────────────
 // Cada property en su propia fila → el título puede wrappear libremente
 // y la tarjeta se adapta a cualquier ancho de columna sin aplastar nada.
-const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, onToggleFavorite, previewFields: pf = {} }) => {
+const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, onToggleFavorite, onDelete, onDuplicate, previewFields: pf = {} }) => {
+  const [confirmDel, setConfirmDel] = React.useState(false);
   const t        = getType(project.type);
   const st       = getStatus(project.status);
   const days     = daysUntil(project.deadline);
@@ -782,10 +783,10 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
     >
       <div className="p-2.5 flex flex-col gap-1.5">
 
-        {/* Tipo + urgencia — fila propia */}
-        {pf.tipo !== false && (
+        {/* Fila tipo + urgencia + botones de acción */}
+        <div className="flex items-start justify-between gap-1">
           <div className="flex items-center gap-1 flex-wrap">
-            <TypePill type={project.type} />
+            {pf.tipo !== false && <TypePill type={project.type} />}
             {pf.prioridad !== false && isUrgent && (
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>
             )}
@@ -793,7 +794,49 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
             )}
           </div>
-        )}
+
+          {/* Botones — visibles en hover */}
+          <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            {!confirmDel ? (
+              <>
+                {onToggleFavorite && (
+                  <button
+                    onClick={() => onToggleFavorite(project.id)}
+                    className={`p-1 rounded transition-all ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                    style={{ color: project.favorite ? '#FFD166' : 'var(--text-muted)' }}
+                    title={project.favorite ? 'Quitar favorito' : 'Favorito'}
+                  >
+                    <Icon name="star" size={11} fill={project.favorite ? 'currentColor' : 'none'} />
+                  </button>
+                )}
+                {onDuplicate && (
+                  <button
+                    onClick={() => onDuplicate(project.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-all"
+                    title="Duplicar"
+                  >
+                    <Icon name="copy" size={11} />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => setConfirmDel(true)}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all"
+                    title="Eliminar"
+                  >
+                    <Icon name="trash" size={11} />
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-semibold" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
+                <button onClick={() => onDelete(project.id)} className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>Sí</button>
+                <button onClick={() => setConfirmDel(false)} className="text-[9px] font-medium px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>No</button>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Título — wrappea libremente */}
         <div className="font-display font-semibold text-[12.5px] leading-snug pretty" style={{ color: 'var(--text)' }}>
@@ -951,6 +994,8 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                     onDragEnd={handleDragEnd}
                     dragging={dragging?.id === p.id && dragging?.kind === p._kind}
                     onToggleFavorite={onToggleFavorite}
+                    onDelete={onDeleteProject}
+                    onDuplicate={onDuplicateProject}
                     previewFields={previewFields}
                   />
                 ))}
