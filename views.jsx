@@ -877,76 +877,73 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
   };
 
   return (
-    <div className="flex-1 grid grid-cols-7 overflow-hidden" style={{ minWidth: 0 }}>
-      {days.map((dt, i) => {
-        const iso        = localISO(dt);
-        const items      = projectsByDate[iso] || [];
-        const isToday    = dt.toDateString() === todayDt.toDateString();
-        const isDragOver = dragOverDate === iso;
-        return (
-          <div
-            key={i}
-            className="border-r border-app overflow-y-auto transition-colors flex flex-col"
-            style={{
-              background:   isDragOver ? 'rgba(212,255,79,0.06)' : isToday ? 'var(--accent-soft)' : 'transparent',
-              borderColor:  isDragOver ? 'rgba(212,255,79,0.4)'  : 'var(--border)',
-              borderRightStyle: 'solid',
-              minWidth: 0,
-            }}
-            onDragOver={(e)  => handleDragOver(e, iso)}
-            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setDragOverDate(null); lastOverRef.current = null; } }}
-            onDrop={(e)      => handleDrop(e, iso)}
-          >
-            {/* Day header */}
+    // overflow-x-auto: scroll horizontal cuando las 7 columnas no caben
+    // Cada columna tiene min-width 190px para que las tarjetas no se aplasten
+    <div className="flex-1 overflow-x-auto overflow-y-hidden">
+      <div className="flex h-full" style={{ minWidth: 'calc(7 * 190px)' }}>
+        {days.map((dt, i) => {
+          const iso        = localISO(dt);
+          const items      = projectsByDate[iso] || [];
+          const isToday    = dt.toDateString() === todayDt.toDateString();
+          const isDragOver = dragOverDate === iso;
+          return (
             <div
-              className="sticky top-0 flex items-baseline justify-between px-2 py-1.5 border-b border-app select-none"
-              style={{ background: isToday ? 'rgba(212,255,79,0.08)' : 'var(--surface)', zIndex: 1 }}
+              key={i}
+              className="border-r border-app overflow-y-auto transition-colors flex-shrink-0"
+              style={{
+                width: 'calc(100% / 7)',
+                minWidth: 190,
+                background:   isDragOver ? 'rgba(212,255,79,0.08)' : isToday ? 'var(--accent-soft)' : 'transparent',
+                borderColor:  isDragOver ? 'rgba(212,255,79,0.4)'  : 'var(--border)',
+              }}
+              onDragOver={(e)  => handleDragOver(e, iso)}
+              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setDragOverDate(null); lastOverRef.current = null; } }}
+              onDrop={(e)      => handleDrop(e, iso)}
             >
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[9px] tracking-[0.15em] uppercase" style={{ color: 'var(--text-muted)' }}>
+              {/* Day header */}
+              <div className="sticky top-0 px-3 py-2 border-b border-app flex items-baseline gap-2 select-none" style={{ background: 'var(--surface)' }}>
+                <span className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)]">
                   {dt.toLocaleDateString('es-ES', { weekday: 'short' })}
                 </span>
-                <span
-                  className="font-display font-bold text-[15px]"
-                  style={{ color: isToday ? 'var(--accent)' : 'var(--text-dim)', lineHeight: 1 }}
-                >
+                <span className="text-lg font-display font-bold" style={{ color: isToday ? 'var(--accent)' : 'var(--text-dim)' }}>
                   {dt.getDate()}
                 </span>
+                {items.length > 0 && (
+                  <span className="ml-auto text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{items.length}</span>
+                )}
+                {isDragOver && (
+                  <span className="ml-auto text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>SOLTAR</span>
+                )}
               </div>
-              {items.length > 0 && (
-                <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{items.length}</span>
-              )}
-              {isDragOver && (
-                <span className="text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>↓</span>
-              )}
-            </div>
 
-            {/* Tarjetas compactas */}
-            <div className="p-1.5 flex flex-col gap-1 flex-1">
-              {items.length === 0 && (
-                <div
-                  className="flex-1 flex items-center justify-center text-[11px]"
-                  style={{ color: isDragOver ? 'var(--accent)' : 'var(--border-2)' }}
-                >
-                  {isDragOver ? '↓' : '·'}
-                </div>
-              )}
-              {items.map(p => (
-                <WeekCard
-                  key={p.id + p._kind}
-                  project={p}
-                  onClick={() => !dragging && onOpenProject(p.id)}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, p)}
-                  onDragEnd={handleDragEnd}
-                  dragging={dragging?.id === p.id && dragging?.kind === p._kind}
-                  previewFields={previewFields}
-                />
-              ))}
+              {/* Cards — misma ProjectCardMini compact de siempre */}
+              <div className="p-2 space-y-2">
+                {items.length === 0 && (
+                  <div className="text-[10px] text-center py-6" style={{ color: isDragOver ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    {isDragOver ? '↓' : '—'}
+                  </div>
+                )}
+                {items.map(p => (
+                  <ProjectCardMini
+                    key={p.id + p._kind}
+                    project={p}
+                    onClick={() => !dragging && onOpenProject(p.id)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, p)}
+                    onDragEnd={handleDragEnd}
+                    dragging={dragging?.id === p.id && dragging?.kind === p._kind}
+                    compact
+                    onDelete={onDeleteProject}
+                    onDuplicate={onDuplicateProject}
+                    onToggleFavorite={onToggleFavorite}
+                    previewFields={previewFields}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };
