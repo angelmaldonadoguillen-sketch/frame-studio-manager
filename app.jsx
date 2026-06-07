@@ -1261,6 +1261,8 @@ const App = () => {
   }, []);
 
   const handleCreateCustomType = (typeObj) => {
+    // Actualizar global ANTES del dispatch para que getType() lea datos correctos en el siguiente render
+    window.FRAME_CUSTOM_TYPES = [...(window.FRAME_CUSTOM_TYPES || []), typeObj];
     dispatch({ type: 'add_custom_type', typeObj });
     window.db.collection('frame_config').doc('project_types').get()
       .then(snap => {
@@ -1270,6 +1272,8 @@ const App = () => {
       .catch(err => console.error('Error al crear tipo:', err));
   };
   const handleUpdateCustomType = (id, patch) => {
+    // Sincronizar global antes del dispatch (optimistic sync)
+    window.FRAME_CUSTOM_TYPES = (window.FRAME_CUSTOM_TYPES || []).map(t => t.id === id ? { ...t, ...patch } : t);
     dispatch({ type: 'update_custom_type', id, patch });
     window.db.collection('frame_config').doc('project_types').get()
       .then(snap => {
@@ -1279,6 +1283,7 @@ const App = () => {
       .catch(err => console.error('Error al editar tipo:', err));
   };
   const handleDeleteCustomType = (id) => {
+    window.FRAME_CUSTOM_TYPES = (window.FRAME_CUSTOM_TYPES || []).filter(t => t.id !== id);
     dispatch({ type: 'delete_custom_type', id });
     window.db.collection('frame_config').doc('project_types').get()
       .then(snap => {

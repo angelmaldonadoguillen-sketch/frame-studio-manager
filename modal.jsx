@@ -226,10 +226,10 @@ const TypePill = ({ type, size = 'sm' }) => {
   if (!t) return null;
   const px = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs';
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md ${px} font-medium border`}
+    <span className={`inline-flex items-center gap-1.5 rounded-md ${px} font-medium border max-w-full overflow-hidden`}
       style={{ borderColor: t.color + '44', color: t.color, background: t.color + '11' }}>
-      <Icon name={t.icon} size={11} />
-      {t.label}
+      <Icon name={t.icon} size={11} style={{ flexShrink: 0 }} />
+      <span className="truncate">{t.label}</span>
     </span>
   );
 };
