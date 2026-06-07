@@ -400,7 +400,8 @@ const getUser   = (id) => {
   if (live) { const u = live.find(u => u.id === id); if (u) return u; }
   return USERS.find(u => u.id === id) || null;
 };
-const getType   = (id) => PROJECT_TYPES.find(t => t.id === id) || (window.FRAME_CUSTOM_TYPES || []).find(t => t.id === id) || PROJECT_TYPES[PROJECT_TYPES.length - 1];
+// FRAME_CUSTOM_TYPES tiene prioridad — puede sobreescribir color/label de tipos default
+const getType   = (id) => (window.FRAME_CUSTOM_TYPES || []).find(t => t.id === id) || PROJECT_TYPES.find(t => t.id === id) || PROJECT_TYPES[PROJECT_TYPES.length - 1];
 const getStatus = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
 const getPrio   = (id) => PRIORITIES.find(p => p.id === id) || PRIORITIES[0];
 
