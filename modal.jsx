@@ -538,6 +538,8 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
   const [editingCheckId, setEditingCheckId]   = useState(null);
   const [editingCheckText, setEditingCheckText] = useState('');
   const editCheckRef = useRef(null);
+  const [dragCheckId, setDragCheckId]     = useState(null); // ítem que se está arrastrando
+  const [dragOverCheckId, setDragOverCheckId] = useState(null); // ítem sobre el que se suelta
   const [editingDvId, setEditingDvId]     = useState(null);
   const [editingDvData, setEditingDvData] = useState({});
   const editDvNameRef = useRef(null);
@@ -608,6 +610,18 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
     upd({ checklist: [...project.checklist, { id: 'c' + Date.now(), text: text.trim(), done: false }] });
   };
   const removeCheck = (id) => upd({ checklist: project.checklist.filter(c => c.id !== id) });
+
+  // ── Reordenar checklist (drag & drop) ─────────────────────────
+  const reorderCheck = (fromId, toId) => {
+    if (!fromId || !toId || fromId === toId) return;
+    const list = [...project.checklist];
+    const fromIdx = list.findIndex(c => c.id === fromId);
+    const toIdx   = list.findIndex(c => c.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = list.splice(fromIdx, 1); // saca el ítem arrastrado
+    list.splice(toIdx, 0, moved);            // lo inserta en la posición destino
+    upd({ checklist: list });
+  };
 
   const startEditCheck = (c) => {
     setEditingCheckId(c.id);
@@ -1008,8 +1022,27 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                     Checklist de producción
                   </SectionTitle>
                   <div className="space-y-1">
-                    {project.checklist.map(c => (
-                      <div key={c.id} className="group flex items-center gap-2.5 py-1 px-2 -mx-2 rounded hover:bg-[var(--surface-2)]">
+                    {project.checklist.map(c => {
+                      const isDragging = dragCheckId === c.id;
+                      const isDragOver = dragOverCheckId === c.id && dragCheckId && dragCheckId !== c.id;
+                      return (
+                      <div
+                        key={c.id}
+                        onDragOver={(e) => { if (dragCheckId) { e.preventDefault(); setDragOverCheckId(c.id); } }}
+                        onDrop={(e) => { e.preventDefault(); reorderCheck(dragCheckId, c.id); setDragCheckId(null); setDragOverCheckId(null); }}
+                        className={`group flex items-center gap-1.5 py-1 px-2 -mx-2 rounded hover:bg-[var(--surface-2)] transition-all ${isDragging ? 'opacity-40' : ''}`}
+                        style={isDragOver ? { boxShadow: 'inset 0 2px 0 var(--accent)' } : undefined}
+                      >
+                        {/* Handle de arrastre */}
+                        <span
+                          draggable
+                          onDragStart={(e) => { setDragCheckId(c.id); e.dataTransfer.effectAllowed = 'move'; }}
+                          onDragEnd={() => { setDragCheckId(null); setDragOverCheckId(null); }}
+                          className="flex-shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--text-dim)] transition-opacity -ml-1"
+                          title="Arrastrar para reordenar"
+                        >
+                          <Icon name="drag" size={13} />
+                        </span>
                         <span className={`check flex-shrink-0 ${c.done ? 'on' : ''}`} onClick={() => toggleCheck(c.id)}>
                           {c.done && <Icon name="check" size={11} strokeWidth={3} />}
                         </span>
@@ -1039,7 +1072,8 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                           <Icon name="trash" size={13} />
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                     <ChecklistAdd onAdd={addCheck} />
                   </div>
                 </section>
