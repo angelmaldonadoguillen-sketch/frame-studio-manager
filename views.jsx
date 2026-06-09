@@ -245,10 +245,85 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
   );
 };
 
+// ── Quick-add inline card ───────────────────────────────────────
+// Botón "+" que se transforma en una tarjeta vacía con input de título.
+// Hereda contexto (estado de columna / fecha del día) según dónde se monta.
+// variant: 'full' = botón ancho con texto · 'mini' = solo ícono "+" (celdas chicas)
+const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agregar tarjeta' }) => {
+  const [active, setActive] = React.useState(false);
+  const [title, setTitle]   = React.useState('');
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => { if (active) inputRef.current?.focus(); }, [active]);
+
+  const submit = () => {
+    const t = title.trim();
+    if (!t) { setActive(false); setTitle(''); return; }
+    onCreate && onCreate({ title: t, ...context });
+    setTitle('');
+    // Se mantiene abierto para carga rápida de varias tarjetas seguidas
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  // ── Estado activo: tarjeta con input (compartido por ambos variants) ──
+  if (active) {
+    return (
+      <div className="rounded-lg border p-2 anim-scale-in select-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--accent)' }}>
+        <input
+          ref={inputRef}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter')  { e.preventDefault(); submit(); }
+            if (e.key === 'Escape') { setActive(false); setTitle(''); }
+          }}
+          onBlur={() => { if (!title.trim()) { setActive(false); setTitle(''); } }}
+          placeholder="Título del proyecto…"
+          className="w-full bg-transparent outline-none text-[12.5px]"
+          style={{ color: 'var(--text)' }}
+        />
+        <div className="flex items-center gap-1.5 mt-2">
+          <button onMouseDown={(e) => e.preventDefault()} onClick={submit} disabled={!title.trim()}
+            className="px-2 py-1 rounded text-[11px] font-semibold disabled:opacity-40"
+            style={{ background: 'var(--accent)', color: '#0a0a0b' }}>
+            Crear
+          </button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => { setActive(false); setTitle(''); }}
+            className="px-1.5 py-1 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>
+            <Icon name="x" size={12} />
+          </button>
+          <span className="ml-auto text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>Enter ↵</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Variant mini: solo "+" discreto (aparece en hover) ──
+  if (variant === 'mini') {
+    return (
+      <button onClick={() => setActive(true)}
+        className="w-full flex items-center justify-center py-1 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-colors opacity-0 group-hover:opacity-100"
+        title={label}>
+        <Icon name="plus" size={13} />
+      </button>
+    );
+  }
+
+  // ── Variant full: botón ancho con borde punteado ──
+  return (
+    <button onClick={() => setActive(true)}
+      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11.5px] font-medium border border-dashed transition-colors text-[var(--text-muted)] hover:text-white hover:border-[var(--text-muted)]"
+      style={{ borderColor: 'var(--border-2)' }}>
+      <Icon name="plus" size={13} />
+      {label}
+    </button>
+  );
+};
+
 // ── KANBAN VIEW ─────────────────────────────────────────────────
 const CARD_LIMIT = 5; // tarjetas visibles por defecto en cada columna
 
-const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, onDuplicateProject, onToggleFavorite, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
+const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, onDuplicateProject, onToggleFavorite, onQuickCreate, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
   const [draggingId,    setDraggingId]    = useState(null);   // card drag
   const [draggingColId, setDraggingColId] = useState(null);   // column drag
   const [dragOverCol,   setDragOverCol]   = useState(null);
@@ -435,6 +510,15 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     Ver menos
                   </button>
                 )}
+
+                {/* Alta rápida: crea una tarjeta vacía en esta columna */}
+                {onQuickCreate && (
+                  <QuickAddCard
+                    onCreate={onQuickCreate}
+                    context={{ status: s.id }}
+                    label="Agregar tarjeta"
+                  />
+                )}
               </div>
             </div>
           );
@@ -501,7 +585,7 @@ const localISO = (dt) => {
 };
 
 // ── CALENDAR VIEW ───────────────────────────────────────────────
-const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, previewFields = {} }) => {
+const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, onQuickCreate, previewFields = {} }) => {
   const [refDate, setRefDate] = useState(new Date(TODAY));
   const [mode, setMode] = useState('month'); // month | week | day
   const [dragging, setDragging]       = useState(null); // { id, kind }
@@ -655,7 +739,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
               return (
                 <div
                   key={i}
-                  className={`relative border-r border-b p-1.5 min-h-[110px] transition-colors ${inMonth ? '' : 'opacity-40'}`}
+                  className={`group relative border-r border-b p-1.5 min-h-[110px] transition-colors ${inMonth ? '' : 'opacity-40'}`}
                   style={{
                     background: isDragOver
                       ? 'rgba(212,255,79,0.08)'
@@ -689,6 +773,15 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
                         previewFields={previewFields}
                       />
                     ))}
+                    {/* Alta rápida en este día */}
+                    {onQuickCreate && (
+                      <QuickAddCard
+                        onCreate={onQuickCreate}
+                        context={{ sessionDate: iso, deadline: iso }}
+                        variant="mini"
+                        label="Agregar tarjeta este día"
+                      />
+                    )}
                   </div>
                 </div>
               );
@@ -698,10 +791,10 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
       )}
 
       {mode === 'week' && (
-        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onUpdateProject={onUpdateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />
+        <WeekView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onUpdateProject={onUpdateProject} onToggleFavorite={onToggleFavorite} onQuickCreate={onQuickCreate} previewFields={previewFields} />
       )}
       {mode === 'day' && (
-        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />
+        <DayView refDate={refDate} projectsByDate={projectsByDate} onOpenProject={onOpenProject} onDeleteProject={onDeleteProject} onDuplicateProject={onDuplicateProject} onToggleFavorite={onToggleFavorite} onQuickCreate={onQuickCreate} previewFields={previewFields} />
       )}
     </div>
   );
@@ -838,7 +931,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
   );
 };
 
-const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, previewFields = {} }) => {
+const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, onQuickCreate, previewFields = {} }) => {
   const [dragging, setDragging]         = React.useState(null); // { id, kind }
   const [dragOverDate, setDragOverDate] = React.useState(null);
   const lastOverRef                     = React.useRef(null);
@@ -926,7 +1019,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
               </div>
 
               {/* WeekCard: layout vertical estilo Notion */}
-              <div className="p-2 space-y-2">
+              <div className="group p-2 space-y-2">
                 {items.length === 0 && (
                   <div className="text-[10px] text-center py-6" style={{ color: isDragOver ? 'var(--accent)' : 'var(--text-muted)' }}>
                     {isDragOver ? '↓' : '—'}
@@ -947,6 +1040,15 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                     previewFields={previewFields}
                   />
                 ))}
+                {/* Alta rápida en este día */}
+                {onQuickCreate && (
+                  <QuickAddCard
+                    onCreate={onQuickCreate}
+                    context={{ sessionDate: iso, deadline: iso }}
+                    variant="mini"
+                    label="Agregar tarjeta este día"
+                  />
+                )}
               </div>
             </div>
           );
@@ -956,7 +1058,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
   );
 };
 
-const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, previewFields = {} }) => {
+const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, onQuickCreate, previewFields = {} }) => {
   const iso = localISO(refDate);
   const items = projectsByDate[iso] || [];
   return (
@@ -976,19 +1078,92 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
         {items.map(p => (
           <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />
         ))}
+        {/* Alta rápida en este día */}
+        {onQuickCreate && (
+          <QuickAddCard
+            onCreate={onQuickCreate}
+            context={{ sessionDate: iso, deadline: iso }}
+            label="Agregar tarjeta este día"
+          />
+        )}
       </div>
     </div>
   );
 };
 
 // ── GALLERY VIEW ────────────────────────────────────────────────
-const GalleryView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, previewFields = {} }) => {
-  if (projects.length === 0) return <EmptyState />;
+const GalleryView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, onQuickCreate, previewFields = {} }) => {
+  if (projects.length === 0 && !onQuickCreate) return <EmptyState />;
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
         {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />)}
+        {/* Alta rápida: tarjeta vacía al final de la grilla */}
+        {onQuickCreate && (
+          <GalleryAddCard onCreate={onQuickCreate} />
+        )}
       </div>
+    </div>
+  );
+};
+
+// ── Tarjeta de alta rápida para la galería (mantiene el aspect-ratio del grid) ──
+const GalleryAddCard = ({ onCreate }) => {
+  const [active, setActive] = React.useState(false);
+  const [title, setTitle]   = React.useState('');
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => { if (active) inputRef.current?.focus(); }, [active]);
+
+  const submit = () => {
+    const t = title.trim();
+    if (!t) { setActive(false); setTitle(''); return; }
+    onCreate({ title: t });
+    setTitle('');
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  return (
+    <div
+      onClick={() => !active && setActive(true)}
+      className="rounded-xl border border-dashed flex flex-col items-center justify-center aspect-[4/3] transition-colors select-none cursor-pointer hover:border-[var(--text-muted)]"
+      style={{ borderColor: active ? 'var(--accent)' : 'var(--border-2)', background: 'var(--surface)' }}
+    >
+      {active ? (
+        <div className="w-full px-4" onClick={(e) => e.stopPropagation()}>
+          <input
+            ref={inputRef}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter')  { e.preventDefault(); submit(); }
+              if (e.key === 'Escape') { setActive(false); setTitle(''); }
+            }}
+            onBlur={() => { if (!title.trim()) { setActive(false); setTitle(''); } }}
+            placeholder="Título del proyecto…"
+            className="w-full bg-transparent outline-none text-center text-[14px] border-b pb-1.5"
+            style={{ color: 'var(--text)', borderColor: 'var(--accent)' }}
+          />
+          <div className="flex items-center justify-center gap-1.5 mt-3">
+            <button onMouseDown={(e) => e.preventDefault()} onClick={submit} disabled={!title.trim()}
+              className="px-3 py-1 rounded text-[11px] font-semibold disabled:opacity-40"
+              style={{ background: 'var(--accent)', color: '#0a0a0b' }}>
+              Crear
+            </button>
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => { setActive(false); setTitle(''); }}
+              className="px-2 py-1 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>
+              <Icon name="x" size={12} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-2 text-[var(--text-muted)]">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+            <Icon name="plus" size={18} />
+          </div>
+          <span className="text-[12px] font-medium">Agregar proyecto</span>
+        </div>
+      )}
     </div>
   );
 };

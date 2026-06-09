@@ -79,6 +79,11 @@ function reducer(state, action) {
       openProjectId: action.project.id,
       showNewProject: false,
     };
+    // Alta rápida inline (no abre el modal — la tarjeta aparece para rellenar en su lugar)
+    case 'create_project_quiet': return {
+      ...state,
+      projects: [action.project, ...state.projects],
+    };
     case 'show_new':       return { ...state, showNewProject: true };
     case 'hide_new':       return { ...state, showNewProject: false };
     case 'toggle_filter': {
@@ -1445,6 +1450,41 @@ const App = () => {
       .catch(err => console.error('Error al crear proyecto:', err));
   };
 
+  // ── Alta rápida inline desde tablero / calendario / galería ──────
+  // Crea una tarjeta "vacía" con el título tipeado, heredando el contexto
+  // donde se pulsó el "+" (estado de columna, fecha del día). No abre el modal.
+  const handleQuickCreate = (opts = {}) => {
+    const { title, status, sessionDate, deadline, type } = opts;
+    const id = 'p' + Date.now();
+    const todayISO = new Date(TODAY).toISOString().slice(0, 10);
+    const defDeadline = (() => { const dt = new Date(TODAY); dt.setDate(dt.getDate() + 14); return dt.toISOString().slice(0, 10); })();
+    const dl = deadline || defDeadline;
+    const project = {
+      id,
+      title:      (title && title.trim()) || 'Nuevo proyecto',
+      client:     '',
+      type:       type   || 'reel',
+      status:     status || (state.kanbanColumns[0] && state.kanbanColumns[0].id) || 'briefing',
+      priority:   'medium',
+      assignees:  [],
+      startDate:  todayISO,
+      deadline:   dl,
+      sessionDate: sessionDate || dl,
+      budget:     0,
+      currency:   'USD',
+      tags:       [],
+      cover:      { type: 'color', value: '#1a1a1f' },
+      description: [{ type: 'p', text: '' }],
+      checklist:   [],
+      deliverables: [],
+      timeline:    [],
+      comments:    [],
+    };
+    dispatch({ type: 'create_project_quiet', project });
+    window.db.collection('frame_projects').doc(id).set(project)
+      .catch(err => console.error('[FRAME] Quick create:', err));
+  };
+
   const handleToggleFavorite = (id) => {
     const project = state.projects.find(p => p.id === id);
     if (!project) return;
@@ -1594,7 +1634,7 @@ const App = () => {
           {state.view === 'kanban' && <StatusStatsBar projects={filtered} />}
 
           <div className="flex-1 overflow-hidden">
-            {filtered.length === 0 && state.view !== 'kanban' && state.view !== 'calendar' ? (
+            {filtered.length === 0 && state.view !== 'kanban' && state.view !== 'calendar' && state.view !== 'gallery' ? (
               <EmptyState />
             ) : (
               <>
@@ -1605,6 +1645,7 @@ const App = () => {
                   onDeleteProject={handleDeleteProject}
                   onDuplicateProject={handleDuplicateProject}
                   onToggleFavorite={handleToggleFavorite}
+                  onQuickCreate={handleQuickCreate}
                   columns={state.kanbanColumns}
                   onUpdateColumn={handleUpdateColumn}
                   onAddColumn={handleAddColumn}
@@ -1612,8 +1653,8 @@ const App = () => {
                   onReorderColumns={handleReorderColumns}
                   previewFields={state.previewFields}
                 />}
-                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} onUpdateProject={handleUpdateProject} previewFields={state.previewFields} />}
-                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} previewFields={state.previewFields} />}
+                {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} onUpdateProject={handleUpdateProject} onQuickCreate={handleQuickCreate} previewFields={state.previewFields} />}
+                {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} onQuickCreate={handleQuickCreate} previewFields={state.previewFields} />}
                 {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} />}
               </>
             )}
