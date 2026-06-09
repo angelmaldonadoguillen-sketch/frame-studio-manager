@@ -1177,9 +1177,10 @@ const App = () => {
 
     const batch = window.db.batch();
     toUpdate.forEach(p => {
-      const updated = { ...p, sessionDate: today };
+      // Actualizar deadline Y sessionDate juntos → proyecto no aparece en dos días del calendario
+      const updated = { ...p, sessionDate: today, deadline: today };
       dispatch({ type: 'update_project', project: updated });
-      batch.set(window.db.collection('frame_projects').doc(p.id), updated);
+      batch.update(window.db.collection('frame_projects').doc(p.id), { sessionDate: today, deadline: today });
     });
     batch.commit()
       .then(() => console.log(`[FRAME] CarryOver: ${toUpdate.length} proyecto(s) movido(s) a hoy`))
