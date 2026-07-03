@@ -1013,7 +1013,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 {/* Brief */}
                 <section>
                   <SectionTitle icon="edit">Brief / Descripción</SectionTitle>
-                  <DescriptionEditor blocks={project.description} onChange={updField('description')} />
+                  <DescriptionEditor blocks={project.description} onChange={updField('description')} projectId={project.id} />
                 </section>
 
                 {/* Checklist */}
@@ -1394,88 +1394,189 @@ const DescriptionBlock = ({ blocks, onChange }) => {
 };
 
 // ── Description editor (click-to-edit) ─────────────────────────
-const DescriptionEditor = ({ blocks, onChange }) => {
-  const [editing, setEditing] = useState(false);
+// ── Convierte el formato de bloques antiguo → HTML ───────────────
+const blocksToHTML = (blocks) => {
+  if (!blocks || blocks.length === 0) return '';
+  if (blocks[0]?.type === 'html') return blocks[0].content || '';
+  return (blocks || []).map(b => {
+    if (b.type === 'p') return `<p>${b.text || ''}</p>`;
+    if (b.type === 'b') return `<p><strong>${b.text || ''}</strong></p>`;
+    if (b.type === 'ul') return `<ul>${(b.items||[]).map(i=>`<li>${i}</li>`).join('')}</ul>`;
+    if (b.type === 'ol') return `<ol>${(b.items||[]).map(i=>`<li>${i}</li>`).join('')}</ol>`;
+    return '';
+  }).join('');
+};
 
-  const blockToText = (bs) => (bs || []).map(b =>
-    b.type === 'ul' ? b.items.map(it => '• ' + it).join('\n') : (b.text || '')
-  ).join('\n\n');
+// ── Comprime una imagen usando canvas ────────────────────────────
+const compressImg = (file, maxW = 1200, quality = 0.80) => new Promise(res => {
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const scale = Math.min(1, maxW / img.width);
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * scale);
+    c.height = Math.round(img.height * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    res(c.toDataURL('image/jpeg', quality));
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+  img.src = url;
+});
 
-  const [draft, setDraft] = useState(() => blockToText(blocks));
+const DescriptionEditor = ({ blocks, onChange, projectId }) => {
+  const editorRef   = useRef(null);
+  const fileRef     = useRef(null);
+  const uploadingRef = useRef(false); // evita guardar mientras sube imagen
+  const [focused,   setFocused]   = useState(false);
+  const [lightbox,  setLightbox]  = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  const commit = () => {
-    setEditing(false);
-    const trimmed = draft.trim();
-    if (!trimmed) { onChange([]); return; }
-    const paras = trimmed.split(/\n{2,}/);
-    const newBlocks = paras.map(para => {
-      const lines = para.split('\n');
-      if (lines.length > 1 && lines.every(l => /^[•\-]\s/.test(l))) {
-        return { type: 'ul', items: lines.map(l => l.replace(/^[•\-]\s+/, '')) };
-      }
-      return { type: 'p', text: para };
-    });
-    onChange(newBlocks);
+  // Inicializa HTML solo al montar (no en cada re-render para no romper el cursor)
+  useEffect(() => {
+    if (editorRef.current) editorRef.current.innerHTML = blocksToHTML(blocks);
+  }, []);
+
+  // Guarda al perder foco (solo si no está subiendo imagen)
+  const save = () => {
+    if (uploadingRef.current) return;
+    const html = editorRef.current?.innerHTML?.trim() || '';
+    const empty = html === '' || html === '<br>' || html === '<div><br></div>';
+    onChange(empty ? [] : [{ type: 'html', content: html }]);
   };
 
-  if (editing) {
-    return (
-      <div>
-        <textarea
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Escape') { setDraft(blockToText(blocks)); setEditing(false); } }}
-          rows={7}
-          className="w-full rounded-lg px-3 py-2.5 text-[14px] leading-relaxed resize-none border"
-          style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', color: 'var(--text)' }}
-        />
-        <div className="flex items-center gap-2 mt-2">
-          <button
-            onClick={commit}
-            className="px-3 py-1 rounded-md text-[12px] font-semibold"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
-          >
-            Guardar
-          </button>
-          <button
-            onClick={() => { setDraft(blockToText(blocks)); setEditing(false); }}
-            className="px-3 py-1 rounded-md text-[12px] text-[var(--text-muted)] hover:text-white"
-          >
-            Cancelar
-          </button>
-          <span className="text-[10px] text-[var(--text-muted)] ml-auto">Doble enter = párrafo · • o - = lista</span>
-        </div>
-      </div>
-    );
-  }
+  // Botones de toolbar: preventDefault para no perder foco del editor
+  const exec = (cmd, val) => {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, val ?? null);
+  };
+
+  // Sube imagen a Firebase Storage y la inserta en el cursor
+  const uploadAndInsert = async (dataURL) => {
+    if (!dataURL) return;
+    uploadingRef.current = true;
+    setUploading(true);
+    try {
+      let src = dataURL;
+      if (window.storage && projectId) {
+        const path = `frame-descriptions/${projectId}/${Date.now()}.jpg`;
+        const ref = window.storage.ref(path);
+        await ref.putString(dataURL, 'data_url');
+        src = await ref.getDownloadURL();
+      }
+      editorRef.current?.focus();
+      document.execCommand('insertHTML', false,
+        `<img src="${src}" /><br>`);
+    } catch (err) {
+      console.error('[FRAME] Image upload:', err);
+    } finally {
+      uploadingRef.current = false;
+      setUploading(false);
+    }
+  };
+
+  // Intercepta imágenes pegadas desde el portapapeles
+  const handlePaste = async (e) => {
+    const items = [...(e.clipboardData?.items || [])];
+    const imgItem = items.find(i => i.type.startsWith('image/'));
+    if (!imgItem) return; // texto normal → comportamiento por defecto
+    e.preventDefault();
+    const compressed = await compressImg(imgItem.getAsFile());
+    await uploadAndInsert(compressed);
+  };
+
+  // Sube desde selector de archivo
+  const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const compressed = await compressImg(file);
+    await uploadAndInsert(compressed);
+    e.target.value = '';
+  };
+
+  // Click en imagen → lightbox
+  const handleClick = (e) => {
+    if (e.target.tagName === 'IMG') { e.preventDefault(); setLightbox(e.target.src); }
+  };
+
+  // Botón de toolbar reutilizable
+  const TB = ({ onMouseDown, title, children }) => (
+    <button
+      onMouseDown={(e) => { e.preventDefault(); onMouseDown(); }}
+      title={title}
+      className="px-2 py-1 rounded text-[12px] font-medium select-none text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)] transition-colors"
+    >
+      {children}
+    </button>
+  );
 
   return (
-    <div
-      onClick={() => { setDraft(blockToText(blocks)); setEditing(true); }}
-      className="cursor-text group relative rounded-lg p-3 -mx-3 hover:bg-[var(--surface-2)] transition-colors"
-    >
-      <div className="prose prose-invert max-w-none text-[14px] leading-relaxed text-[var(--text-dim)] space-y-2 pretty">
-        {(!blocks || blocks.length === 0) && (
-          <p className="text-[var(--text-muted)] italic">Click para agregar una descripción…</p>
-        )}
-        {(blocks || []).map((b, i) => {
-          if (b.type === 'p') return <p key={i}>{b.text}</p>;
-          if (b.type === 'b') return <p key={i} className="text-white font-semibold">{b.text}</p>;
-          if (b.type === 'ul') return (
-            <ul key={i} className="list-disc pl-5 space-y-1">
-              {b.items.map((it, j) => <li key={j}>{it}</li>)}
-            </ul>
-          );
-          return null;
-        })}
+    <>
+      <div
+        className="rounded-lg border overflow-hidden transition-all"
+        style={{ borderColor: focused ? 'rgba(212,255,79,0.4)' : 'var(--border-2)' }}
+      >
+        {/* ── Toolbar ── */}
+        <div className="flex items-center gap-0.5 px-2 py-1 border-b" style={{ background: 'var(--surface-3)', borderColor: 'var(--border)' }}>
+          <TB onMouseDown={() => exec('bold')}   title="Negrita (Ctrl+B)"><strong>B</strong></TB>
+          <TB onMouseDown={() => exec('italic')} title="Cursiva (Ctrl+I)"><em style={{ fontStyle:'italic' }}>I</em></TB>
+          <div className="w-px h-3.5 mx-1 flex-shrink-0" style={{ background: 'var(--border-2)' }} />
+          <TB onMouseDown={() => exec('insertUnorderedList')} title="Lista de viñetas">
+            <Icon name="list" size={12} />
+          </TB>
+          <TB onMouseDown={() => exec('insertOrderedList')} title="Lista numerada">
+            <span className="font-mono text-[11px]">1.</span>
+          </TB>
+          <div className="w-px h-3.5 mx-1 flex-shrink-0" style={{ background: 'var(--border-2)' }} />
+          {/* Upload imagen */}
+          <label
+            title="Insertar imagen (también podés pegar con Ctrl+V)"
+            className={`px-2 py-1 rounded text-[12px] select-none cursor-pointer flex items-center gap-1 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]'}`}
+          >
+            <Icon name="camera" size={12} />
+            {uploading && <span className="text-[9px] font-mono animate-pulse">subiendo…</span>}
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
+          </label>
+          <span className="ml-auto text-[9px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Ctrl+V para pegar imagen</span>
+        </div>
+
+        {/* ── Área editable ── */}
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onFocus={() => setFocused(true)}
+          onBlur={() => { setFocused(false); save(); }}
+          onPaste={handlePaste}
+          onClick={handleClick}
+          data-placeholder="Describí el proyecto, briefing, referencias…"
+          className="desc-editor p-3 text-[14px] leading-relaxed"
+          style={{ minHeight: 100, background: 'var(--surface-2)', color: 'var(--text)' }}
+        />
       </div>
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <span className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] rounded px-2 py-0.5" style={{ background: 'var(--surface-3)' }}>
-          <Icon name="edit" size={10} /> Editar
-        </span>
-      </div>
-    </div>
+
+      {/* ── Lightbox ── */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center anim-fade-in"
+          style={{ background: 'rgba(0,0,0,0.92)' }}
+          onClick={() => setLightbox(null)}
+        >
+          <img
+            src={lightbox}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}
+          />
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-5 right-5 p-2 rounded-full"
+            style={{ background: 'rgba(255,255,255,0.12)', color: 'white' }}
+          >
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+      )}
+    </>
   );
 };
 
