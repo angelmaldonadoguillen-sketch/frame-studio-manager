@@ -1407,7 +1407,7 @@ const blocksToHTML = (blocks) => {
   }).join('');
 };
 
-// ── Comprime una imagen usando canvas ────────────────────────────
+// ── Comprime una imagen usando canvas → devuelve un Blob ─────────
 const compressImg = (file, maxW = 1200, quality = 0.80) => new Promise(res => {
   const img = new Image();
   const url = URL.createObjectURL(file);
@@ -1418,7 +1418,7 @@ const compressImg = (file, maxW = 1200, quality = 0.80) => new Promise(res => {
     c.height = Math.round(img.height * scale);
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
     URL.revokeObjectURL(url);
-    res(c.toDataURL('image/jpeg', quality));
+    c.toBlob((blob) => res(blob), 'image/jpeg', quality);
   };
   img.onerror = () => { URL.revokeObjectURL(url); res(null); };
   img.src = url;
@@ -1451,22 +1451,21 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     document.execCommand(cmd, false, val ?? null);
   };
 
-  // Sube imagen a Firebase Storage y la inserta en el cursor
-  const uploadAndInsert = async (dataURL) => {
-    if (!dataURL) return;
+  // Sube imagen a Firebase Storage (igual que cover) y la inserta en el cursor
+  const uploadAndInsert = async (blob) => {
+    if (!blob || !window.storage) return;
     uploadingRef.current = true;
     setUploading(true);
     try {
-      let src = dataURL;
-      if (window.storage && projectId) {
-        const path = `frame-descriptions/${projectId}/${Date.now()}.jpg`;
-        const ref = window.storage.ref(path);
-        await ref.putString(dataURL, 'data_url');
-        src = await ref.getDownloadURL();
-      }
+      const path  = `frame-descriptions/${projectId || 'general'}/${Date.now()}.jpg`;
+      const stRef = window.storage.ref(path);
+      const task  = stRef.put(blob, { contentType: 'image/jpeg' });
+      await new Promise((resolve, reject) => {
+        task.on('state_changed', null, reject, resolve);
+      });
+      const src = await task.snapshot.ref.getDownloadURL();
       editorRef.current?.focus();
-      document.execCommand('insertHTML', false,
-        `<img src="${src}" /><br>`);
+      document.execCommand('insertHTML', false, `<img src="${src}" /><br>`);
     } catch (err) {
       console.error('[FRAME] Image upload:', err);
     } finally {
