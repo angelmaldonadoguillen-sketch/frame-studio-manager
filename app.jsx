@@ -1052,7 +1052,11 @@ const App = () => {
   }, [state.section, state.sidebarFilter, state.view]);
 
   // ── Firestore sync ──────────────────────────────────────────
+  // IMPORTANTE: todas las suscripciones esperan a que haya sesión.
+  // Un onSnapshot que arranca sin auth falla con permission-denied y el
+  // listener queda muerto para siempre (no se reconecta al loguearse).
   useEffect(() => {
+    if (!authUser) return;
     const col = window.db.collection('frame_projects');
 
     const unsub = col.onSnapshot((snap) => {
@@ -1064,10 +1068,11 @@ const App = () => {
     });
 
     return () => unsub();
-  }, []);
+  }, [authUser?.uid]);
 
   // ── Firestore: equipo ───────────────────────────────────────
   useEffect(() => {
+    if (!authUser) return;
     const col = window.db.collection('frame_users');
     const unsub = col.onSnapshot((snap) => {
       // No seeding — only real registered users
@@ -1079,10 +1084,11 @@ const App = () => {
       dispatch({ type: 'set_team', team: [] });
     });
     return () => unsub();
-  }, []);
+  }, [authUser?.uid]);
 
   // ── Firestore: clientes ─────────────────────────────────────
   useEffect(() => {
+    if (!authUser) return;
     const col = window.db.collection('frame_clients');
     const unsub = col.onSnapshot((snap) => {
       const clients = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -1092,7 +1098,7 @@ const App = () => {
       dispatch({ type: 'set_clients', clients: [] });
     });
     return () => unsub();
-  }, []);
+  }, [authUser?.uid]);
 
   // ── Firebase Auth: sesión ───────────────────────────────────
   useEffect(() => {
@@ -1115,6 +1121,7 @@ const App = () => {
 
   // ── Firestore: display settings (vista previa + carry-over) ───
   useEffect(() => {
+    if (!authUser) return;
     const ref = window.db.collection('frame_config').doc('display_settings');
     const unsub = ref.onSnapshot((snap) => {
       if (!snap.exists) return;
@@ -1130,7 +1137,7 @@ const App = () => {
       }
     }, (err) => console.error('Display settings error:', err));
     return () => unsub();
-  }, []);
+  }, [authUser?.uid]);
 
   const handleTogglePreviewField = (key) => {
     const next = { ...state.previewFields, [key]: !state.previewFields[key] };
@@ -1194,6 +1201,7 @@ const App = () => {
 
   // ── Firestore: columnas Kanban ─────────────────────────────
   useEffect(() => {
+    if (!authUser) return;
     const ref = window.db.collection('frame_config').doc('kanban_columns');
     const unsub = ref.onSnapshot((snap) => {
       if (!snap.exists) {
@@ -1212,10 +1220,11 @@ const App = () => {
       dispatch({ type: 'set_columns', columns: defaults });
     });
     return () => unsub();
-  }, []);
+  }, [authUser?.uid]);
 
   // ── Firestore: tipos de proyecto ──────────────────────────────
   useEffect(() => {
+    if (!authUser) return;
     const ref = window.db.collection('frame_config').doc('project_types');
     const unsub = ref.onSnapshot((snap) => {
       if (!snap.exists) {
@@ -1232,7 +1241,7 @@ const App = () => {
       dispatch({ type: 'set_custom_types', types: PROJECT_TYPES });
     });
     return () => unsub();
-  }, []);
+  }, [authUser?.uid]);
 
   const saveTypes = (types) =>
     window.db.collection('frame_config').doc('project_types').set({ types })
@@ -1240,6 +1249,7 @@ const App = () => {
 
   // ── Firestore: papelera de reciclaje ──────────────────────────
   useEffect(() => {
+    if (!authUser) return;
     const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
     const col = window.db.collection('frame_trash');
     const unsub = col.onSnapshot(async (snap) => {
@@ -1264,7 +1274,7 @@ const App = () => {
       dispatch({ type: 'set_trash', trash: [] });
     });
     return () => unsub();
-  }, []);
+  }, [authUser?.uid]);
 
   const handleCreateCustomType = (typeObj) => {
     // Actualizar global ANTES del dispatch para que getType() lea datos correctos en el siguiente render
@@ -1559,8 +1569,13 @@ const App = () => {
       .catch(err => console.error('Error al crear cliente:', err));
   };
 
-  if (!authChecked || state.teamLoading) return <LoadingScreen />;
-  if (!authUser) return <LoginScreen />;
+  // El orden importa: los listeners de Firestore ahora solo corren con sesión
+  // activa, así que teamLoading/loading siguen en true mientras no haya login.
+  // Hay que descartar el caso "sin sesión" ANTES de mirar los flags de carga,
+  // o la pantalla de login nunca llegaría a renderizarse.
+  if (!authChecked) return <LoadingScreen />;
+  if (!authUser)    return <LoginScreen />;
+  if (state.teamLoading) return <LoadingScreen />;
 
   // Verificar estado de aprobación del usuario autenticado
   const _authEmail  = (authUser.email || '').toLowerCase();
