@@ -3,16 +3,21 @@ rules_version = '2';
 // ─────────────────────────────────────────────────────────────────────
 // FRAME Studio Manager — Reglas de seguridad de Firestore
 //
-// Este proyecto Firebase (tooned-os) aloja DOS aplicaciones:
-//   · FRAME     → colecciones con prefijo  frame_*
-//   · TOONED-OS → el resto (sistema de ventas)
+// Este proyecto Firebase (tooned-os) aloja DOS aplicaciones que comparten
+// las mismas cuentas de usuario:
+//   · FRAME     → frame_*        (repo frame-studio-manager)
+//   · TOONED-OS → data, thumbs   (repo TOONED-OS)
 //
-// Las reglas de Firestore se SUMAN: si cualquier match concede acceso,
-// el acceso se concede. Por eso un `match /{document=**} { if true }`
-// abre TODO, incluidas las colecciones de FRAME, sin importar lo que
-// digan sus reglas específicas. El comodín de abajo se excluye a sí
-// mismo de las colecciones frame_* para que estas queden realmente
-// protegidas.
+// Las reglas de Firestore se SUMAN: si cualquier match concede acceso, el
+// acceso se concede — no gana la más específica. Por eso el
+// `match /{document=**} { allow read, write: if true }` que había antes
+// abría TODO, incluidas las colecciones de FRAME, por más estrictas que
+// fueran sus reglas propias. Acá no hay comodín: cada colección se
+// habilita explícitamente y lo demás queda denegado por defecto.
+//
+// Nota: mientras no exista el modelo multi-estudio (Fase 1), la lista de
+// personas autorizadas es frame_users, y de ahí sale también el permiso
+// para TOONED-OS.
 // ─────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
@@ -86,14 +91,20 @@ service cloud.firestore {
       }
     }
 
-    // ── TOONED-OS: sin cambios ───────────────────────────────────
-    // PENDIENTE (Fase 0.2b): sigue abierto sin autenticación. No se toca
-    // todavía porque su código no está en este repo y no sabemos si usa
-    // Firebase Auth; cerrarlo a ciegas dejaría el sistema de ventas fuera
-    // de servicio. El `!col.matches('frame_.*')` evita que este comodín
-    // reabra las colecciones de FRAME.
-    match /{col}/{rest=**} {
-      allow read, write: if !col.matches('frame_.*');
-    }
+    // ── TOONED-OS: sistema de ventas ─────────────────────────────
+    // Antes el acceso lo guardaba un PIN de 4 dígitos leído desde
+    // data/auth y comparado en el navegador — es decir, el "secreto" se
+    // servía con la misma petición pública que los datos que protegía, y
+    // esos datos se podían leer igual sin pasar por el PIN. Ahora
+    // TOONED-OS usa Firebase Auth con las mismas cuentas que FRAME
+    // (repo TOONED-OS, index.html) y el acceso lo decide esta regla.
+    //
+    // El doc data/auth quedó obsoleto y se puede borrar.
+    match /data/{doc}   { allow read, write: if activeMember(); }
+    match /thumbs/{doc} { allow read, write: if activeMember(); }
+
+    // Sin comodín: en Firestore, lo que ninguna regla concede queda
+    // denegado. Cualquier colección nueva nace cerrada y hay que
+    // habilitarla acá a propósito.
   }
 }
