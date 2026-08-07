@@ -1,0 +1,99 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────
+// FRAME Studio Manager — Reglas de seguridad de Firestore
+//
+// Este proyecto Firebase (tooned-os) aloja DOS aplicaciones:
+//   · FRAME     → colecciones con prefijo  frame_*
+//   · TOONED-OS → el resto (sistema de ventas)
+//
+// Las reglas de Firestore se SUMAN: si cualquier match concede acceso,
+// el acceso se concede. Por eso un `match /{document=**} { if true }`
+// abre TODO, incluidas las colecciones de FRAME, sin importar lo que
+// digan sus reglas específicas. El comodín de abajo se excluye a sí
+// mismo de las colecciones frame_* para que estas queden realmente
+// protegidas.
+// ─────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/frame_users/$(request.auth.uid)).data;
+    }
+
+    function profileExists() {
+      return exists(/databases/$(database)/documents/frame_users/$(request.auth.uid));
+    }
+
+    // Miembro aprobado del estudio. Es el permiso real de FRAME:
+    // "tener sesión" NO alcanza, porque el registro es abierto y además
+    // el login anónimo está habilitado — cualquiera obtiene una sesión.
+    function activeMember() {
+      return signedIn() && profileExists() && myProfile().status == 'active';
+    }
+
+    // ── FRAME: datos del estudio ─────────────────────────────────
+    // Solo miembros aprobados.
+    match /frame_projects/{doc} { allow read, write: if activeMember(); }
+    match /frame_clients/{doc}  { allow read, write: if activeMember(); }
+    match /frame_config/{doc}   { allow read, write: if activeMember(); }
+    match /frame_trash/{doc}    { allow read, write: if activeMember(); }
+
+    // ── FRAME: perfiles de usuario ───────────────────────────────
+    // Lectura para cualquier sesión: la app necesita leer esta colección
+    // ANTES de saber si estás aprobado (así descubre tu propio status y
+    // decide si mostrarte el tablero o la pantalla de "pendiente").
+    match /frame_users/{uid} {
+      allow read: if signedIn();
+
+      // Alta de tu propio perfil durante el registro. Obligatoriamente
+      // 'pending': si se permitiera cualquier status, cualquiera podría
+      // registrarse escribiendo status:'active' y auto-aprobarse, lo que
+      // dejaría sin efecto todo el control de acceso.
+      // El primer administrador de un estudio nuevo se activa a mano
+      // desde la consola de Firebase (ver SETUP.md).
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.status == 'pending';
+
+      // Editar tu propio perfil (nombre, rol, avatar…) sin poder
+      // cambiarte el status a vos mismo.
+      allow update: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.status == resource.data.status;
+
+      // Aprobar, rechazar o dar de baja a otros: solo miembros aprobados.
+      allow update, delete: if activeMember();
+    }
+
+    // ── FRAME: notificaciones ────────────────────────────────────
+    // Ojo: `match /frame_notifications/{uid}` NO cubre la subcolección
+    // /items — hay que declararla anidada explícitamente o cae al comodín.
+    match /frame_notifications/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+
+      match /items/{item} {
+        // Leés y marcás como leídas solo las tuyas.
+        allow read, update, delete: if signedIn() && request.auth.uid == uid;
+        // Cualquier sesión puede crear una notificación en la bandeja de
+        // otro: es lo que hace el registro al pedir aprobación, y en ese
+        // momento el solicitante todavía no está aprobado.
+        allow create: if signedIn();
+      }
+    }
+
+    // ── TOONED-OS: sin cambios ───────────────────────────────────
+    // PENDIENTE (Fase 0.2b): sigue abierto sin autenticación. No se toca
+    // todavía porque su código no está en este repo y no sabemos si usa
+    // Firebase Auth; cerrarlo a ciegas dejaría el sistema de ventas fuera
+    // de servicio. El `!col.matches('frame_.*')` evita que este comodín
+    // reabra las colecciones de FRAME.
+    match /{col}/{rest=**} {
+      allow read, write: if !col.matches('frame_.*');
+    }
+  }
+}

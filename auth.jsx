@@ -78,7 +78,7 @@ const LoginScreen = () => {
 
       const col = window.db.collection('frame_users');
 
-      // ¿Hay usuarios existentes en el estudio? El primero en registrarse es admin activo.
+      // Se usa para avisarle al equipo que hay una solicitud nueva.
       const allUsersSnap = await col.get();
       const isFirstUser  = allUsersSnap.empty;
 
@@ -99,7 +99,12 @@ const LoginScreen = () => {
         bio:          '',
         availability: 'available',
         joinedAt:     new Date().toISOString().slice(0, 10),
-        status:       isFirstUser ? 'active' : 'pending',
+        // Siempre 'pending'. Las reglas de Firestore rechazan cualquier otro
+        // valor en el alta — si no, bastaría con registrarse mandando
+        // status:'active' para saltarse la aprobación por completo.
+        // El primer admin de un estudio nuevo se activa a mano desde la
+        // consola de Firebase (ver SETUP.md).
+        status:       'pending',
       };
 
       // ¿Ya existe un perfil con este email? (vinculación)
