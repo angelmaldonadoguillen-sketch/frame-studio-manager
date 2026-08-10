@@ -41,7 +41,7 @@ const SEED_CLIENTS = [
     id: 'cl4',
     name: 'Café Origen',
     industry: 'Gastronomía & Lifestyle',
-    color: '#FFD166',
+    color: 'var(--warn)',
     initials: 'CO',
     contact: { name: 'Valentina Ríos', email: 'vale@cafeorigen.com', phone: '+54 11 5555-0404' },
     tags: ['social', 'mensual', 'recurrente'],
@@ -74,8 +74,8 @@ const SEED_CLIENTS = [
 
 // ── Paleta de colores para clientes ─────────────────────────────
 const CLIENT_COLORS = [
-  '#FF7A59', '#7DD3C0', '#C089FF', '#FFD166',
-  '#6CC4FF', '#FB7185', '#D4FF4F', '#FF6B6B',
+  '#FF7A59', '#7DD3C0', '#C089FF', 'var(--warn)',
+  '#6CC4FF', '#FB7185', '#D4FF4F', 'var(--danger)',
 ];
 
 // ── Client avatar ────────────────────────────────────────────────
@@ -125,7 +125,7 @@ const ClientCard = ({ client, projects, onClick }) => {
         <div className="flex items-start gap-3 mb-3">
           <ClientAvatar client={client} size={44} />
           <div className="flex-1 min-w-0 pt-0.5">
-            <div className="font-semibold text-[14px] truncate mb-1" style={{ letterSpacing: '-0.01em' }}>
+            <div className="font-semibold text-[15px] truncate mb-1" style={{ letterSpacing: '-0.01em' }}>
               {client.name}
             </div>
             <IndustryBadge industry={client.industry} color={client.color} />
@@ -138,7 +138,7 @@ const ClientCard = ({ client, projects, onClick }) => {
         </div>
 
         {/* Contact */}
-        <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] mb-3 truncate">
+        <div className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] mb-3 truncate">
           <Icon name="users" size={11} />
           <span className="truncate">{client.contact.name}</span>
         </div>
@@ -147,24 +147,24 @@ const ClientCard = ({ client, projects, onClick }) => {
         <div className="grid grid-cols-3 gap-2 pt-3 border-t border-app">
           <div>
             <div
-              className="text-[20px] font-display font-bold leading-none mb-0.5"
+              className="text-[22px] font-display font-bold leading-none mb-0.5"
               style={{ color: client.color, letterSpacing: '-0.03em' }}
             >
               {cp.length}
             </div>
-            <div className="text-[9px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Proyectos</div>
+            <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Proyectos</div>
           </div>
           <div>
-            <div className="text-[20px] font-display font-bold leading-none mb-0.5 text-white" style={{ letterSpacing: '-0.03em' }}>
+            <div className="text-[22px] font-display font-bold leading-none mb-0.5 text-white" style={{ letterSpacing: '-0.03em' }}>
               {active}
             </div>
-            <div className="text-[9px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Activos</div>
+            <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Activos</div>
           </div>
           <div>
             <div className="text-[13px] font-semibold font-mono text-white leading-none mb-0.5 truncate">
               {totalBudget > 0 ? fmtMoney(totalBudget) : '—'}
             </div>
-            <div className="text-[9px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Budget</div>
+            <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Budget</div>
           </div>
         </div>
       </div>
@@ -249,7 +249,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                   style={{ background: 'var(--surface-2)' }}
                 >
                   <div
-                    className={`text-[24px] font-display font-bold leading-none mb-1 ${s.mono ? 'text-[18px] font-mono' : ''}`}
+                    className={`text-[22px] font-display font-bold leading-none mb-1 ${s.mono ? 'text-[17px] font-mono' : ''}`}
                     style={{ color: s.color, letterSpacing: '-0.03em' }}
                   >
                     {s.value}
@@ -379,15 +379,15 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                 {!confirmDel ? (
                   <button
                     onClick={() => setConfirmDel(true)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[12.5px] transition-colors"
-                    style={{ color: '#FF6B6B', border: '1px dashed #FF6B6B44' }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] transition-colors"
+                    style={{ color: 'var(--danger)', border: '1px dashed var(--danger-soft-2)' }}
                   >
                     <Icon name="trash" size={13} />
                     Eliminar cliente
                   </button>
                 ) : (
-                  <div className="rounded-lg p-4 border" style={{ background: '#FF6B6B08', borderColor: '#FF6B6B33' }}>
-                    <div className="text-[13px] font-semibold mb-1" style={{ color: '#FF6B6B' }}>
+                  <div className="rounded-lg p-4 border" style={{ background: 'var(--danger-soft)', borderColor: 'var(--danger-soft-2)' }}>
+                    <div className="text-[13px] font-semibold mb-1" style={{ color: 'var(--danger)' }}>
                       ¿Eliminar "{client.name}"?
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] mb-3">
@@ -398,14 +398,14 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => { onDelete(client.id); onClose(); }}
-                        className="flex-1 py-1.5 rounded-md text-[12.5px] font-semibold"
-                        style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+                        className="flex-1 py-1.5 rounded-md text-[13px] font-semibold"
+                        style={{ background: 'var(--danger)', color: '#0a0a0b' }}
                       >
                         Sí, eliminar
                       </button>
                       <button
                         onClick={() => setConfirmDel(false)}
-                        className="flex-1 py-1.5 rounded-md text-[12.5px] text-[var(--text-muted)] hover:text-white transition-colors"
+                        className="flex-1 py-1.5 rounded-md text-[13px] text-[var(--text-muted)] hover:text-white transition-colors"
                         style={{ background: 'var(--surface-3)' }}
                       >
                         Cancelar
@@ -452,7 +452,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
       },
       tags: [],
       notes: '',
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: localISO(new Date()),
     });
   };
 
@@ -505,7 +505,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
               placeholder="Ej: Volcán Activewear"
-              className="w-full px-3 py-2.5 rounded-md text-[14px] surface-2 border border-app focus:border-[var(--accent)]/60"
+              className="w-full px-3 py-2.5 rounded-md text-[15px] surface-2 border border-app focus:border-[var(--accent)]/60"
             />
           </div>
 
@@ -515,7 +515,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
               placeholder="Ej: Moda deportiva"
-              className="w-full px-3 py-2.5 rounded-md text-[13.5px] surface-2 border border-app"
+              className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app"
             />
           </div>
 
@@ -543,13 +543,13 @@ const NewClientModal = ({ onCreate, onClose }) => {
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-app">
-          <button onClick={onClose} className="px-3 py-1.5 rounded-md text-[12.5px] hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+          <button onClick={onClose} className="px-3 py-1.5 rounded-md text-[13px] hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             Cancelar
           </button>
           <button
             onClick={submit}
             disabled={!name.trim()}
-            className="px-3 py-1.5 rounded-md text-[12.5px] font-semibold disabled:opacity-40 transition-all hover:brightness-110"
+            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition-all hover:brightness-110"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             Crear cliente
@@ -606,7 +606,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
     const words    = q.split(/\s+/);
     const initials = words.map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
     const color    = CLIENT_COLORS[clients.length % CLIENT_COLORS.length];
-    if (onCreateClient) onCreateClient({ id: 'cl' + Date.now(), name: q, industry: 'Sin categoría', color, initials, contact: { name: '—', email: '—', phone: '—' }, tags: [], notes: '', createdAt: new Date().toISOString().slice(0, 10) });
+    if (onCreateClient) onCreateClient({ id: 'cl' + Date.now(), name: q, industry: 'Sin categoría', color, initials, contact: { name: '—', email: '—', phone: '—' }, tags: [], notes: '', createdAt: localISO(new Date()) });
     onChange(q);
     setOpen(false);
   };
@@ -627,12 +627,12 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
         <button key={c.id} onClick={() => select(c.name)}
           className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-[var(--surface-3)] transition-colors text-left"
         >
-          <div className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+          <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0"
             style={{ background: c.color + '22', color: c.color, border: `1px solid ${c.color}44` }}>
             {c.initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12.5px] font-medium truncate">{c.name}</div>
+            <div className="text-[13px] font-medium truncate">{c.name}</div>
             <div className="text-[10px] text-[var(--text-muted)] truncate">{c.industry}</div>
           </div>
           {value === c.name && <Icon name="check" size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
@@ -671,7 +671,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
     <>
       <div ref={wrapRef} onClick={openDropdown} className={wrapCls} style={wrapStyle}>
         {matched && !open && (
-          <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center text-[8px] font-bold"
+          <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
             style={{ background: matched.color + '22', color: matched.color, border: `1px solid ${matched.color}44` }}>
             {matched.initials.slice(0, 1)}
           </div>
@@ -682,13 +682,13 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
               if (e.key === 'Enter') { if (filtered.length > 0) select(filtered[0].name); else if (showCreate) createAndSelect(); else { onChange(query.trim()); setOpen(false); } }
               if (e.key === 'Escape') setOpen(false);
             }}
-            className={`flex-1 bg-transparent outline-none ${fieldMode ? 'text-[13.5px]' : 'text-sm'}`}
+            className={`flex-1 bg-transparent outline-none ${fieldMode ? 'text-[13px]' : 'text-sm'}`}
             placeholder={placeholder}
             style={{ minWidth: 0 }}
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className={`truncate ${fieldMode ? 'text-[13.5px]' : 'text-sm'}`}>
+          <span className={`truncate ${fieldMode ? 'text-[13px]' : 'text-sm'}`}>
             {value || <span className="text-[var(--text-muted)]">{fieldMode ? placeholder : 'Sin cliente'}</span>}
           </span>
         )}
@@ -744,7 +744,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar clientes o industria…"
-              className="flex-1 text-[12.5px]"
+              className="flex-1 text-[13px]"
             />
             {search && (
               <button onClick={() => setSearch('')} className="text-[var(--text-muted)] hover:text-white">
@@ -757,7 +757,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
 
           <button
             onClick={() => setShowNew(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-semibold hover:brightness-110 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold hover:brightness-110 transition-all"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             <Icon name="plus" size={13} strokeWidth={2.4} />
@@ -773,7 +773,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
                 <Icon name="briefcase" size={22} className="text-[var(--text-muted)]" />
               </div>
               <div>
-                <div className="text-[14px] font-medium mb-1">
+                <div className="text-[15px] font-medium mb-1">
                   {search ? `Sin resultados para "${search}"` : 'Sin clientes aún'}
                 </div>
                 <div className="text-[12px] text-[var(--text-muted)]">
@@ -783,7 +783,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
               {!search && (
                 <button
                   onClick={() => setShowNew(true)}
-                  className="text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-all hover:brightness-110"
+                  className="text-[13px] font-semibold px-4 py-2 rounded-lg transition-all hover:brightness-110"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
                   + Agregar cliente

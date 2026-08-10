@@ -61,7 +61,7 @@ const SEED_TEAM = [
     name: 'Ana Torres',
     role: 'Asistente de producción',
     initials: 'AT',
-    color: '#FFD166',
+    color: 'var(--warn)',
     email: 'ana@frame.studio',
     phone: '+54 11 5555-0005',
     skills: ['Asistencia en set', 'Organización', 'Redes sociales', 'Atención al cliente'],
@@ -73,12 +73,12 @@ const SEED_TEAM = [
 
 const TEAM_COLORS = [
   '#D4FF4F', '#FF7A59', '#6CC4FF', '#C089FF',
-  '#FFD166', '#FB7185', '#7DD3C0', '#FF6B6B',
+  'var(--warn)', '#FB7185', '#7DD3C0', 'var(--danger)',
 ];
 
 const AVAILABILITY = [
   { id: 'available', label: 'Disponible', color: '#7DD3C0' },
-  { id: 'busy',      label: 'Ocupado/a',  color: '#FFD166' },
+  { id: 'busy',      label: 'Ocupado/a',  color: 'var(--warn)' },
   { id: 'vacation',  label: 'Vacaciones', color: '#9A9AA3' },
 ];
 
@@ -87,11 +87,11 @@ const getAvail = (id) => AVAILABILITY.find(a => a.id === id) || AVAILABILITY[0];
 // ── Workload bar ────────────────────────────────────────────────
 const WorkloadBar = ({ count, max = 6, color }) => {
   const pct = Math.min(100, Math.round((count / max) * 100));
-  const barColor = count >= max ? '#FF6B6B' : count >= max * 0.7 ? '#FFD166' : color;
+  const barColor = count >= max ? 'var(--danger)' : count >= max * 0.7 ? 'var(--warn)' : color;
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Carga</span>
+        <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Carga</span>
         <span className="text-[10px] font-mono" style={{ color: barColor }}>
           {count} activo{count !== 1 ? 's' : ''}
         </span>
@@ -166,7 +166,7 @@ const MemberCard = ({ member, projects, onClick }) => {
             </div>
           )}
           <div className="flex-1 min-w-0 pt-0.5">
-            <div className="font-semibold text-[13.5px] truncate" style={{ letterSpacing: '-0.01em' }}>
+            <div className="font-semibold text-[13px] truncate" style={{ letterSpacing: '-0.01em' }}>
               {member.name}
             </div>
             <span
@@ -186,11 +186,11 @@ const MemberCard = ({ member, projects, onClick }) => {
         {/* Availability dot + status badge */}
         <div className="flex items-center gap-1.5 mb-3">
           {member.status === 'pending' ? (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FFD16622', color: '#FFD166' }}>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--warn-soft-2)', color: 'var(--warn)' }}>
               ⏳ Pendiente de aprobación
             </span>
           ) : member.status === 'rejected' ? (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FF6B6B18', color: '#FF6B6B' }}>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
               ✕ Sin acceso
             </span>
           ) : (
@@ -518,15 +518,15 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
                 {!confirmDel ? (
                   <button
                     onClick={() => setConfirmDel(true)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[12.5px] transition-colors"
-                    style={{ color: '#FF6B6B', border: '1px dashed #FF6B6B44' }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] transition-colors"
+                    style={{ color: 'var(--danger)', border: '1px dashed var(--danger-soft-2)' }}
                   >
                     <Icon name="trash" size={13} />
                     Eliminar integrante
                   </button>
                 ) : (
-                  <div className="rounded-lg p-4 border" style={{ background: '#FF6B6B08', borderColor: '#FF6B6B33' }}>
-                    <div className="text-[13px] font-semibold mb-1" style={{ color: '#FF6B6B' }}>
+                  <div className="rounded-lg p-4 border" style={{ background: 'var(--danger-soft)', borderColor: 'var(--danger-soft-2)' }}>
+                    <div className="text-[13px] font-semibold mb-1" style={{ color: 'var(--danger)' }}>
                       ¿Eliminar a "{member.name}"?
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] mb-3">
@@ -537,14 +537,14 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
                     <div className="flex gap-2">
                       <button
                         onClick={() => { onDelete(member.id); onClose(); }}
-                        className="flex-1 py-1.5 rounded-md text-[12.5px] font-semibold"
-                        style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+                        className="flex-1 py-1.5 rounded-md text-[13px] font-semibold"
+                        style={{ background: 'var(--danger)', color: '#0a0a0b' }}
                       >
                         Sí, eliminar
                       </button>
                       <button
                         onClick={() => setConfirmDel(false)}
-                        className="flex-1 py-1.5 rounded-md text-[12.5px] text-[var(--text-muted)] hover:text-white transition-colors"
+                        className="flex-1 py-1.5 rounded-md text-[13px] text-[var(--text-muted)] hover:text-white transition-colors"
                         style={{ background: 'var(--surface-3)' }}
                       >
                         Cancelar
@@ -588,7 +588,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
       skills: [],
       bio: '',
       availability: 'available',
-      joinedAt: new Date().toISOString().slice(0, 10),
+      joinedAt: localISO(new Date()),
     });
   };
 
@@ -638,7 +638,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
               placeholder="Ej: Valentina Ortiz"
-              className="w-full px-3 py-2.5 rounded-md text-[14px] surface-2 border border-app focus:border-[var(--accent)]/60"
+              className="w-full px-3 py-2.5 rounded-md text-[15px] surface-2 border border-app focus:border-[var(--accent)]/60"
             />
           </div>
 
@@ -648,7 +648,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
               value={role}
               onChange={(e) => setRole(e.target.value)}
               placeholder="Ej: Colorista, Director de arte…"
-              className="w-full px-3 py-2.5 rounded-md text-[13.5px] surface-2 border border-app"
+              className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app"
             />
           </div>
 
@@ -665,13 +665,13 @@ const NewMemberModal = ({ onCreate, onClose }) => {
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-app">
-          <button onClick={onClose} className="px-3 py-1.5 rounded-md text-[12.5px] hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+          <button onClick={onClose} className="px-3 py-1.5 rounded-md text-[13px] hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             Cancelar
           </button>
           <button
             onClick={submit}
             disabled={!name.trim()}
-            className="px-3 py-1.5 rounded-md text-[12.5px] font-semibold disabled:opacity-40 transition-all hover:brightness-110"
+            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition-all hover:brightness-110"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             Agregar al equipo
@@ -733,7 +733,7 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Nombre, rol o skill…"
-              className="flex-1 text-[12.5px]"
+              className="flex-1 text-[13px]"
             />
             {search && (
               <button onClick={() => setSearch('')} className="text-[var(--text-muted)] hover:text-white">
@@ -748,7 +748,7 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
               <button
                 key={a.id}
                 onClick={() => setFilterAvail(a.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[11.5px] font-medium transition-all ${filterAvail === a.id ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-dim)] hover:text-white'}`}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] font-medium transition-all ${filterAvail === a.id ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-dim)] hover:text-white'}`}
               >
                 {a.color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: a.color }}></span>}
                 {a.label}
@@ -760,7 +760,7 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
 
           <button
             onClick={() => setShowNew(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-semibold hover:brightness-110 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold hover:brightness-110 transition-all"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             <Icon name="plus" size={13} strokeWidth={2.4} />
@@ -769,7 +769,7 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
         </header>
 
         {/* Summary bar */}
-        <div className="flex items-center gap-5 px-5 py-2 border-b border-app text-[11.5px]" style={{ background: 'var(--surface)' }}>
+        <div className="flex items-center gap-5 px-5 py-2 border-b border-app text-[12px]" style={{ background: 'var(--surface)' }}>
           {AVAILABILITY.map(a => {
             const n = team.filter(m => m.availability === a.id).length;
             return (
@@ -794,7 +794,7 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
                 <Icon name="users" size={22} className="text-[var(--text-muted)]" />
               </div>
               <div>
-                <div className="text-[14px] font-medium mb-1">
+                <div className="text-[15px] font-medium mb-1">
                   {search ? `Sin resultados para "${search}"` : 'Sin integrantes en este estado'}
                 </div>
                 <div className="text-[12px] text-[var(--text-muted)]">

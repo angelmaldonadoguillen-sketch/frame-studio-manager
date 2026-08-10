@@ -75,7 +75,7 @@ const StatusPill = ({ status, size = 'sm' }) => {
 
 // ── Type dropdown content (selector + creator) ─────────────────
 const TYPE_PICKER_ICONS  = ['film','camera','mic','video','music','play','image','monitor','smartphone','briefcase','zap','megaphone','star','layers','globe','folder','archive','clock'];
-const TYPE_PICKER_COLORS = ['#C089FF','#6CC4FF','#7DD3C0','#FF7A59','#FFD166','#FB7185','#D4FF4F','#FF6B6B','#4ADE80','#F97316','#38BDF8','#9A9AA3'];
+const TYPE_PICKER_COLORS = ['#C089FF','#6CC4FF','#7DD3C0','#FF7A59','var(--warn)','#FB7185','#D4FF4F','var(--danger)','#4ADE80','#F97316','#38BDF8','#9A9AA3'];
 
 // ── TypeForm — formulario reutilizable para crear/editar tipos ──
 const TypeForm = ({ initial = {}, onSubmit, onCancel, submitLabel = 'Crear' }) => {
@@ -103,7 +103,7 @@ const TypeForm = ({ initial = {}, onSubmit, onCancel, submitLabel = 'Crear' }) =
         style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
       />
       <div>
-        <div className="text-[9px] font-semibold tracking-[0.15em] uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Ícono</div>
+        <div className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Ícono</div>
         <div className="grid grid-cols-6 gap-1">
           {TYPE_PICKER_ICONS.map(ic => (
             <button key={ic} onClick={() => setIcon(ic)}
@@ -116,7 +116,7 @@ const TypeForm = ({ initial = {}, onSubmit, onCancel, submitLabel = 'Crear' }) =
         </div>
       </div>
       <div>
-        <div className="text-[9px] font-semibold tracking-[0.15em] uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Color</div>
+        <div className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Color</div>
         <div className="flex flex-wrap gap-1.5">
           {TYPE_PICKER_COLORS.map(c => (
             <button key={c} onClick={() => setColor(c)} className="rounded-full transition-all"
@@ -199,7 +199,7 @@ const TypeDropdownContent = ({ allTypes, currentType, onSelect, onCreateCustomTy
             </button>
             <button
               onClick={() => onDeleteCustomType(t.id)}
-              className="p-1 rounded hover:bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-[#FF6B6B]"
+              className="p-1 rounded hover:bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-[var(--danger)]"
               title="Eliminar"
             >
               <Icon name="trash" size={11} />
@@ -761,7 +761,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
           <div className="flex items-center gap-1">
             {isUrgent && (
               <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md mr-2"
-                style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>
+                style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>
                 <Icon name="alert" size={11} /> URGENTE
               </span>
             )}
@@ -769,11 +769,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
             {onDelete && (
               confirmDel ? (
                 <div className="flex items-center gap-1 mr-1">
-                  <span className="text-[12px] font-medium" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
+                  <span className="text-[12px] font-medium" style={{ color: 'var(--danger)' }}>¿Eliminar?</span>
                   <button
                     onClick={() => { onDelete(project.id); onClose(); }}
                     className="px-2.5 py-1 rounded-md text-[12px] font-semibold"
-                    style={{ background: '#FF6B6B22', color: '#FF6B6B' }}
+                    style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}
                   >
                     Sí
                   </button>
@@ -787,7 +787,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 </div>
               ) : (
                 <button
-                  className="p-2 rounded-md hover:bg-[#FF6B6B18] text-[var(--text-dim)] hover:text-[#FF6B6B] transition-colors"
+                  className="p-2 rounded-md hover:bg-[var(--danger-soft)] text-[var(--text-dim)] hover:text-[var(--danger)] transition-colors"
                   title="Eliminar proyecto"
                   onClick={() => setConfirmDel(true)}
                 >
@@ -938,7 +938,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
                   style={{ colorScheme: 'dark' }}
                 />
-                {isUrgent && <span className="text-[10px] font-semibold" style={{ color: '#FF6B6B' }}>en {days}d</span>}
+                {isUrgent && <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>en {days}d</span>}
               </div>
             </PropRow>
 
@@ -1056,19 +1056,19 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                               if (e.key === 'Escape') cancelEditCheck();
                             }}
                             onBlur={saveEditCheck}
-                            className="flex-1 text-[13.5px] bg-transparent outline-none border-b"
+                            className="flex-1 text-[13px] bg-transparent outline-none border-b"
                             style={{ borderColor: 'var(--accent)', color: 'var(--text)' }}
                           />
                         ) : (
                           <span
                             onClick={() => startEditCheck(c)}
-                            className={`flex-1 text-[13.5px] cursor-text ${c.done ? 'line-through text-[var(--text-muted)]' : ''}`}
+                            className={`flex-1 text-[13px] cursor-text ${c.done ? 'line-through text-[var(--text-muted)]' : ''}`}
                             title="Clic para editar"
                           >
                             {c.text}
                           </span>
                         )}
-                        <button onClick={() => removeCheck(c.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B] flex-shrink-0">
+                        <button onClick={() => removeCheck(c.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] flex-shrink-0">
                           <Icon name="trash" size={13} />
                         </button>
                       </div>
@@ -1162,7 +1162,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                             >
                               {dv.status === 'ready' ? '✓ Listo' : 'Pendiente'}
                             </button>
-                            <button onClick={() => removeDeliverable(dv.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B] transition-opacity flex-shrink-0">
+                            <button onClick={() => removeDeliverable(dv.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity flex-shrink-0">
                               <Icon name="trash" size={13} />
                             </button>
                           </div>
@@ -1196,7 +1196,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                           </div>
                           <div className="flex items-center gap-2">
                             {t.status === 'done' && <span className="text-[10px]" style={{ color: 'var(--accent)' }}>✓ HECHO</span>}
-                            <button onClick={() => removeTimeline(t.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[#FF6B6B] transition-opacity">
+                            <button onClick={() => removeTimeline(t.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity">
                               <Icon name="trash" size={12} />
                             </button>
                           </div>
@@ -1283,7 +1283,7 @@ const ChecklistAdd = ({ onAdd }) => {
         onChange={(e) => setV(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && v.trim()) { onAdd(v); setV(''); } }}
         placeholder="Agregar tarea…"
-        className="flex-1 text-[13.5px]"
+        className="flex-1 text-[13px]"
       />
     </div>
   );
@@ -1307,7 +1307,7 @@ const DeliverableAdd = ({ onAdd }) => {
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
         placeholder="Nuevo entregable…"
-        className="flex-1 px-2.5 py-1.5 rounded-md text-[12.5px] border"
+        className="flex-1 px-2.5 py-1.5 rounded-md text-[13px] border"
         style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
       />
       <select
@@ -1335,7 +1335,7 @@ const DeliverableAdd = ({ onAdd }) => {
 // ── Timeline add ────────────────────────────────────────────────
 const TimelineAdd = ({ onAdd }) => {
   const [label, setLabel] = useState('');
-  const [date, setDate] = useState(() => new Date(TODAY).toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => localISO(new Date(TODAY)));
 
   const submit = () => {
     if (!label.trim()) return;
@@ -1354,7 +1354,7 @@ const TimelineAdd = ({ onAdd }) => {
         onChange={(e) => setLabel(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
         placeholder="Nuevo hito…"
-        className="flex-1 px-2.5 py-1.5 rounded-md text-[12.5px] border ml-3"
+        className="flex-1 px-2.5 py-1.5 rounded-md text-[13px] border ml-3"
         style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
       />
       <input
@@ -1378,7 +1378,7 @@ const TimelineAdd = ({ onAdd }) => {
 
 const DescriptionBlock = ({ blocks, onChange }) => {
   return (
-    <div className="prose prose-invert max-w-none text-[14px] leading-relaxed text-[var(--text-dim)] space-y-2 pretty">
+    <div className="prose prose-invert max-w-none text-[15px] leading-relaxed text-[var(--text-dim)] space-y-2 pretty">
       {blocks.map((b, i) => {
         if (b.type === 'p') return <p key={i}>{b.text}</p>;
         if (b.type === 'b') return <p key={i} className="text-white font-semibold">{b.text}</p>;
@@ -1533,10 +1533,10 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
             className={`px-2 py-1 rounded text-[12px] select-none cursor-pointer flex items-center gap-1 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]'}`}
           >
             <Icon name="camera" size={12} />
-            {uploading && <span className="text-[9px] font-mono animate-pulse">subiendo…</span>}
+            {uploading && <span className="text-[10px] font-mono animate-pulse">subiendo…</span>}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
-          <span className="ml-auto text-[9px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Ctrl+V para pegar imagen</span>
+          <span className="ml-auto text-[10px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Ctrl+V para pegar imagen</span>
         </div>
 
         {/* ── Área editable ── */}
@@ -1549,7 +1549,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           onPaste={handlePaste}
           onClick={handleClick}
           data-placeholder="Describí el proyecto, briefing, referencias…"
-          className="desc-editor p-3 text-[14px] leading-relaxed"
+          className="desc-editor p-3 text-[15px] leading-relaxed"
           style={{ minHeight: 100, background: 'var(--surface-2)', color: 'var(--text)' }}
         />
       </div>
@@ -1627,14 +1627,14 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                   {isOwn && onDeleteComment && (
                     <button
                       onClick={() => onDeleteComment(c.id)}
-                      className="ml-auto opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] transition-all"
+                      className="ml-auto opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] transition-all"
                       title="Eliminar comentario"
                     >
                       <Icon name="trash" size={11} />
                     </button>
                   )}
                 </div>
-                <div className="text-[14px] leading-relaxed pretty">{renderWithMentions(c.text)}</div>
+                <div className="text-[15px] leading-relaxed pretty">{renderWithMentions(c.text)}</div>
               </div>
             </div>
           );
@@ -1657,7 +1657,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                 }}
                 placeholder="Escribí un comentario… usa @ para mencionar"
                 rows={2}
-                className="w-full px-3 py-2.5 text-[13.5px] resize-none"
+                className="w-full px-3 py-2.5 text-[13px] resize-none"
               />
               {showMentions && (
                 <div className="absolute bottom-full mb-2 left-0 surface-2 border border-app rounded-lg shadow-2xl p-1 z-10" style={{ minWidth: 200 }}>

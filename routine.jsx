@@ -253,7 +253,7 @@ const RoutineWidget = () => {
             style={{ borderBottom: '1px solid var(--border)' }}
           >
             <div>
-              <div className="font-display font-bold text-[16px] select-none" style={{ letterSpacing: '-0.01em' }}>
+              <div className="font-display font-bold text-[17px] select-none" style={{ letterSpacing: '-0.01em' }}>
                 Rutina diaria
               </div>
               <div className="text-[11px] mt-0.5 capitalize select-none" style={{ color: 'var(--text-muted)' }}>
@@ -268,7 +268,7 @@ const RoutineWidget = () => {
                   style={{ background: 'rgba(255,209,102,0.10)', border: '1px solid rgba(255,209,102,0.22)' }}
                 >
                   <span style={{ fontSize: 12 }}>🔥</span>
-                  <span className="text-[11px] font-bold" style={{ color: '#FFD166' }}>
+                  <span className="text-[11px] font-bold" style={{ color: 'var(--warn)' }}>
                     {streak}
                   </span>
                 </div>
@@ -419,14 +419,14 @@ const RoutineWidget = () => {
                             style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', minWidth: 180, maxHeight: 220, overflowY: 'auto', zIndex: 9999, transformOrigin: 'top right' }}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="px-3 py-2 text-[9.5px] tracking-[0.16em] uppercase select-none" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                            <div className="px-3 py-2 text-[10px] tracking-[0.16em] uppercase select-none" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
                               Asignar tarea
                             </div>
                             <button onClick={() => assignTask(task.id, null)} className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--surface-3)]">
                               <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ border: '1.5px dashed var(--border-2)' }}>
                                 <Icon name="x" size={9} style={{ color: 'var(--text-muted)' }} />
                               </div>
-                              <span className="text-[11.5px] select-none" style={{ color: 'var(--text-muted)' }}>Sin asignar</span>
+                              <span className="text-[12px] select-none" style={{ color: 'var(--text-muted)' }}>Sin asignar</span>
                               {!task.assignee && <Icon name="check" size={10} style={{ color: 'var(--accent)', marginLeft: 'auto' }} />}
                             </button>
                             {(window.__liveTeam || []).filter(u => !u.status || u.status === 'active').map(u => (
@@ -436,8 +436,8 @@ const RoutineWidget = () => {
                               >
                                 <Avatar user={u} size={20} />
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-[11.5px] font-medium truncate select-none" style={{ color: 'var(--text)' }}>{u.name}</div>
-                                  <div className="text-[9.5px] truncate select-none" style={{ color: 'var(--text-muted)' }}>{u.role}</div>
+                                  <div className="text-[12px] font-medium truncate select-none" style={{ color: 'var(--text)' }}>{u.name}</div>
+                                  <div className="text-[10px] truncate select-none" style={{ color: 'var(--text-muted)' }}>{u.role}</div>
                                 </div>
                                 {task.assignee === u.id && <Icon name="check" size={10} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
                               </button>
@@ -455,7 +455,7 @@ const RoutineWidget = () => {
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-                        className="p-1.5 rounded transition-colors text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14]"
+                        className="p-1.5 rounded transition-colors text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                         title="Eliminar"
                       >
                         <Icon name="trash" size={12} />
@@ -469,7 +469,7 @@ const RoutineWidget = () => {
                       className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md select-none"
                       style={{
                         background: daysOwed >= 3 ? 'rgba(255,107,107,0.18)' : 'rgba(255,122,89,0.15)',
-                        color:      daysOwed >= 3 ? '#FF6B6B'                 : '#FF7A59',
+                        color:      daysOwed >= 3 ? 'var(--danger)'                 : '#FF7A59',
                         border: `1px solid ${daysOwed >= 3 ? 'rgba(255,107,107,0.35)' : 'rgba(255,122,89,0.3)'}`,
                       }}
                       title={`Sin completar hace ${daysOwed} ${daysOwed === 1 ? 'día' : 'días'}`}
@@ -529,7 +529,7 @@ const RoutineWidget = () => {
             <div style={{ borderTop: '1px solid var(--border)' }}>
               <div className="px-5 pt-3 pb-1 flex items-center gap-1.5">
                 <Icon name="clock" size={11} style={{ color: 'var(--text-muted)' }} />
-                <span className="text-[9.5px] tracking-[0.18em] uppercase font-semibold select-none" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-[10px] tracking-[0.18em] uppercase font-semibold select-none" style={{ color: 'var(--text-muted)' }}>
                   Historial reciente
                 </span>
               </div>
@@ -546,7 +546,7 @@ const RoutineWidget = () => {
                           border:     `1px solid ${perfect ? 'rgba(212,255,79,0.28)' : 'rgba(255,107,107,0.28)'}`,
                         }}
                       >
-                        <span className="select-none" style={{ fontSize: 8, fontWeight: 700, color: perfect ? 'var(--accent)' : '#FF6B6B' }}>
+                        <span className="select-none" style={{ fontSize: 8, fontWeight: 700, color: perfect ? 'var(--accent)' : 'var(--danger)' }}>
                           {perfect ? '✓' : '✗'}
                         </span>
                       </div>
@@ -555,10 +555,10 @@ const RoutineWidget = () => {
                       </span>
                       <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
                         <div
-                          style={{ width: entryPct + '%', height: '100%', borderRadius: 999, background: perfect ? 'var(--accent)' : '#FF6B6B' }}
+                          style={{ width: entryPct + '%', height: '100%', borderRadius: 999, background: perfect ? 'var(--accent)' : 'var(--danger)' }}
                         />
                       </div>
-                      <span className="text-[11px] font-bold font-mono select-none" style={{ color: perfect ? 'var(--accent)' : '#FF6B6B', minWidth: 28, textAlign: 'right' }}>
+                      <span className="text-[11px] font-bold font-mono select-none" style={{ color: perfect ? 'var(--accent)' : 'var(--danger)', minWidth: 28, textAlign: 'right' }}>
                         {entry.completed}/{entry.total}
                       </span>
                     </div>
@@ -576,7 +576,7 @@ const RoutineWidget = () => {
             {editMode ? (
               <button
                 onClick={() => { setEditMode(false); setNewText(''); setEditingId(null); }}
-                className="flex items-center gap-1.5 text-[11.5px] font-semibold px-3 py-1.5 rounded-lg transition-all"
+                className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all"
                 style={{ background: 'var(--accent)', color: '#0a0a0b' }}
               >
                 <Icon name="check" size={12} strokeWidth={2.5} />
@@ -585,7 +585,7 @@ const RoutineWidget = () => {
             ) : (
               <button
                 onClick={() => { setEditMode(true); setTimeout(() => addInputRef.current?.focus(), 80); }}
-                className="flex items-center gap-1.5 text-[11.5px] font-medium px-3 py-1.5 rounded-lg transition-colors text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]"
+                className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg transition-colors text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]"
               >
                 <Icon name="edit" size={12} />
                 Editar tareas
@@ -595,7 +595,7 @@ const RoutineWidget = () => {
             {allDone && streak > 0 && (
               <div className="flex items-center gap-1 select-none">
                 <span style={{ fontSize: 13 }}>🔥</span>
-                <span className="text-[11px] font-bold" style={{ color: '#FFD166' }}>
+                <span className="text-[11px] font-bold" style={{ color: 'var(--warn)' }}>
                   {streak} {streak === 1 ? 'día seguido' : 'días seguidos'}
                 </span>
               </div>

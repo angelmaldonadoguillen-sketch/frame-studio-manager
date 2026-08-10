@@ -8,7 +8,12 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!-- Una sola familia para toda la interfaz. Syne y Space Grotesk son tipografías
+     de display: a los 12-13px donde vive casi toda la app perdían definición
+     (la g de doble piso, la a geométrica, I/l/1 indistinguibles). Inter se
+     diseñó para pantalla y trae cifras tabulares, así que tampoco hace falta
+     una monoespaciada aparte. En Mac cae en SF Pro real vía -apple-system. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet" />
 
 <script src="https://cdn.tailwindcss.com"></script>
 
@@ -33,10 +38,14 @@
   tailwind.config = {
     theme: {
       extend: {
+        // Los tres roles apuntan a la misma familia. Se conservan los nombres
+        // porque font-display / font-mono están usados en todo el código; lo
+        // que cambia es a qué resuelven. La jerarquía la hacen el peso y el
+        // tracking, no familias distintas.
         fontFamily: {
-          display: ['Syne', 'system-ui', 'sans-serif'],
-          sans: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
-          mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'Inter', 'system-ui', 'sans-serif'],
+          sans:    ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', 'Inter', 'system-ui', 'sans-serif'],
+          mono:    ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', 'Inter', 'system-ui', 'sans-serif'],
         },
       },
     },
@@ -45,28 +54,78 @@
 
 <style>
   :root {
-    --bg: #0a0a0b;
-    --surface: #131316;
-    --surface-2: #1a1a1f;
-    --surface-3: #232329;
-    --border: #26262d;
-    --border-2: #33333c;
-    --text: #ededef;
-    --text-dim: #9a9aa3;
-    --text-muted: #62626b;
-    --accent: #d4ff4f;
-    --accent-dim: #aacf3d;
+    /* ── Superficies ──────────────────────────────────────────────
+       No hay negro puro: en tema oscuro la profundidad se hace con luz,
+       no con sombra. Cada capa que se acerca al usuario es más clara. */
+    --bg:        #131315;
+    --surface:   #1c1c1e;
+    --surface-2: #252527;
+    --surface-3: #2f2f31;
+
+    /* ── Texto ────────────────────────────────────────────────────
+       Los secundarios son blanco con opacidad (y un leve tinte azul),
+       no un gris fijo. Así se comportan bien sobre cualquier superficie
+       sin tener que recalcular el color capa por capa. */
+    --text:       #ffffff;
+    --text-dim:   rgba(235, 235, 245, 0.60);
+    --text-muted: rgba(235, 235, 245, 0.30);
+    --text-faint: rgba(235, 235, 245, 0.18);
+
+    /* ── Separadores ──────────────────────────────────────────────
+       Medio píxel, no uno. Y solo donde hacen falta: las tarjetas se
+       distinguen por fondo, no por contorno. */
+    --border:   rgba(84, 84, 88, 0.40);
+    --border-2: rgba(84, 84, 88, 0.60);
+    --hairline: rgba(255, 255, 255, 0.055);
+
+    /* ── Acento y estados ─────────────────────────────────────────
+       El lima marca dos cosas: "acá podés actuar" y "esto es hoy".
+       danger/warn dejan de estar escritos a mano (#FF6B6B aparecía 64
+       veces suelto en el código). */
+    --accent:      #d4ff4f;
+    --accent-dim:  #aacf3d;
     --accent-soft: rgba(212, 255, 79, 0.14);
+    --danger:        #ff453a;
+    --danger-soft:   rgba(255, 69, 58, 0.10);
+    --danger-soft-2: rgba(255, 69, 58, 0.20);
+    --warn:          #ffd426;
+    --warn-soft:     rgba(255, 212, 38, 0.10);
+    --warn-soft-2:   rgba(255, 212, 38, 0.20);
+    --info:        #64d2ff;
+
+    /* ── Escala tipográfica ───────────────────────────────────────
+       De 21 tamaños sueltos a 9. Sin medios píxeles. */
+    --t-10: 10px;  --t-11: 11px;  --t-12: 12px;  --t-13: 13px;
+    --t-15: 15px;  --t-17: 17px;  --t-22: 22px;  --t-26: 26px;  --t-30: 30px;
+
+    /* ── Radios ───────────────────────────────────────────────── */
+    --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+
+    /* La curva de resorte de iOS. Todo se mueve con el mismo carácter. */
+    --ease: cubic-bezier(.32, .72, 0, 1);
   }
   html, body, #root { height: 100%; }
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif;
+    font-size: var(--t-13);
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    /* cv05: l con cola · cv08: I con serifas — evita confundir l / I / 1,
+       que en una app llena de fechas y montos importa. */
+    font-feature-settings: 'kern' 1, 'cv05' 1, 'cv08' 1;
+    font-optical-sizing: auto;
     overflow: hidden;
   }
+
+  /* Los números no bailan al cambiar: contadores, montos, fechas. */
+  .tnum, .font-mono { font-variant-numeric: tabular-nums; }
+
+  /* Títulos: cuanto más grande, más ajustado el tracking. Es lo que hace
+     que la tipografía se sienta compacta y no estirada. */
+  .font-display { letter-spacing: -0.021em; }
+  h1, .t-30 { letter-spacing: -0.028em; }
 
   /* Scrollbars */
   ::-webkit-scrollbar { width: 10px; height: 10px; }

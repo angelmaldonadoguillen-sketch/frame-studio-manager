@@ -7,7 +7,7 @@ const USERS = [
   { id: 'u2', name: 'Mateo Vargas',    role: 'Editor',      initials: 'MV', color: '#FF7A59' },
   { id: 'u3', name: 'Sofía Reyes',     role: 'Fotógrafa',   initials: 'SR', color: '#6CC4FF' },
   { id: 'u4', name: 'Diego Cruz',      role: 'Productor',   initials: 'DC', color: '#C089FF' },
-  { id: 'u5', name: 'Ana Torres',      role: 'Asistente',   initials: 'AT', color: '#FFD166' },
+  { id: 'u5', name: 'Ana Torres',      role: 'Asistente',   initials: 'AT', color: 'var(--warn)' },
 ];
 
 const PROJECT_TYPES = [
@@ -15,14 +15,14 @@ const PROJECT_TYPES = [
   { id: 'photo',    label: 'Fotografía',        color: '#6CC4FF', icon: 'camera' },
   { id: 'corp',     label: 'Video corporativo', color: '#7DD3C0', icon: 'briefcase' },
   { id: 'campaign', label: 'Campaign',          color: '#FF7A59', icon: 'zap' },
-  { id: 'bts',      label: 'BTS',               color: '#FFD166', icon: 'film' },
+  { id: 'bts',      label: 'BTS',               color: 'var(--warn)', icon: 'film' },
   { id: 'podcast',  label: 'Podcast',           color: '#FB7185', icon: 'mic' },
   { id: 'other',    label: 'Otro',              color: '#9A9AA3', icon: 'folder' },
 ];
 
 const STATUSES = [
   { id: 'briefing',  label: 'Briefing',           color: '#9A9AA3' },
-  { id: 'producing', label: 'En producción',      color: '#FFD166' },
+  { id: 'producing', label: 'En producción',      color: 'var(--warn)' },
   { id: 'editing',   label: 'Edición',            color: '#6CC4FF' },
   { id: 'review',    label: 'Revisión cliente',   color: '#C089FF' },
   { id: 'delivered', label: 'Entregado',          color: '#7DD3C0' },
@@ -30,17 +30,33 @@ const STATUSES = [
 ];
 
 const PRIORITIES = [
-  { id: 'high',   label: 'Alta',  color: '#FF6B6B' },
-  { id: 'medium', label: 'Media', color: '#FFD166' },
+  { id: 'high',   label: 'Alta',  color: 'var(--danger)' },
+  { id: 'medium', label: 'Media', color: 'var(--warn)' },
   { id: 'low',    label: 'Baja',  color: '#7DD3C0' },
 ];
 
 // Fecha actual real
 const TODAY = new Date();
+
+// ── Fecha ISO en hora LOCAL ──────────────────────────────────────
+// toISOString() convierte a UTC antes de formatear, así que en cualquier
+// zona al oeste de Greenwich devuelve el día siguiente a partir de cierta
+// hora de la tarde (en Honduras, UTC-6, desde las 18:00). Una tarjeta
+// creada de noche quedaba fechada al día equivocado.
+//
+// Vive acá porque data.jsx es el primer archivo que carga; el resto de la
+// app lo usa desde este punto en adelante.
+const localISO = (dt) => {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const d = (offset) => {
   const dt = new Date(TODAY);
   dt.setDate(dt.getDate() + offset);
-  return dt.toISOString().slice(0, 10);
+  return localISO(dt);
 };
 
 const COVER_IMAGES = {

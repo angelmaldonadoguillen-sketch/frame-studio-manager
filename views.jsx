@@ -3,18 +3,42 @@
 // ─────────────────────────────────────────────────────────────────
 
 // ── Project mini card (used in calendar + kanban) ──────────────
+// ── Contador de entrega ──────────────────────────────────────────
+// El dato que más decide el día del estudio. Antes estaba enterrado abajo
+// en gris junto a un icono de calendario; ahora es lo segundo que ve el ojo
+// y es el único lugar de la tarjeta donde el color grita. Devuelve también
+// el tono, así que urgencia y color salen siempre del mismo cálculo y no
+// pueden desincronizarse (antes había badges URG/VENC con su propia lógica).
+const deliveryCounter = (project) => {
+  if (project.status === 'delivered' || project.status === 'archived') {
+    return { value: '✓', label: 'Entregado', color: 'var(--text-muted)' };
+  }
+  const d = daysUntil(project.deadline);
+  if (d < 0)  return { value: '+' + Math.abs(d), label: 'Vencido',    color: 'var(--danger)' };
+  if (d === 0) return { value: 'Hoy',            label: 'Entrega',    color: 'var(--accent)' };
+  if (d <= 3)  return { value: d + ' d',         label: 'Restantes',  color: 'var(--warn)' };
+  return         { value: d + ' d',              label: 'Restantes',  color: 'var(--text-muted)' };
+};
+
 const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete, onDuplicate, onToggleFavorite, previewFields = {} }) => {
   const pf = previewFields;
   const t = getType(project.type);
-  const days = daysUntil(project.deadline);
-  const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
-  const isOverdue = days < 0 && project.status !== 'delivered' && project.status !== 'archived';
   const progress = progressOf(project);
   const [confirmDel, setConfirmDel] = React.useState(false);
+  const counter = deliveryCounter(project);
 
-  const showBottom = pf.responsables || pf.deadline;
-  const hasTags = pf.tags && project.tags && project.tags.length > 0;
+  const done  = (project.checklist || []).filter(c => c.done).length;
+  const total = (project.checklist || []).length;
+
   const hasBudget = pf.presupuesto && project.budget > 0;
+  const showCounter = pf.deadline !== false;
+  const hasActions = onToggleFavorite || onDuplicate || onDelete;
+
+  // Metadatos en una sola línea separada por puntos, en vez de cuatro
+  // renglones apilados. Es lo que hace que la tarjeta se lea de un vistazo.
+  const meta = [];
+  if (pf.cliente !== false && project.client) meta.push(project.client);
+  if (hasBudget) meta.push(`${project.currency || 'USD'} ${project.budget.toLocaleString()}`);
 
   return (
     <div
@@ -22,117 +46,135 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`group lift cursor-pointer rounded-lg border surface-2 overflow-hidden relative select-none ${dragging ? 'dragging' : ''}`}
-      style={{ borderColor: 'var(--border)' }}
+      className={`group lift cursor-pointer relative select-none ${dragging ? 'dragging' : ''}`}
+      style={{
+        background: 'var(--surface-2)',
+        borderRadius: 'var(--r-md)',
+        padding: compact ? '10px 11px' : '12px 13px',
+        // Filo superior iluminado: en tema oscuro la profundidad se hace con
+        // luz, no con sombra. Es lo que hace que se sienta material.
+        boxShadow: 'inset 0 .5px 0 rgba(255,255,255,.06)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-3)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; }}
     >
-      <div className="h-1" style={{ background: t.color }}></div>
-      <div className={compact ? 'p-2.5' : 'p-3'}>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
 
-        {/* Fila superior: tipo + badges + acciones */}
-        <div className="flex items-start justify-between gap-2 mb-1.5">
-          <div className="flex items-center gap-1 flex-wrap">
-            {pf.tipo !== false && <TypePill type={project.type} />}
-            {pf.estado !== false && <StatusPill status={project.status} size="sm" />}
+          {/* Tipo: un punto del color + la palabra. El color pasa a ser
+              identificador, no decoración a todo el ancho. */}
+          {pf.tipo !== false && (
+            <div className="flex items-center gap-1.5 mb-1" style={{ color: 'var(--text-muted)' }}>
+              <span className="rounded-full flex-shrink-0" style={{ width: 5, height: 5, background: t.color }} />
+              <span className="text-[11px] font-medium truncate">{t.label}</span>
+              {pf.estado !== false && (
+                <>
+                  <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>·</span>
+                  <span className="text-[11px] truncate">{getStatus(project.status).label}</span>
+                </>
+              )}
+              {project.favorite && (
+                <Icon name="star" size={9} fill="currentColor" style={{ color: 'var(--warn)', flexShrink: 0 }} />
+              )}
+            </div>
+          )}
+
+          <div className="text-[13px] font-semibold leading-snug balance" style={{ letterSpacing: '-0.012em', color: 'var(--text)' }}>
+            {project.title}
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {pf.prioridad !== false && isUrgent && (
-              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>
-            )}
-            {pf.prioridad !== false && isOverdue && (
-              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
-            )}
-            {onToggleFavorite && !confirmDel && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onToggleFavorite(project.id); }}
-                className={`p-1 rounded transition-all ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 hover:text-[#FFD166]'}`}
-                style={{ color: project.favorite ? '#FFD166' : 'var(--text-muted)' }}
-                title={project.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-              >
-                <Icon name="star" size={11} fill={project.favorite ? 'currentColor' : 'none'} />
-              </button>
-            )}
-            {!confirmDel && onDuplicate && (
-              <button onClick={(e) => { e.stopPropagation(); onDuplicate(project.id); }}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-all"
-                title="Duplicar">
-                <Icon name="copy" size={11} />
-              </button>
-            )}
-            {onDelete && !confirmDel && (
-              <button onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all"
-                title="Eliminar">
-                <Icon name="trash" size={11} />
-              </button>
-            )}
-            {onDelete && confirmDel && (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                <span className="text-[9px] font-semibold" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
-                <button onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
-                  className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>Sí</button>
-                <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }}
-                  className="text-[9px] font-medium px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>No</button>
-              </div>
-            )}
-          </div>
+
+          {(meta.length > 0 || pf.responsables !== false) && (
+            <div className="flex items-center gap-1.5 mt-1 text-[12px] min-w-0" style={{ color: 'var(--text-muted)' }}>
+              {meta.map((m, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <span style={{ color: 'var(--text-faint)' }}>·</span>}
+                  <span className="truncate tnum">{m}</span>
+                </React.Fragment>
+              ))}
+              {pf.responsables !== false && project.assignees?.length > 0 && (
+                <>
+                  {meta.length > 0 && <span style={{ color: 'var(--text-faint)' }}>·</span>}
+                  <AvatarStack ids={project.assignees} size={16} max={3} />
+                </>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Título (siempre) */}
-        <div className={`font-display font-semibold balance leading-tight mb-1 ${compact ? 'text-[12.5px]' : 'text-[13.5px]'}`}>
-          {project.title}
-        </div>
-
-        {/* Cliente */}
-        {pf.cliente !== false && (
-          <div className="text-[11px] text-[var(--text-muted)] mb-1.5">{project.client}</div>
-        )}
-
-        {/* Presupuesto */}
-        {hasBudget && (
-          <div className="text-[10.5px] font-mono mb-1.5" style={{ color: 'var(--text-dim)' }}>
-            {project.currency || 'USD'} {project.budget.toLocaleString()}
-          </div>
-        )}
-
-        {/* Tags */}
-        {hasTags && (
-          <div className="flex flex-wrap gap-1 mb-1.5">
-            {project.tags.slice(0, 3).map(tag => (
-              <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
-            ))}
-          </div>
-        )}
-
-        {/* Barra de progreso */}
-        {pf.progreso !== false && (
-          <div className="h-1 rounded-full overflow-hidden mb-1.5" style={{ background: 'var(--surface-3)' }}>
-            <div className="h-full" style={{ width: progress + '%', background: t.color }}></div>
-          </div>
-        )}
-
-        {/* Fila inferior: responsables + deadline */}
-        {showBottom && (
-          <div className="flex items-center justify-between mt-1">
-            {pf.responsables !== false
-              ? <AvatarStack ids={project.assignees} size={18} max={3} />
-              : <span />}
-            {pf.deadline !== false && (
-              <div className="flex items-center gap-1 text-[10.5px] text-[var(--text-muted)] font-mono">
-                <Icon name="calendar" size={10} />
-                {fmtDate(project.deadline)}
-              </div>
-            )}
+        {/* Firma: el contador */}
+        {showCounter && (
+          <div className="text-right flex-shrink-0 tnum" style={{ lineHeight: 1 }}>
+            <div className="text-[15px] font-semibold" style={{ color: counter.color, letterSpacing: '-0.02em' }}>
+              {counter.value}
+            </div>
+            <div className="text-[10px] mt-1" style={{ color: 'var(--text-faint)' }}>{counter.label}</div>
           </div>
         )}
       </div>
+
+      {/* Pie: progreso corto a la izquierda, acciones a la derecha en hover.
+          A todo el ancho la barra se leía como un subrayado divisorio. */}
+      {(pf.progreso !== false || hasActions) && (
+        <div className="flex items-center gap-2 mt-2.5" style={{ minHeight: 18 }}>
+          {pf.progreso !== false && total > 0 && (
+            <>
+              <div className="rounded-full overflow-hidden flex-shrink-0" style={{ width: 54, height: 3, background: 'rgba(255,255,255,.09)' }}>
+                <div className="h-full rounded-full" style={{ width: progress + '%', background: progress >= 100 ? 'var(--accent)' : 'var(--text-faint)' }} />
+              </div>
+              <span className="text-[10px] tnum" style={{ color: 'var(--text-faint)' }}>{done}/{total}</span>
+            </>
+          )}
+
+          {hasActions && (
+            <div className="ml-auto flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+              {confirmDel ? (
+                <>
+                  <span className="text-[11px] font-medium mr-1" style={{ color: 'var(--danger)' }}>¿Eliminar?</span>
+                  <button onClick={() => onDelete(project.id)}
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded"
+                    style={{ background: 'var(--danger)', color: '#fff' }}>Sí</button>
+                  <button onClick={() => setConfirmDel(false)}
+                    className="text-[11px] px-2 py-0.5 rounded"
+                    style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}>No</button>
+                </>
+              ) : (
+                <>
+                  {onToggleFavorite && (
+                    <button onClick={() => onToggleFavorite(project.id)}
+                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ color: project.favorite ? 'var(--warn)' : 'var(--text-muted)' }}
+                      title={project.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}>
+                      <Icon name="star" size={12} fill={project.favorite ? 'currentColor' : 'none'} />
+                    </button>
+                  )}
+                  {onDuplicate && (
+                    <button onClick={() => onDuplicate(project.id)}
+                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:text-[var(--accent)]"
+                      style={{ color: 'var(--text-muted)' }} title="Duplicar">
+                      <Icon name="copy" size={12} />
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button onClick={() => setConfirmDel(true)}
+                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:text-[var(--danger)]"
+                      style={{ color: 'var(--text-muted)' }} title="Eliminar">
+                      <Icon name="trash" size={12} />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
 // ── Column color presets ─────────────────────────────────────────
 const COL_COLORS = [
-  '#9A9AA3','#FFD166','#6CC4FF','#C089FF','#7DD3C0',
-  '#FF7A59','#FB7185','#D4FF4F','#FF6B6B','#34D399',
+  '#9A9AA3','var(--warn)','#6CC4FF','#C089FF','#7DD3C0',
+  '#FF7A59','#FB7185','#D4FF4F','var(--danger)','#34D399',
   '#F59E0B','#EC4899','#8B5CF6','#06B6D4','#38BDF8',
 ];
 
@@ -189,7 +231,7 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
           onChange={(e) => setLabel(e.target.value)}
           onBlur={commitLabel}
           onKeyDown={(e) => { if (e.key === 'Enter') { commitLabel(); e.target.blur(); } }}
-          className="w-full px-2.5 py-1.5 rounded-md text-[12.5px] border"
+          className="w-full px-2.5 py-1.5 rounded-md text-[13px] border"
           style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
         />
       </div>
@@ -218,8 +260,8 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
           onClick={() => { if (projectCount === 0) { onDelete(col.id); setOpen(false); } }}
           disabled={projectCount > 0}
           title={projectCount > 0 ? `Mové los ${projectCount} proyectos antes de eliminar` : ''}
-          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] transition-colors disabled:opacity-35 hover:bg-[#FF6B6B14]"
-          style={{ color: '#FF6B6B' }}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] transition-colors disabled:opacity-35 hover:bg-[var(--danger-soft)]"
+          style={{ color: 'var(--danger)' }}
         >
           <Icon name="trash" size={13} />
           {projectCount > 0
@@ -279,7 +321,7 @@ const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agreg
           }}
           onBlur={() => { if (!title.trim()) { setActive(false); setTitle(''); } }}
           placeholder="Título del proyecto…"
-          className="w-full bg-transparent outline-none text-[12.5px]"
+          className="w-full bg-transparent outline-none text-[13px]"
           style={{ color: 'var(--text)' }}
         />
         <div className="flex items-center gap-1.5 mt-2">
@@ -292,7 +334,7 @@ const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agreg
             className="px-1.5 py-1 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>
             <Icon name="x" size={12} />
           </button>
-          <span className="ml-auto text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>Enter ↵</span>
+          <span className="ml-auto text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>Enter ↵</span>
         </div>
       </div>
     );
@@ -312,7 +354,7 @@ const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agreg
   // ── Variant full: botón ancho con borde punteado ──
   return (
     <button onClick={() => setActive(true)}
-      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11.5px] font-medium border border-dashed transition-colors text-[var(--text-muted)] hover:text-white hover:border-[var(--text-muted)]"
+      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-medium border border-dashed transition-colors text-[var(--text-muted)] hover:text-white hover:border-[var(--text-muted)]"
       style={{ borderColor: 'var(--border-2)' }}>
       <Icon name="plus" size={13} />
       {label}
@@ -493,7 +535,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                 {hiddenCount > 0 && !isExpanded && (
                   <button
                     onClick={() => toggleExpand(s.id)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11.5px] font-medium transition-colors hover:bg-[var(--surface-2)] hover:text-white"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--surface-2)] hover:text-white"
                     style={{ color: 'var(--text-muted)', border: '1px dashed var(--border-2)' }}
                   >
                     <Icon name="chevronDown" size={12} />
@@ -503,7 +545,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                 {isExpanded && items.length > CARD_LIMIT && (
                   <button
                     onClick={() => toggleExpand(s.id)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11.5px] font-medium transition-colors hover:bg-[var(--surface-2)] hover:text-white"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--surface-2)] hover:text-white"
                     style={{ color: 'var(--text-muted)', border: '1px dashed var(--border-2)' }}
                   >
                     <Icon name="chevronDown" size={12} style={{ transform: 'rotate(180deg)' }} />
@@ -538,7 +580,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     if (e.key === 'Escape') { setAddingCol(false); setNewColLabel(''); }
                   }}
                   placeholder="Nombre de la columna…"
-                  className="w-full px-2.5 py-1.5 rounded-md text-[12.5px] border"
+                  className="w-full px-2.5 py-1.5 rounded-md text-[13px] border"
                   style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
                 />
                 <div className="flex gap-1.5">
@@ -558,7 +600,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
             ) : (
               <button
                 onClick={() => setAddingCol(true)}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12.5px] border border-dashed text-[var(--text-dim)] hover:text-white hover:border-[var(--text-muted)] transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] border border-dashed text-[var(--text-dim)] hover:text-white hover:border-[var(--text-muted)] transition-colors"
                 style={{ borderColor: 'var(--border-2)' }}
               >
                 <Icon name="plus" size={14} />
@@ -573,16 +615,8 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
   );
 };
 
-// ── Local-date ISO helper (avoids UTC shift from toISOString) ───
-// toISOString() converts to UTC first, which can shift the date in
-// non-UTC timezones. localISO reads year/month/day in local time so
-// the key always matches the date the user sees on screen.
-const localISO = (dt) => {
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, '0');
-  const d = String(dt.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
+// localISO vive en data.jsx, que carga antes que este archivo, para que
+// esté disponible en toda la app y no solo en las vistas.
 
 // ── CALENDAR VIEW ───────────────────────────────────────────────
 const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onUpdateProject, onToggleFavorite, onQuickCreate, previewFields = {} }) => {
@@ -754,8 +788,8 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
                     <span className={`text-[11px] font-mono ${isToday ? 'font-bold' : 'text-[var(--text-muted)]'}`} style={{ color: isToday ? 'var(--accent)' : undefined }}>
                       {dt.getDate()}
                     </span>
-                    {isToday && <span className="text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>HOY</span>}
-                    {isDragOver && <span className="text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>SOLTAR</span>}
+                    {isToday && <span className="text-[10px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>HOY</span>}
+                    {isDragOver && <span className="text-[10px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>SOLTAR</span>}
                   </div>
                   <div className="space-y-1.5">
                     {items.map(p => (
@@ -829,10 +863,10 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
           <div className="flex items-center gap-1 flex-wrap">
             {pf.tipo !== false && <TypePill type={project.type} />}
             {pf.prioridad !== false && isUrgent && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URG</span>
             )}
             {pf.prioridad !== false && isOver && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>VENC</span>
             )}
           </div>
 
@@ -844,7 +878,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
                   <button
                     onClick={() => onToggleFavorite(project.id)}
                     className={`p-1 rounded transition-all ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                    style={{ color: project.favorite ? '#FFD166' : 'var(--text-muted)' }}
+                    style={{ color: project.favorite ? 'var(--warn)' : 'var(--text-muted)' }}
                     title={project.favorite ? 'Quitar favorito' : 'Favorito'}
                   >
                     <Icon name="star" size={11} fill={project.favorite ? 'currentColor' : 'none'} />
@@ -862,7 +896,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
                 {onDelete && (
                   <button
                     onClick={() => setConfirmDel(true)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-all"
                     title="Eliminar"
                   >
                     <Icon name="trash" size={11} />
@@ -871,22 +905,22 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
               </>
             ) : (
               <div className="flex items-center gap-1">
-                <span className="text-[9px] font-semibold" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
-                <button onClick={() => onDelete(project.id)} className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>Sí</button>
-                <button onClick={() => setConfirmDel(false)} className="text-[9px] font-medium px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>No</button>
+                <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>¿Eliminar?</span>
+                <button onClick={() => onDelete(project.id)} className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>Sí</button>
+                <button onClick={() => setConfirmDel(false)} className="text-[10px] font-medium px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>No</button>
               </div>
             )}
           </div>
         </div>
 
         {/* Título — wrappea libremente */}
-        <div className="font-display font-semibold text-[12.5px] leading-snug pretty" style={{ color: 'var(--text)' }}>
+        <div className="font-display font-semibold text-[13px] leading-snug pretty" style={{ color: 'var(--text)' }}>
           {project.title}
         </div>
 
         {/* Cliente */}
         {pf.cliente !== false && project.client && (
-          <div className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>{project.client}</div>
+          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{project.client}</div>
         )}
 
         {/* Estado */}
@@ -898,7 +932,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
         {hasTags && (
           <div className="flex flex-wrap gap-1">
             {project.tags.slice(0, 3).map(tag => (
-              <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
             ))}
           </div>
         )}
@@ -909,7 +943,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
             <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
               <div className="h-full rounded-full" style={{ width: progress + '%', background: t.color, transition: 'width 400ms' }} />
             </div>
-            <span className="text-[9px] font-mono flex-shrink-0" style={{ color: t.color }}>{progress}%</span>
+            <span className="text-[10px] font-mono flex-shrink-0" style={{ color: t.color }}>{progress}%</span>
           </div>
         )}
 
@@ -918,7 +952,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
           <div className="flex items-center justify-between gap-1 mt-0.5">
             {pf.responsables !== false ? <AvatarStack ids={project.assignees} size={16} max={3} /> : <span />}
             {pf.deadline !== false && project.deadline && (
-              <div className="flex items-center gap-0.5 text-[9.5px] font-mono" style={{ color: isOver ? '#FF6B6B' : 'var(--text-muted)' }}>
+              <div className="flex items-center gap-0.5 text-[10px] font-mono" style={{ color: isOver ? 'var(--danger)' : 'var(--text-muted)' }}>
                 <Icon name="calendar" size={9} />
                 {fmtDate(project.deadline)}
               </div>
@@ -1011,10 +1045,10 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                   {dt.getDate()}
                 </span>
                 {items.length > 0 && (
-                  <span className="ml-auto text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{items.length}</span>
+                  <span className="ml-auto text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{items.length}</span>
                 )}
                 {isDragOver && (
-                  <span className="ml-auto text-[8px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>SOLTAR</span>
+                  <span className="ml-auto text-[10px] font-bold tracking-wider" style={{ color: 'var(--accent)' }}>SOLTAR</span>
                 )}
               </div>
 
@@ -1141,7 +1175,7 @@ const GalleryAddCard = ({ onCreate }) => {
             }}
             onBlur={() => { if (!title.trim()) { setActive(false); setTitle(''); } }}
             placeholder="Título del proyecto…"
-            className="w-full bg-transparent outline-none text-center text-[14px] border-b pb-1.5"
+            className="w-full bg-transparent outline-none text-center text-[15px] border-b pb-1.5"
             style={{ color: 'var(--text)', borderColor: 'var(--accent)' }}
           />
           <div className="flex items-center justify-center gap-1.5 mt-3">
@@ -1192,13 +1226,13 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
           {pf.tipo !== false && <TypePill type={project.type} />}
           <div className="flex items-center gap-1.5 ml-auto">
             {pf.prioridad !== false && isUrgent && (
-              <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URGENTE</span>
+              <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URGENTE</span>
             )}
             {onToggleFavorite && !confirmDel && (
               <button
                 onClick={(e) => { e.stopPropagation(); onToggleFavorite(project.id); }}
                 className={`p-1.5 rounded-md transition-all ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                style={{ background: 'rgba(0,0,0,0.55)', color: project.favorite ? '#FFD166' : 'white', backdropFilter: 'blur(4px)' }}
+                style={{ background: 'rgba(0,0,0,0.55)', color: project.favorite ? 'var(--warn)' : 'white', backdropFilter: 'blur(4px)' }}
                 title={project.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               >
                 <Icon name="star" size={12} fill={project.favorite ? 'currentColor' : 'none'} />
@@ -1223,7 +1257,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
             {onDelete && confirmDel && (
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }} onClick={(e) => e.stopPropagation()}>
                 <span className="text-[10px] font-semibold text-white">¿Eliminar?</span>
-                <button onClick={(e) => { e.stopPropagation(); onDelete(project.id); }} className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>Sí</button>
+                <button onClick={(e) => { e.stopPropagation(); onDelete(project.id); }} className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>Sí</button>
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }} className="text-[10px] text-white/60 hover:text-white px-1">No</button>
               </div>
             )}
@@ -1250,7 +1284,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
         {hasTags && (
           <div className="flex flex-wrap gap-1 mb-2">
             {project.tags.slice(0, 3).map(tag => (
-              <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
             ))}
           </div>
         )}
@@ -1309,11 +1343,11 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
       <td className="px-3 py-3"><AvatarStack ids={p.assignees} size={20} max={3} /></td>
       <td className="px-3 py-3 font-mono text-[12px]">
         <div className="flex items-center gap-2">
-          <span className={isOverdue ? 'text-[#FF6B6B]' : 'text-[var(--text-dim)]'}>
+          <span className={isOverdue ? 'text-[var(--danger)]' : 'text-[var(--text-dim)]'}>
             {fmtDate(p.deadline)}
           </span>
-          {isUrgent && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B', color: '#0a0a0b' }}>URG</span>}
-          {isOverdue && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>VENC</span>}
+          {isUrgent && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URG</span>}
+          {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>VENC</span>}
         </div>
       </td>
       <td className="px-3 py-3"><PriorityBadge priority={p.priority} /></td>
@@ -1333,7 +1367,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
               <button
                 onClick={() => onToggleFavorite(p.id)}
                 className="p-1.5 rounded-md transition-colors"
-                style={{ color: p.favorite ? '#FFD166' : 'var(--text-muted)' }}
+                style={{ color: p.favorite ? 'var(--warn)' : 'var(--text-muted)' }}
                 title={p.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               >
                 <Icon name="star" size={13} fill={p.favorite ? 'currentColor' : 'none'} />
@@ -1351,7 +1385,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
             {onDeleteProject && (
               <button
                 onClick={() => setConfirmDel(true)}
-                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-colors"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors"
                 title="Eliminar"
               >
                 <Icon name="trash" size={13} />
@@ -1361,11 +1395,11 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
         )}
         {onDeleteProject && confirmDel && (
           <div className="flex items-center justify-end gap-1.5">
-            <span className="text-[10px] font-semibold" style={{ color: '#FF6B6B' }}>¿Eliminar?</span>
+            <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>¿Eliminar?</span>
             <button
               onClick={() => onDeleteProject(p.id)}
               className="text-[10px] font-bold px-2 py-0.5 rounded"
-              style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+              style={{ background: 'var(--danger)', color: '#0a0a0b' }}
             >Sí</button>
             <button
               onClick={() => setConfirmDel(false)}
@@ -1450,7 +1484,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
           <Icon name="trash" size={15} className="text-[var(--text-muted)]" />
         </div>
         <div>
-          <h2 className="font-display font-bold text-[16px]" style={{ letterSpacing: '-0.01em' }}>Papelera de reciclaje</h2>
+          <h2 className="font-display font-bold text-[17px]" style={{ letterSpacing: '-0.01em' }}>Papelera de reciclaje</h2>
           <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
             Los proyectos se eliminan permanentemente a los <strong className="text-[var(--text-dim)]">5 días</strong>
           </p>
@@ -1489,7 +1523,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                   className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all"
                   style={{
                     background: 'var(--surface)',
-                    borderColor: isUrgent ? '#FF6B6B44' : 'var(--border)',
+                    borderColor: isUrgent ? 'var(--danger-soft-2)' : 'var(--border)',
                   }}
                 >
                   {/* Color strip */}
@@ -1519,7 +1553,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                   <div className="flex-shrink-0 text-right mr-1 min-w-[80px]">
                     <div
                       className="text-[11px] font-semibold"
-                      style={{ color: isUrgent ? '#FF6B6B' : 'var(--text-dim)' }}
+                      style={{ color: isUrgent ? 'var(--danger)' : 'var(--text-dim)' }}
                     >
                       {dl === 0 ? 'Expira hoy' : `${dl}d restantes`}
                     </div>
@@ -1532,7 +1566,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${(dl / 5) * 100}%`,
-                          background: isUrgent ? '#FF6B6B' : 'var(--text-muted)',
+                          background: isUrgent ? 'var(--danger)' : 'var(--text-muted)',
                         }}
                       />
                     </div>
@@ -1541,12 +1575,12 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {isConfirming ? (
-                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl" style={{ background: '#FF6B6B0d', border: '1px solid #FF6B6B33' }}>
-                        <span className="text-[11.5px] font-semibold mr-1" style={{ color: '#FF6B6B' }}>¿Eliminar para siempre?</span>
+                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-soft-2)' }}>
+                        <span className="text-[12px] font-semibold mr-1" style={{ color: 'var(--danger)' }}>¿Eliminar para siempre?</span>
                         <button
                           onClick={() => { onPermanentDelete(item.id); setConfirmId(null); }}
                           className="px-2.5 py-1 rounded-md text-[12px] font-bold transition-colors hover:brightness-110"
-                          style={{ background: '#FF6B6B', color: '#0a0a0b' }}
+                          style={{ background: 'var(--danger)', color: '#0a0a0b' }}
                         >
                           Sí
                         </button>
@@ -1571,7 +1605,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                         </button>
                         <button
                           onClick={() => setConfirmId(item.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[#FF6B6B14] hover:text-[#FF6B6B]"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
                           style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
                           title="Eliminar permanentemente"
                         >

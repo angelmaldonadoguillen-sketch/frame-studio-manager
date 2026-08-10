@@ -191,7 +191,7 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
           </div>
           <div>
             <div className="font-display font-bold text-[15px]" style={{ letterSpacing: '-0.02em' }}>FRAME</div>
-            <div className="text-[9px] tracking-[0.2em] text-[var(--text-muted)] uppercase">Studio Manager</div>
+            <div className="text-[10px] tracking-[0.2em] text-[var(--text-muted)] uppercase">Studio Manager</div>
           </div>
         </button>
       </div>
@@ -201,13 +201,13 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
         <div className="flex items-center gap-2.5 px-2 py-1.5">
           <Avatar user={me} size={32} />
           <div className="flex-1 min-w-0 select-none">
-            <div className="text-[12.5px] font-semibold truncate">{me.name}</div>
+            <div className="text-[13px] font-semibold truncate">{me.name}</div>
             <div className="text-[10px] text-[var(--text-muted)] truncate">{me.role}</div>
           </div>
           <button
             onClick={onSignOut}
             title="Cerrar sesión"
-            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[#FF6B6B] hover:bg-[#FF6B6B14] transition-colors flex-shrink-0"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors flex-shrink-0"
           >
             <Icon name="logOut" size={14} />
           </button>
@@ -272,9 +272,9 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
 const NavItem = ({ icon, label, count, active, accent, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[12.5px] transition-colors group ${active ? 'bg-[var(--surface-2)] text-white' : 'text-[var(--text-dim)] hover:text-white hover:bg-[var(--surface-2)]'}`}
+    className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] transition-colors group ${active ? 'bg-[var(--surface-2)] text-white' : 'text-[var(--text-dim)] hover:text-white hover:bg-[var(--surface-2)]'}`}
   >
-    <Icon name={icon} size={14} className={accent ? '' : ''} style={{ color: accent ? '#FF6B6B' : undefined }} />
+    <Icon name={icon} size={14} className={accent ? '' : ''} style={{ color: accent ? 'var(--danger)' : undefined }} />
     <span className="flex-1 text-left">{label}</span>
     {count !== undefined && (
       <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${active ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-muted)]'}`}>
@@ -329,7 +329,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
         <Icon name="bell" size={15} />
         {unread > 0 && (
           <span
-            className="absolute top-0.5 right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full text-[8px] font-bold flex items-center justify-center"
+            className="absolute top-0.5 right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full text-[10px] font-bold flex items-center justify-center"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             {unread > 9 ? '9+' : unread}
@@ -391,7 +391,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
                             <div className="flex gap-1.5 mt-2.5">
                               <button
                                 onClick={() => { onApproveUser && onApproveUser(n.userId, n.id); }}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-bold transition-all hover:brightness-110"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-bold transition-all hover:brightness-110"
                                 style={{ background: 'var(--accent)', color: '#0a0a0b' }}
                               >
                                 <Icon name="check" size={11} strokeWidth={2.5} />
@@ -399,7 +399,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
                               </button>
                               <button
                                 onClick={() => { onRejectUser && onRejectUser(n.userId, n.id); }}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-medium transition-all hover:bg-[#FF6B6B14] hover:text-[#FF6B6B]"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-medium transition-all hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
                                 style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}
                               >
                                 Rechazar
@@ -407,7 +407,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
                             </div>
                           ) : (
                             <div className="mt-1.5 text-[11px] font-semibold flex items-center gap-1"
-                              style={{ color: wasApproved ? 'var(--accent)' : '#FF6B6B' }}>
+                              style={{ color: wasApproved ? 'var(--accent)' : 'var(--danger)' }}>
                               <Icon name={wasApproved ? 'check' : 'x'} size={11} strokeWidth={2.5} />
                               {wasApproved ? 'Acceso aprobado' : 'Acceso denegado'}
                             </div>
@@ -521,7 +521,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
             value={state.search}
             onChange={(e) => dispatch({ type: 'set_search', value: e.target.value })}
             placeholder="Buscar proyectos, clientes…"
-            className="flex-1 text-[12.5px]"
+            className="flex-1 text-[13px]"
           />
           {state.search && (
             <button onClick={() => dispatch({ type: 'set_search', value: '' })} className="text-[var(--text-muted)] hover:text-white">
@@ -551,7 +551,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
 
         <button
           onClick={() => dispatch({ type: 'show_new' })}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-semibold transition-all hover:brightness-110"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold transition-all hover:brightness-110"
           style={{ background: 'var(--accent)', color: '#0a0a0b' }}
         >
           <Icon name="plus" size={13} strokeWidth={2.4} />
@@ -678,7 +678,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
   const [priority, setPriority] = useState('medium');
   const [deadline, setDeadline] = useState(() => {
     const dt = new Date(TODAY); dt.setDate(dt.getDate() + 14);
-    return dt.toISOString().slice(0, 10);
+    return localISO(dt);
   });
 
   const submit = () => {
@@ -692,7 +692,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
       status: 'briefing',
       priority,
       assignees: [],
-      startDate: new Date(TODAY).toISOString().slice(0, 10),
+      startDate: localISO(new Date(TODAY)),
       deadline,
       sessionDate: deadline,
       budget: 0,
@@ -731,7 +731,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ej: Campaña verano 2026 — Marca X"
-              className="w-full px-3 py-2.5 rounded-md text-[14px] surface-2 border border-app focus:border-[var(--accent)]/60"
+              className="w-full px-3 py-2.5 rounded-md text-[15px] surface-2 border border-app focus:border-[var(--accent)]/60"
             />
           </div>
           <div>
@@ -781,13 +781,13 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
           </div>
         </div>
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-app">
-          <button onClick={onClose} className="px-3 py-1.5 rounded-md text-[12.5px] hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+          <button onClick={onClose} className="px-3 py-1.5 rounded-md text-[13px] hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             Cancelar
           </button>
           <button
             onClick={submit}
             disabled={!title.trim() || !client.trim()}
-            className="px-3 py-1.5 rounded-md text-[12.5px] font-semibold disabled:opacity-40 transition-all"
+            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition-all"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             Crear proyecto
@@ -829,7 +829,7 @@ const PendingApprovalScreen = ({ member, onSignOut }) => (
           <div className="text-[13px] font-semibold">{member.name}</div>
           <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{member.email}</div>
         </div>
-        <span className="ml-2 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FFD16622', color: '#FFD166' }}>
+        <span className="ml-2 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--warn-soft-2)', color: 'var(--warn)' }}>
           Pendiente
         </span>
       </div>
@@ -844,17 +844,17 @@ const PendingApprovalScreen = ({ member, onSignOut }) => (
 // ── Pantalla: acceso denegado ────────────────────────────────────
 const RejectedScreen = ({ member, onSignOut }) => (
   <div className="h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
-    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: '#FF6B6B14', border: '1.5px solid #FF6B6B33' }}>
-      <Icon name="x" size={24} style={{ color: '#FF6B6B' }} />
+    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--danger-soft)', border: '1.5px solid var(--danger-soft-2)' }}>
+      <Icon name="x" size={24} style={{ color: 'var(--danger)' }} />
     </div>
     <div className="text-center max-w-sm">
-      <h2 className="font-display text-[22px] font-bold mb-2" style={{ letterSpacing: '-0.02em', color: '#FF6B6B' }}>Acceso denegado</h2>
+      <h2 className="font-display text-[22px] font-bold mb-2" style={{ letterSpacing: '-0.02em', color: 'var(--danger)' }}>Acceso denegado</h2>
       <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
         Tu solicitud fue rechazada. Contactá al administrador del estudio para más información.
       </p>
     </div>
     {member && (
-      <div className="rounded-xl border px-5 py-3 flex items-center gap-3" style={{ background: 'var(--surface)', borderColor: '#FF6B6B33' }}>
+      <div className="rounded-xl border px-5 py-3 flex items-center gap-3" style={{ background: 'var(--surface)', borderColor: 'var(--danger-soft-2)' }}>
         <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] flex-shrink-0"
           style={{ background: member.color + '1a', color: member.color, border: `1.5px solid ${member.color}44` }}>
           {member.initials}
@@ -866,7 +866,7 @@ const RejectedScreen = ({ member, onSignOut }) => (
       </div>
     )}
     <button onClick={onSignOut}
-      className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12.5px] font-medium transition-colors hover:text-white"
+      className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-colors hover:text-white"
       style={{ background: 'var(--surface)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}>
       <Icon name="logOut" size={13} />
       Cerrar sesión
@@ -969,7 +969,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
         <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2 mb-1">
             <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
-            <h2 className="font-display font-semibold text-[16px]">Vista previa de tarjetas</h2>
+            <h2 className="font-display font-semibold text-[17px]">Vista previa de tarjetas</h2>
           </div>
           <p className="text-[12px] mb-5" style={{ color: 'var(--text-muted)' }}>
             Elegí qué campos se muestran en las tarjetas del tablero, calendario y galería.
@@ -994,7 +994,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
         <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2 mb-1">
             <Icon name="sun" size={15} style={{ color: 'var(--accent)' }} />
-            <h2 className="font-display font-semibold text-[16px]">Rutina diaria</h2>
+            <h2 className="font-display font-semibold text-[17px]">Rutina diaria</h2>
           </div>
           <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
             Comportamiento de las tareas cuando no se completan en el día.
@@ -1012,7 +1012,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
         <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2 mb-1">
             <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
-            <h2 className="font-display font-semibold text-[16px]">Proyectos</h2>
+            <h2 className="font-display font-semibold text-[17px]">Proyectos</h2>
           </div>
           <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
             Automatizaciones sobre las tarjetas de proyecto al iniciar cada día.
@@ -1466,8 +1466,8 @@ const App = () => {
   const handleQuickCreate = (opts = {}) => {
     const { title, status, sessionDate, deadline, type } = opts;
     const id = 'p' + Date.now();
-    const todayISO = new Date(TODAY).toISOString().slice(0, 10);
-    const defDeadline = (() => { const dt = new Date(TODAY); dt.setDate(dt.getDate() + 14); return dt.toISOString().slice(0, 10); })();
+    const todayISO = localISO(new Date(TODAY));
+    const defDeadline = (() => { const dt = new Date(TODAY); dt.setDate(dt.getDate() + 14); return localISO(dt); })();
     const dl = deadline || defDeadline;
     const project = {
       id,

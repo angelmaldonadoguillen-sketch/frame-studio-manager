@@ -139,7 +139,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
             label="Deadlines urgentes"
             value={urgent.length}
             sub="vencen en menos de 3 días"
-            color="#FF6B6B"
+            color="var(--danger)"
           />
         </div>
 
@@ -225,7 +225,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                   <div key={m.key} className="flex-1 flex flex-col items-center gap-1 group" style={{ height: '100%' }}>
                     <div className="flex-1 flex flex-col justify-end w-full">
                       <div
-                        className="text-[9px] font-mono text-center mb-1 transition-opacity opacity-0 group-hover:opacity-100"
+                        className="text-[10px] font-mono text-center mb-1 transition-opacity opacity-0 group-hover:opacity-100"
                         style={{ color: isCurrent ? 'var(--accent)' : 'var(--text-muted)' }}
                       >
                         {m.count > 0 ? `${m.count} proy.` : '–'}
@@ -306,7 +306,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                   <div key={c.name} className="flex items-center gap-4 py-3">
                     <span className="text-[11px] font-mono text-[var(--text-muted)] w-4 text-center">{i + 1}</span>
                     <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[14px] flex-shrink-0"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[15px] flex-shrink-0"
                       style={{ background: bg, color: fg, border: color ? `1px solid ${color}55` : 'none' }}
                     >
                       {c.name.charAt(0).toUpperCase()}
@@ -339,7 +339,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
               Próximos deadlines
             </div>
             {urgent.length > 0 && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FF6B6B22', color: '#FF6B6B' }}>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>
                 {urgent.length} urgente{urgent.length !== 1 ? 's' : ''}
               </span>
             )}
@@ -366,8 +366,8 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                   <div
                     className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md flex-shrink-0"
                     style={{
-                      background: isOver   ? '#FF6B6B22'         : isUrgent ? '#FF6B6B22'        : 'var(--surface-2)',
-                      color:      isOver   ? '#FF6B6B'           : isUrgent ? '#FF6B6B'           : 'var(--text-muted)',
+                      background: isOver   ? 'var(--danger-soft-2)'         : isUrgent ? 'var(--danger-soft-2)'        : 'var(--surface-2)',
+                      color:      isOver   ? 'var(--danger)'           : isUrgent ? 'var(--danger)'           : 'var(--text-muted)',
                     }}
                   >
                     {isOver ? 'vencido' : d === 0 ? 'hoy' : `${d}d`}

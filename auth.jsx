@@ -19,7 +19,7 @@ const AUTH_ERRORS = {
 const AuthSetupGuide = () => (
   <div
     className="p-4 rounded-xl border text-[12px] leading-relaxed space-y-1.5"
-    style={{ background: '#FFD16614', borderColor: '#FFD16640', color: '#FFD166' }}
+    style={{ background: 'var(--warn-soft)', borderColor: 'var(--warn-soft-2)', color: 'var(--warn)' }}
   >
     <div className="font-semibold flex items-center gap-2">
       <Icon name="alert" size={13} />
@@ -85,7 +85,7 @@ const LoginScreen = () => {
       const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
       const colors   = typeof TEAM_COLORS !== 'undefined'
         ? TEAM_COLORS
-        : ['#D4FF4F','#FF7A59','#6CC4FF','#C089FF','#FFD166','#FB7185','#7DD3C0'];
+        : ['#D4FF4F','#FF7A59','#6CC4FF','#C089FF','var(--warn)','#FB7185','#7DD3C0'];
 
       const newProfile = {
         id:           cred.user.uid,
@@ -98,7 +98,7 @@ const LoginScreen = () => {
         skills:       [],
         bio:          '',
         availability: 'available',
-        joinedAt:     new Date().toISOString().slice(0, 10),
+        joinedAt:     localISO(new Date()),
         // Siempre 'pending'. Las reglas de Firestore rechazan cualquier otro
         // valor en el alta — si no, bastaría con registrarse mandando
         // status:'active' para saltarse la aprobación por completo.
@@ -178,7 +178,7 @@ const LoginScreen = () => {
             </span>
           </div>
           <div
-            className="font-display font-black text-[28px]"
+            className="font-display font-black text-[30px]"
             style={{ letterSpacing: '-0.04em' }}
           >
             FRAME
@@ -222,13 +222,13 @@ const LoginScreen = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nombre completo *"
-                  className="w-full px-3 py-2.5 rounded-lg text-[13.5px] border border-app surface-2 focus:border-[var(--accent)]/60 transition-colors"
+                  className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2 focus:border-[var(--accent)]/60 transition-colors"
                 />
                 <input
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   placeholder="Rol (ej: Editor, Fotógrafo…)"
-                  className="w-full px-3 py-2.5 rounded-lg text-[13.5px] border border-app surface-2"
+                  className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2"
                 />
               </>
             )}
@@ -239,7 +239,7 @@ const LoginScreen = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
-              className="w-full px-3 py-2.5 rounded-lg text-[13.5px] border border-app surface-2 focus:border-[var(--accent)]/60 transition-colors"
+              className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2 focus:border-[var(--accent)]/60 transition-colors"
             />
 
             <input
@@ -248,7 +248,7 @@ const LoginScreen = () => {
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && mode === 'login') submit(); }}
               placeholder="Contraseña"
-              className="w-full px-3 py-2.5 rounded-lg text-[13.5px] border border-app surface-2"
+              className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2"
             />
 
             {mode === 'register' && (
@@ -258,7 +258,7 @@ const LoginScreen = () => {
                 onChange={(e) => setConfirm(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
                 placeholder="Confirmar contraseña *"
-                className="w-full px-3 py-2.5 rounded-lg text-[13.5px] border border-app surface-2"
+                className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2"
               />
             )}
 
@@ -266,7 +266,7 @@ const LoginScreen = () => {
             {error && (
               <div
                 className="px-3 py-2.5 rounded-lg text-[12px] flex items-start gap-2"
-                style={{ background: '#FF6B6B14', color: '#FF6B6B' }}
+                style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
               >
                 <Icon name="alert" size={13} className="flex-shrink-0 mt-0.5" />
                 {error}
@@ -280,7 +280,7 @@ const LoginScreen = () => {
             <button
               onClick={submit}
               disabled={loading || !canSubmit}
-              className="w-full py-2.5 rounded-lg text-[13.5px] font-bold disabled:opacity-40 transition-all hover:brightness-110 flex items-center justify-center gap-2 mt-1"
+              className="w-full py-2.5 rounded-lg text-[13px] font-bold disabled:opacity-40 transition-all hover:brightness-110 flex items-center justify-center gap-2 mt-1"
               style={{ background: 'var(--accent)', color: '#0a0a0b' }}
             >
               {loading ? (
@@ -297,7 +297,7 @@ const LoginScreen = () => {
           </div>
         </div>
 
-        <p className="text-center text-[10.5px] text-[var(--text-muted)] mt-5">
+        <p className="text-center text-[11px] text-[var(--text-muted)] mt-5">
           FRAME Studio Manager · {new Date().getFullYear()}
         </p>
       </div>

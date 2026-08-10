@@ -1,0 +1,425 @@
+<meta charset="utf-8">
+<title>FRAME — Dirección de diseño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Inter variable con tamaño óptico: una sola familia para toda la interfaz.
+     Syne / Space Grotesk / JetBrains Mono se cargan únicamente para la
+     tarjeta "Ahora", para que la comparación sea honesta. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Syne:wght@600&family=Space+Grotesk:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    /* ── Grises del sistema (Apple dark) ──
+       No es negro puro: las superficies se ACLARAN al acercarse al usuario.
+       En oscuro, la profundidad se hace con luz, no con sombra. */
+    --bg:        #131315;
+    --surface:   #1C1C1E;
+    --surface-2: #252527;
+    --surface-3: #2F2F31;
+
+    /* Etiquetas con el tinte azulado de Apple, por opacidad — no por hex.
+       Así funcionan sobre cualquier superficie sin recalcular el color. */
+    --label:   #FFFFFF;
+    --label-2: rgba(235,235,245,.60);
+    --label-3: rgba(235,235,245,.30);
+    --label-4: rgba(235,235,245,.18);
+
+    --separator: rgba(84,84,88,.40);
+    --hairline:  rgba(255,255,255,.055);
+
+    --accent: #D4FF4F;
+    --warn:   #FFD426;
+    --danger: #FF453A;   /* systemRed dark */
+    --blue:   #0A84FF;   /* systemBlue dark */
+
+    /* Escala tipográfica de Apple */
+    --t-caption2: 11px;
+    --t-caption:  12px;
+    --t-footnote: 13px;
+    --t-subhead:  15px;
+    --t-body:     17px;
+    --t-title3:   22px;
+    --t-title1:   30px;
+
+    --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px;
+    --ease: cubic-bezier(.32,.72,0,1);   /* la curva de resorte de Apple */
+  }
+  *{box-sizing:border-box}
+  html{-webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale}
+  /* Una sola familia para todo. En Mac cae en SF Pro real; en el resto,
+     Inter, que es la que se diseñó para esto. Inter trae cifras tabulares
+     propias, así que no hace falta una monoespaciada para los números. */
+  body{
+    margin:0; background:var(--bg); color:var(--label);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter',system-ui,sans-serif;
+    font-size:var(--t-footnote); line-height:1.47;
+    font-feature-settings:'kern' 1,'cv05' 1,'cv08' 1;  /* l con cola, I con serifas: menos confusión l/I/1 */
+    font-optical-sizing:auto;
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:56px 28px 120px}
+
+  .eyebrow{
+    font-size:var(--t-caption2); font-weight:600; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--label-3);
+  }
+  h1{
+    font-size:var(--t-title1); font-weight:700; letter-spacing:-.028em;
+    margin:10px 0 12px; line-height:1.1;
+  }
+  h2{font-size:var(--t-title3); font-weight:600; letter-spacing:-.021em; margin:0 0 6px}
+  p{color:var(--label-2); font-size:var(--t-subhead); margin:0 0 16px; max-width:60ch; letter-spacing:-.008em}
+  section{margin-top:56px; padding-top:28px; border-top:.5px solid var(--separator)}
+
+  .compare{display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:20px; align-items:start}
+  @media(max-width:760px){.compare{grid-template-columns:1fr}}
+  .lane{
+    font-size:var(--t-caption2); font-weight:600; letter-spacing:.05em;
+    text-transform:uppercase; margin-bottom:12px; color:var(--label-3);
+  }
+  .lane.now{color:var(--label-4)}
+
+  /* ── Panel: material translúcido ── */
+  .panel{
+    background:rgba(28,28,30,.72);
+    backdrop-filter:blur(24px) saturate(180%);
+    -webkit-backdrop-filter:blur(24px) saturate(180%);
+    border-radius:var(--r-lg);
+    padding:14px;
+    box-shadow:
+      inset 0 .5px 0 rgba(255,255,255,.09),   /* filo superior iluminado */
+      0 0 0 .5px rgba(0,0,0,.5),
+      0 12px 32px -12px rgba(0,0,0,.7);
+  }
+
+  /* ── ANTES ── */
+  .old{background:#1a1a1f; border:1px solid #26262d; border-radius:8px; overflow:hidden;
+       font-family:'Space Grotesk',sans-serif}
+  .old-bar{height:4px; background:#6CC4FF}
+  .old-in{padding:12px}
+  .old-top{display:flex; justify-content:space-between; gap:8px; margin-bottom:6px}
+  .pill{font-size:9px; font-weight:700; padding:2px 6px; border-radius:4px}
+  .old-t{font-family:'Syne',sans-serif; font-weight:600; font-size:13.5px; margin-bottom:4px}
+  .old-c{font-size:11px; color:#62626b; margin-bottom:6px}
+  .old-b{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#9a9aa3; margin-bottom:6px}
+  .old-tags{display:flex; gap:4px; margin-bottom:6px}
+  .old-tag{font-size:9px; padding:2px 6px; border-radius:4px; background:#232329; color:#62626b}
+  .old-p{height:4px; border-radius:99px; background:#232329; overflow:hidden; margin-bottom:6px}
+  .old-p>i{display:block; height:100%; width:62%; background:#6CC4FF}
+  .old-f{display:flex; justify-content:space-between; align-items:center}
+  .old-d{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#62626b}
+  .av{width:18px;height:18px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;
+      font-size:8px;font-weight:700;color:#0a0a0b;margin-right:-5px;border:2px solid #1a1a1f}
+  .caption{font-size:var(--t-caption); color:var(--label-3); margin-top:10px; letter-spacing:-.004em}
+
+  /* ── DESPUÉS ── */
+  .colhead{
+    display:flex; align-items:center; gap:7px; padding:2px 4px 12px;
+    font-size:var(--t-caption); font-weight:600; letter-spacing:-.004em; color:var(--label-2);
+  }
+  .colhead .n{
+    margin-left:auto; color:var(--label-3); font-weight:500;
+    font-variant-numeric:tabular-nums;
+  }
+  .dot{width:6px; height:6px; border-radius:99px; flex:none}
+
+  .card{
+    display:grid; grid-template-columns:1fr auto; gap:9px 14px;
+    background:var(--surface-2);
+    border-radius:var(--r-md);
+    padding:12px 13px;
+    margin-bottom:6px;
+    box-shadow:inset 0 .5px 0 rgba(255,255,255,.06);
+    transition:background .28s var(--ease), transform .28s var(--ease);
+  }
+  .card:hover{background:var(--surface-3); transform:translateY(-1px)}
+  .card-main{grid-column:1; grid-row:1; min-width:0}
+  .kicker{
+    display:flex; align-items:center; gap:6px; margin-bottom:5px;
+    font-size:var(--t-caption2); font-weight:500; color:var(--label-3);
+    letter-spacing:-.002em;
+  }
+  .title{
+    font-size:var(--t-footnote); font-weight:600; letter-spacing:-.012em;
+    line-height:1.35; margin-bottom:4px; color:var(--label);
+  }
+  .meta{
+    font-size:var(--t-caption); color:var(--label-3); letter-spacing:-.004em;
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  }
+  .meta .sep{color:var(--label-4)}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* Firma: el contador de entrega */
+  .counter{
+    grid-column:2; grid-row:1; text-align:right; align-self:start;
+    font-variant-numeric:tabular-nums; line-height:1;
+  }
+  .counter b{
+    display:block; font-size:var(--t-subhead); font-weight:600;
+    letter-spacing:-.02em;
+  }
+  .counter span{
+    display:block; font-size:10px; font-weight:500; letter-spacing:.02em;
+    color:var(--label-4); margin-top:4px;
+  }
+  .c-ok    b{color:var(--label-3)}
+  .c-soon  b{color:var(--warn)}
+  .c-today b{color:var(--accent)}
+  .c-late  b{color:var(--danger)}
+
+  .foot{grid-column:1/-1; display:flex; align-items:center; gap:8px}
+  .prog{width:54px; flex:none; height:3px; border-radius:99px; background:rgba(255,255,255,.09); overflow:hidden}
+  .prog>i{display:block; height:100%; background:var(--label-4); border-radius:99px}
+  .prog.done>i{background:var(--accent)}
+  .frac{font-size:10px; color:var(--label-4); font-variant-numeric:tabular-nums}
+
+  /* ── comparación tipográfica ── */
+  .type-compare{display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:20px}
+  @media(max-width:760px){.type-compare{grid-template-columns:1fr}}
+  .tc-box{
+    background:var(--surface-2); border-radius:var(--r-md); padding:14px 15px;
+    box-shadow:inset 0 .5px 0 rgba(255,255,255,.06);
+  }
+  .tc-glyph{
+    font-size:26px; letter-spacing:.04em; color:var(--label-2);
+    padding-top:10px; border-top:.5px solid var(--separator);
+  }
+
+  /* ── escala ── */
+  .row{display:flex; align-items:baseline; gap:20px; padding:11px 0; border-bottom:.5px solid var(--separator)}
+  .row code{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--label-3); width:132px; flex:none}
+  .row .use{margin-left:auto; font-size:var(--t-caption); color:var(--label-4); text-align:right}
+
+  .sw-grid{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+  .sw{border-radius:var(--r-md); padding:11px 12px; min-width:138px; background:var(--surface-2);
+      box-shadow:inset 0 .5px 0 rgba(255,255,255,.06)}
+  .sw i{display:block; height:28px; border-radius:var(--r-sm); margin-bottom:9px}
+  .sw code{font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--label-4); display:block}
+  .sw b{font-size:var(--t-caption); font-weight:500; display:block; margin-top:3px; letter-spacing:-.004em}
+
+  .note{
+    background:var(--surface); border-radius:var(--r-md); padding:16px 18px; margin:22px 0;
+    font-size:var(--t-footnote); color:var(--label-2); max-width:64ch; letter-spacing:-.006em;
+    box-shadow:inset 0 .5px 0 rgba(255,255,255,.06);
+  }
+  .note b{color:var(--label); font-weight:600}
+  ul{margin:0; padding-left:19px; color:var(--label-2); font-size:var(--t-footnote); max-width:64ch; letter-spacing:-.006em}
+  li{margin-bottom:8px}
+  li b{color:var(--label); font-weight:600}
+  .mono{font-family:'JetBrains Mono',monospace; font-size:.94em}
+</style>
+
+<div class="wrap">
+
+  <div class="eyebrow">FRAME Studio Manager · Dirección de diseño</div>
+  <h1>El trabajo fuerte, la interfaz callada</h1>
+  <p>
+    La referencia no es la web de Apple, es Final Cut. Sus apps profesionales son
+    oscuras, densas y construidas por capas: el material se ilumina al acercarse,
+    los separadores miden medio píxel y el color aparece solo cuando algo lo exige.
+  </p>
+
+  <section>
+    <h2>La tarjeta</h2>
+    <p>Mismo proyecto, misma información. Cambia qué ve el ojo primero.</p>
+
+    <div class="compare">
+      <div>
+        <div class="lane now">Ahora</div>
+        <div class="old">
+          <div class="old-bar"></div>
+          <div class="old-in">
+            <div class="old-top">
+              <div style="display:flex;gap:4px">
+                <span class="pill" style="background:#6CC4FF22;color:#6CC4FF">REEL</span>
+                <span class="pill" style="background:#FFD16622;color:#FFD166">EDICIÓN</span>
+              </div>
+              <span class="pill" style="background:#FF6B6B;color:#0a0a0b">URG</span>
+            </div>
+            <div class="old-t">Reel — ID Motos Nacaome</div>
+            <div class="old-c">ID Motos</div>
+            <div class="old-b">USD 8,500</div>
+            <div class="old-tags">
+              <span class="old-tag">#publicidad</span><span class="old-tag">#nacaome</span>
+            </div>
+            <div class="old-p"><i></i></div>
+            <div class="old-f">
+              <div><span class="av" style="background:#D4FF4F">AM</span><span class="av" style="background:#FF7A59">RB</span></div>
+              <div class="old-d">27 Jul</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">6 tamaños de letra · 5 colores · 3 píldoras compitiendo</div>
+      </div>
+
+      <div>
+        <div class="lane">Propuesta</div>
+        <div class="panel">
+          <div class="colhead">
+            <span class="dot" style="background:#FFD426"></span>
+            Edición
+            <span class="n">4</span>
+          </div>
+
+          <div class="card">
+            <div class="card-main">
+              <div class="kicker"><span class="dot" style="background:#64D2FF"></span>Reel</div>
+              <div class="title">Reel — ID Motos Nacaome</div>
+              <div class="meta">
+                ID Motos <span class="sep">·</span>
+                <span class="num">USD 8,500</span> <span class="sep">·</span> AM RB
+              </div>
+            </div>
+            <div class="counter c-late"><b>+2</b><span>Vencido</span></div>
+            <div class="foot"><div class="prog"><i style="width:62%"></i></div><span class="frac">8/13</span></div>
+          </div>
+
+          <div class="card">
+            <div class="card-main">
+              <div class="kicker"><span class="dot" style="background:#BF5AF2"></span>Post</div>
+              <div class="title">Carrusel lanzamiento colección</div>
+              <div class="meta">Tooned HN <span class="sep">·</span> AM</div>
+            </div>
+            <div class="counter c-today"><b>Hoy</b><span>Entrega</span></div>
+            <div class="foot"><div class="prog"><i style="width:90%"></i></div><span class="frac">9/10</span></div>
+          </div>
+
+          <div class="card">
+            <div class="card-main">
+              <div class="kicker"><span class="dot" style="background:#30D158"></span>Video</div>
+              <div class="title">Institucional — Clínica Dental Vega</div>
+              <div class="meta">Clínica Vega <span class="sep">·</span> <span class="num">USD 14,000</span></div>
+            </div>
+            <div class="counter c-soon"><b>3 d</b><span>Restantes</span></div>
+            <div class="foot"><div class="prog"><i style="width:25%"></i></div><span class="frac">3/12</span></div>
+          </div>
+
+          <div class="card">
+            <div class="card-main">
+              <div class="kicker"><span class="dot" style="background:#64D2FF"></span>Reel</div>
+              <div class="title">Behind the scenes — sesión julio</div>
+              <div class="meta">Interno</div>
+            </div>
+            <div class="counter c-ok"><b>18 d</b><span>Restantes</span></div>
+            <div class="foot"><div class="prog"><i style="width:10%"></i></div><span class="frac">1/10</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>El elemento firma: el contador de entrega.</b> Es el dato que más decide tu día
+      y hoy está enterrado abajo, en gris, a 10.5&nbsp;px. Pasa a ser lo segundo que ve el ojo,
+      con cifras tabulares para que la columna quede alineada al píxel, y es el único
+      lugar donde el color grita. Se lee la urgencia de un tablero entero sin leer un
+      solo título.
+    </div>
+  </section>
+
+  <section>
+    <h2>Qué lo hace verse Apple</h2>
+    <ul>
+      <li><b>La luz reemplaza a la sombra.</b> En oscuro las superficies se aclaran al acercarse. Cada tarjeta lleva un filo superior iluminado de medio píxel — el detalle que hace que se sienta material y no dibujo.</li>
+      <li><b>Separadores de 0.5&nbsp;px, no bordes de 1&nbsp;px.</b> Y solo donde hacen falta. Las tarjetas se separan por color de fondo, no por contorno.</li>
+      <li><b>Translucidez con saturación.</b> El panel lleva <span class="mono">blur(24px) saturate(180%)</span>: deja pasar el color de lo que hay detrás en vez de taparlo.</li>
+      <li><b>Tracking negativo al crecer.</b> −0.028em en títulos, casi cero en texto chico. Es lo que hace que la tipografía se sienta ajustada y no estirada.</li>
+      <li><b>Cifras tabulares.</b> <span class="mono">tabular-nums</span> en contadores y montos: los números no bailan al cambiar.</li>
+      <li><b>Una sola curva de animación.</b> <span class="mono">cubic-bezier(.32,.72,0,1)</span>, la de los resortes de iOS. Todo se mueve con el mismo carácter.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>La tipografía</h2>
+    <p>
+      Syne y Space Grotesk son tipografías de <em>display</em>: están dibujadas para
+      titulares grandes. A 12 y 13&nbsp;px, que es donde vive el 90&nbsp;% de FRAME, sus
+      formas geométricas dejan de leerse como carácter y se leen como ruido.
+    </p>
+
+    <div class="type-compare">
+      <div class="tc-col">
+        <div class="lane now">Syne · Space Grotesk</div>
+        <div class="tc-box" style="font-family:'Space Grotesk',sans-serif">
+          <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:13.5px;margin-bottom:6px">
+            Institucional — Clínica Dental Vega
+          </div>
+          <div style="font-size:11px;color:#8a8a92;margin-bottom:10px">
+            Clínica Vega · Entrega 27 Jul · 3 de 12 tareas
+          </div>
+          <div class="tc-glyph" style="font-family:'Space Grotesk',sans-serif">Il1 · aeg · 0O</div>
+        </div>
+        <div class="caption">
+          La <b style="color:var(--label-2)">g</b> de doble piso y la <b style="color:var(--label-2)">a</b>
+          geométrica pierden definición. <b style="color:var(--label-2)">Il1</b> casi no se distinguen.
+        </div>
+      </div>
+
+      <div class="tc-col">
+        <div class="lane">Inter</div>
+        <div class="tc-box">
+          <div style="font-size:13px;font-weight:600;letter-spacing:-.012em;margin-bottom:6px">
+            Institucional — Clínica Dental Vega
+          </div>
+          <div style="font-size:12px;color:var(--label-3);letter-spacing:-.004em;margin-bottom:10px">
+            Clínica Vega · Entrega 27 Jul · 3 de 12 tareas
+          </div>
+          <div class="tc-glyph">Il1 · aeg · 0O</div>
+        </div>
+        <div class="caption">
+          Altura de x más grande, aberturas más abiertas y
+          <b style="color:var(--label-2)">Il1</b> diferenciadas. Dibujada para 12&nbsp;px.
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>Una sola familia, dos tamaños ópticos.</b> Es exactamente lo que hace Apple con
+      SF&nbsp;Pro Text y SF&nbsp;Pro Display: la misma tipografía redibujada según el tamaño.
+      Inter variable lo resuelve con <span class="mono">font-optical-sizing</span>, y trae
+      cifras tabulares propias — así que JetBrains&nbsp;Mono también sale. De tres familias a una.
+    </div>
+  </section>
+
+  <section>
+    <h2>Escala tipográfica</h2>
+    <p>De 21 tamaños a 7 — y son los de Apple, con sus nombres.</p>
+    <div class="row"><code>--t-caption2 11</code><span style="font-size:11px">Etiquetas y kickers</span><span class="use">tipo, unidades</span></div>
+    <div class="row"><code>--t-caption 12</code><span style="font-size:12px">Metadatos</span><span class="use">cliente, monto</span></div>
+    <div class="row"><code>--t-footnote 13</code><span style="font-size:13px;font-weight:600;letter-spacing:-.012em">Títulos de tarjeta y cuerpo</span><span class="use">por defecto</span></div>
+    <div class="row"><code>--t-subhead 15</code><span style="font-size:15px;letter-spacing:-.008em">Texto de lectura</span><span class="use">párrafos, contador</span></div>
+    <div class="row"><code>--t-body 17</code><span style="font-size:17px;letter-spacing:-.012em">Cuerpo destacado</span><span class="use">modal</span></div>
+    <div class="row"><code>--t-title3 22</code><span style="font-size:22px;font-weight:600;letter-spacing:-.021em">Títulos de sección</span><span class="use">encabezados</span></div>
+    <div class="row"><code>--t-title1 30</code><span style="font-size:30px;font-weight:700;letter-spacing:-.028em">Título de página</span><span class="use">portada</span></div>
+  </section>
+
+  <section>
+    <h2>Paleta</h2>
+    <p>
+      Los 18 hex sueltos pasan a ser roles. Los textos secundarios dejan de ser un gris fijo
+      y pasan a ser blanco con opacidad — así funcionan sobre cualquier superficie sin recalcularlos.
+    </p>
+    <div class="sw-grid">
+      <div class="sw"><i style="background:#131315;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12)"></i><code>--bg</code><b>Lienzo</b></div>
+      <div class="sw"><i style="background:#1C1C1E"></i><code>--surface</code><b>Paneles</b></div>
+      <div class="sw"><i style="background:#252527"></i><code>--surface-2</code><b>Tarjetas</b></div>
+      <div class="sw"><i style="background:#2F2F31"></i><code>--surface-3</code><b>Hover</b></div>
+      <div class="sw"><i style="background:#FFFFFF"></i><code>--label</code><b>Texto</b></div>
+      <div class="sw"><i style="background:rgba(235,235,245,.6)"></i><code>--label-2</code><b>Secundario</b></div>
+      <div class="sw"><i style="background:rgba(235,235,245,.3)"></i><code>--label-3</code><b>Terciario</b></div>
+      <div class="sw"><i style="background:#D4FF4F"></i><code>--accent</code><b>Acción · hoy</b></div>
+      <div class="sw"><i style="background:#FFD426"></i><code>--warn</code><b>Se acerca</b></div>
+      <div class="sw"><i style="background:#FF453A"></i><code>--danger</code><b>Vencido</b></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sobre el lima</h2>
+    <p>
+      Se queda, pero deja de ser decoración. Hoy está en el logo, los botones, los hover,
+      las barras y acentos sueltos — cuando algo aparece en todos lados, deja de señalar nada.
+      Pasa a marcar dos cosas: <b style="color:var(--label)">acá podés actuar</b> y
+      <b style="color:var(--label)">esto es hoy</b>. Aparece menos y pesa más.
+    </p>
+  </section>
+
+</div>

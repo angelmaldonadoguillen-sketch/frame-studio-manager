@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FRAME — Banco de pruebas de UI</title>
+
+<!--
+  Banco de pruebas: carga los componentes REALES de FRAME con datos falsos,
+  sin autenticación y sin Firestore. Sirve para iterar el diseño de las
+  tarjetas y el tablero sin tener que entrar a la app ni tocar datos reales.
+  No forma parte de la app: index.html no lo referencia.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme:{ extend:{ fontFamily:{
+    display:['-apple-system','BlinkMacSystemFont','"SF Pro Display"','Inter','system-ui','sans-serif'],
+    sans:   ['-apple-system','BlinkMacSystemFont','"SF Pro Text"','Inter','system-ui','sans-serif'],
+    mono:   ['-apple-system','BlinkMacSystemFont','"SF Pro Text"','Inter','system-ui','sans-serif'],
+  }}}};
+</script>
+
+<!-- Stubs: la app espera estos globales al cargar los .jsx -->
+<script>
+  const _noop = () => {};
+  const _chain = () => new Proxy(function(){ return _chain(); }, {
+    get: () => _chain(),
+    apply: () => _chain(),
+  });
+  window.db = {
+    collection: () => ({
+      doc: () => ({
+        get: () => Promise.resolve({ exists:false, data:()=>({}) }),
+        set: () => Promise.resolve(), update: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+        collection: () => window.db.collection(),
+        onSnapshot: () => _noop,
+      }),
+      get: () => Promise.resolve({ empty:true, docs:[] }),
+      where: () => window.db.collection(),
+      orderBy: () => window.db.collection(),
+      limit: () => window.db.collection(),
+      onSnapshot: () => _noop,
+    }),
+    batch: () => ({ set:_noop, update:_noop, delete:_noop, commit:()=>Promise.resolve() }),
+  };
+  window.storage = { ref: () => ({
+    put: () => ({ on:(_e,_p,_err,done)=>done && done(), snapshot:{ ref:{ getDownloadURL:()=>Promise.resolve('') } } }),
+    getDownloadURL: () => Promise.resolve(''),
+  })};
+  window.firebase = { auth: () => ({ currentUser:null, onAuthStateChanged:()=>_noop, signOut:()=>Promise.resolve() }) };
+</script>
+
+<style>
+  :root{
+    --bg:#131315; --surface:#1c1c1e; --surface-2:#252527; --surface-3:#2f2f31;
+    --text:#ffffff; --text-dim:rgba(235,235,245,.60); --text-muted:rgba(235,235,245,.30);
+    --text-faint:rgba(235,235,245,.18);
+    --border:rgba(84,84,88,.40); --border-2:rgba(84,84,88,.60); --hairline:rgba(255,255,255,.055);
+    --accent:#d4ff4f; --accent-dim:#aacf3d; --accent-soft:rgba(212,255,79,.14);
+    --danger:#ff453a; --danger-soft:rgba(255,69,58,.10); --danger-soft-2:rgba(255,69,58,.20);
+    --warn:#ffd426; --warn-soft:rgba(255,212,38,.10); --warn-soft-2:rgba(255,212,38,.20);
+    --info:#64d2ff;
+    --t-10:10px; --t-11:11px; --t-12:12px; --t-13:13px; --t-15:15px;
+    --t-17:17px; --t-22:22px; --t-26:26px; --t-30:30px;
+    --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px;
+    --ease:cubic-bezier(.32,.72,0,1);
+  }
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;
+    font-size:var(--t-13);
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    font-feature-settings:'kern' 1,'cv05' 1,'cv08' 1;
+    font-optical-sizing:auto;
+  }
+  .tnum,.font-mono{font-variant-numeric:tabular-nums}
+  .font-display{letter-spacing:-.021em}
+  .surface{background:var(--surface)} .surface-2{background:var(--surface-2)}
+  .border-app{border-color:var(--border)}
+  .lift{transition:transform .28s var(--ease),background .28s var(--ease),border-color .28s var(--ease)}
+  .lift:hover{transform:translateY(-1px)}
+  .pretty{text-wrap:pretty} .balance{text-wrap:balance}
+  .dragging{opacity:.4}
+  .check{width:16px;height:16px;border:1.5px solid var(--border-2);border-radius:4px;
+         display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+  .check.on{background:var(--accent);border-color:var(--accent);color:#131315}
+  input,textarea,select{background:transparent;color:inherit;outline:none;border:none;font:inherit}
+  button{-webkit-tap-highlight-color:transparent}
+  button:focus{outline:none}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#2f2f31;border-radius:10px;border:2px solid var(--bg)}
+
+  .harness-bar{
+    position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:10px;
+    padding:10px 18px; background:rgba(28,28,30,.8); backdrop-filter:blur(20px) saturate(180%);
+    border-bottom:.5px solid var(--border); font-size:var(--t-11); color:var(--text-muted);
+  }
+  .harness-bar b{color:var(--text-dim); font-weight:600}
+  .harness-sec{padding:22px 18px; max-width:1180px}
+  .harness-h{font-size:var(--t-11);font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+             color:var(--text-muted);margin:0 0 12px}
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+
+  <script type="text/babel" src="icons.jsx"></script>
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="modal.jsx"></script>
+  <script type="text/babel" src="views.jsx"></script>
+
+  <script type="text/babel">
+    // localISO, no toISOString: en UTC-6 este último devuelve mañana
+    // a partir de las 18:00 y el banco mostraría fechas corridas un día.
+    const iso = (offsetDays) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offsetDays);
+      return localISO(d);
+    };
+    const ck = (n, done) => Array.from({length:n}, (_,i) => ({
+      id:'c'+i, text:'Tarea '+(i+1), done: i < done,
+    }));
+
+    window.__liveTeam = [
+      { id:'u1', name:'Angel Maldonado', initials:'AM', color:'#d4ff4f', status:'active' },
+      { id:'u2', name:'Ronal Banegas',   initials:'RB', color:'#ff7a59', status:'active' },
+      { id:'u3', name:'Rafael A.',       initials:'RA', color:'#64d2ff', status:'active' },
+    ];
+
+    const MOCK = [
+      { id:'p1', title:'Reel — ID Motos Nacaome', client:'ID Motos', type:'reel',
+        status:'editing', priority:'high', assignees:['u1','u2'],
+        deadline:iso(-2), sessionDate:iso(-2), budget:8500, currency:'USD',
+        tags:['publicidad','nacaome'], checklist:ck(13,8), favorite:true,
+        cover:{type:'color',value:'#252527'}, description:[] },
+      { id:'p2', title:'Carrusel lanzamiento colección', client:'Tooned HN', type:'campaign',
+        status:'editing', priority:'medium', assignees:['u1'],
+        deadline:iso(0), sessionDate:iso(0), budget:0, currency:'USD',
+        tags:['redes'], checklist:ck(10,9),
+        cover:{type:'color',value:'#252527'}, description:[] },
+      { id:'p3', title:'Institucional — Clínica Dental Vega', client:'Clínica Vega', type:'corp',
+        status:'producing', priority:'high', assignees:['u2','u3'],
+        deadline:iso(3), sessionDate:iso(3), budget:14000, currency:'USD',
+        tags:['corporativo'], checklist:ck(12,3),
+        cover:{type:'color',value:'#252527'}, description:[] },
+      { id:'p4', title:'Behind the scenes — sesión julio', client:'Interno', type:'reel',
+        status:'briefing', priority:'low', assignees:['u3'],
+        deadline:iso(18), sessionDate:iso(18), budget:0, currency:'USD',
+        tags:[], checklist:ck(10,1),
+        cover:{type:'color',value:'#252527'}, description:[] },
+    ];
+
+    const PF = { tipo:true, cliente:true, estado:true, prioridad:true,
+                 responsables:true, deadline:true, presupuesto:true, tags:true, progreso:true };
+
+    const Harness = () => (
+      <div>
+        <div className="harness-bar">
+          <b>Banco de pruebas</b>
+          <span>· componentes reales · datos falsos · sin Firestore</span>
+        </div>
+
+        <div className="harness-sec">
+          <div className="harness-h">ProjectCardMini — los cuatro estados de entrega</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(268px,1fr))', gap:10 }}>
+            {MOCK.map(p => (
+              <ProjectCardMini key={p.id} project={p} previewFields={PF}
+                onClick={()=>{}} onToggleFavorite={()=>{}}
+                onDelete={()=>{}} onDuplicate={()=>{}} />
+            ))}
+          </div>
+        </div>
+
+        <div className="harness-sec">
+          <div className="harness-h">Variante compacta</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(268px,1fr))', gap:10 }}>
+            {MOCK.slice(0,2).map(p => (
+              <ProjectCardMini key={p.id} project={p} previewFields={PF} compact
+                onClick={()=>{}} onToggleFavorite={()=>{}} />
+            ))}
+          </div>
+        </div>
+
+        <div className="harness-sec">
+          <div className="harness-h">GalleryCard</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))', gap:12 }}>
+            {MOCK.slice(0,3).map(p => (
+              <GalleryCard key={p.id} project={p} previewFields={PF}
+                onClick={()=>{}} onToggleFavorite={()=>{}} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<Harness />);
+  </script>
+</body>
+</html>
