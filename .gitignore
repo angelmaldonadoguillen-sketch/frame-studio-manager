@@ -11,3 +11,6 @@ Thumbs.db
 
 # Credenciales Firebase personales — cada quien tiene las suyas
 firebase.config.js
+
+# Skills instaladas por npx skills
+.agents/
