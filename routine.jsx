@@ -147,7 +147,7 @@ const RoutineWidget = () => {
   const addTask = () => {
     const text = newText.trim();
     if (!text) return;
-    const id      = 't' + Date.now();
+    const id      = 't' + Date.now() + Math.random().toString(36).slice(2, 5);
     const updated = [...tasks, { id, text }];
     setTasks(updated);
     setNewText('');

@@ -153,7 +153,7 @@ const TypeDropdownContent = ({ allTypes, currentType, onSelect, onCreateCustomTy
           <Icon name="plus" size={11} /> Nuevo tipo
         </div>
         <TypeForm
-          onSubmit={(data) => { onCreateCustomType({ id: 'ct_' + Date.now(), ...data }); setMode(null); }}
+          onSubmit={(data) => { onCreateCustomType({ id: 'ct_' + Date.now() + Math.random().toString(36).slice(2, 5), ...data }); setMode(null); }}
           onCancel={() => setMode(null)}
           submitLabel="Crear"
         />
@@ -607,7 +607,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
   };
   const addCheck = (text) => {
     if (!text.trim()) return;
-    upd({ checklist: [...project.checklist, { id: 'c' + Date.now(), text: text.trim(), done: false }] });
+    upd({ checklist: [...project.checklist, { id: 'c' + Date.now() + Math.random().toString(36).slice(2, 5), text: text.trim(), done: false }] });
   };
   const removeCheck = (id) => upd({ checklist: project.checklist.filter(c => c.id !== id) });
 
@@ -642,7 +642,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
   const addComment = () => {
     if (!newComment.trim()) return;
     const comment = {
-      id:     'cm' + Date.now(),
+      id:     'cm' + Date.now() + Math.random().toString(36).slice(2, 5),
       userId: currentUserId,
       text:   newComment.trim(),
       at:     new Date().toISOString().slice(0, 16),
@@ -1296,7 +1296,7 @@ const DeliverableAdd = ({ onAdd }) => {
 
   const submit = () => {
     if (!name.trim()) return;
-    onAdd({ id: 'dv' + Date.now(), name: name.trim(), kind, status: 'pending' });
+    onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: name.trim(), kind, status: 'pending' });
     setName('');
   };
 
@@ -1339,7 +1339,7 @@ const TimelineAdd = ({ onAdd }) => {
 
   const submit = () => {
     if (!label.trim()) return;
-    onAdd({ id: 'tl' + Date.now(), label: label.trim(), date, status: 'pending' });
+    onAdd({ id: 'tl' + Date.now() + Math.random().toString(36).slice(2, 5), label: label.trim(), date, status: 'pending' });
     setLabel('');
   };
 

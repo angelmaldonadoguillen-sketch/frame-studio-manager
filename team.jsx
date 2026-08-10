@@ -578,7 +578,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
   const submit = () => {
     if (!name.trim()) return;
     onCreate({
-      id: 'u' + Date.now(),
+      id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5),
       name: name.trim(),
       role: role.trim() || 'Colaborador',
       initials,

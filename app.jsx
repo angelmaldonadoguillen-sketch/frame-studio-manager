@@ -683,7 +683,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
 
   const submit = () => {
     if (!title.trim() || !client.trim()) return;
-    const id = 'p' + Date.now();
+    const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 5);
     onCreate({
       id,
       title: title.trim(),
@@ -1060,7 +1060,9 @@ const App = () => {
     const col = window.db.collection('frame_projects');
 
     const unsub = col.onSnapshot((snap) => {
-      const projects = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      // normalizeProject garantiza la forma en el borde: de acá para adentro
+      // nadie tiene que preguntarse si tags o assignees existen.
+      const projects = snap.docs.map(d => normalizeProject({ ...d.data(), id: d.id }));
       dispatch({ type: 'set_projects', projects });
     }, (err) => {
       console.error('Firestore error:', err);
@@ -1076,7 +1078,7 @@ const App = () => {
     const col = window.db.collection('frame_users');
     const unsub = col.onSnapshot((snap) => {
       // No seeding — only real registered users
-      const team = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      const team = snap.docs.map(doc => normalizeMember({ ...doc.data(), id: doc.id }));
       window.__liveTeam = team; // registro global para getUser / AvatarStack
       dispatch({ type: 'set_team', team });
     }, (err) => {
@@ -1091,7 +1093,7 @@ const App = () => {
     if (!authUser) return;
     const col = window.db.collection('frame_clients');
     const unsub = col.onSnapshot((snap) => {
-      const clients = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      const clients = snap.docs.map(doc => normalizeClient({ ...doc.data(), id: doc.id }));
       dispatch({ type: 'set_clients', clients });
     }, (err) => {
       console.error('Firestore clients error:', err);
@@ -1267,7 +1269,7 @@ const App = () => {
           const deletedAt = d.data().deletedAt;
           return deletedAt && (now - new Date(deletedAt).getTime()) <= FIVE_DAYS_MS;
         })
-        .map(d => ({ ...d.data(), id: d.id }));
+        .map(d => normalizeProject({ ...d.data(), id: d.id }));
       dispatch({ type: 'set_trash', trash: remaining });
     }, (err) => {
       console.error('Trash listener error:', err);
@@ -1435,7 +1437,7 @@ const App = () => {
   const handleDuplicateProject = (id) => {
     const original = state.projects.find(p => p.id === id);
     if (!original) return;
-    const newId  = 'p' + Date.now();
+    const newId  = 'p' + Date.now() + Math.random().toString(36).slice(2, 5);
     const copy   = {
       ...original,
       id:        newId,
@@ -1465,7 +1467,7 @@ const App = () => {
   // donde se pulsó el "+" (estado de columna, fecha del día). No abre el modal.
   const handleQuickCreate = (opts = {}) => {
     const { title, status, sessionDate, deadline, type } = opts;
-    const id = 'p' + Date.now();
+    const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 5);
     const todayISO = localISO(new Date(TODAY));
     const defDeadline = (() => { const dt = new Date(TODAY); dt.setDate(dt.getDate() + 14); return localISO(dt); })();
     const dl = deadline || defDeadline;

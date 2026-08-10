@@ -456,9 +456,57 @@ const progressOf = (project) => {
   return Math.round((project.checklist.filter(c => c.done).length / project.checklist.length) * 100);
 };
 
+// ── Normalización de proyectos ───────────────────────────────────
+// Firestore no garantiza forma: un documento puede no tener un campo si se
+// creó con otra versión del esquema, se editó desde la consola o entró por
+// la API REST. El resto de la app asume que existen y hace cosas como
+// p.tags.some(...) o p.client.toLowerCase() directamente — con un campo
+// ausente eso no degrada, tira TypeError y se cae la vista entera
+// (por ejemplo, escribir en el buscador con un solo proyecto sin tags).
+//
+// En vez de sembrar `|| []` en cada punto de uso, la forma se garantiza una
+// sola vez acá, al entrar el dato. Todo lo de adentro puede confiar.
+const normalizeProject = (p) => ({
+  ...p,
+  title:        p.title        ?? '',
+  client:       p.client       ?? '',
+  type:         p.type         ?? 'other',
+  status:       p.status       ?? 'briefing',
+  priority:     p.priority     ?? 'medium',
+  currency:     p.currency     ?? 'USD',
+  budget:       typeof p.budget === 'number' ? p.budget : 0,
+  tags:         Array.isArray(p.tags)         ? p.tags         : [],
+  assignees:    Array.isArray(p.assignees)    ? p.assignees    : [],
+  checklist:    Array.isArray(p.checklist)    ? p.checklist    : [],
+  deliverables: Array.isArray(p.deliverables) ? p.deliverables : [],
+  comments:     Array.isArray(p.comments)     ? p.comments     : [],
+  timeline:     Array.isArray(p.timeline)     ? p.timeline     : [],
+  description:  Array.isArray(p.description)  ? p.description  : [],
+  cover:        p.cover && typeof p.cover === 'object' ? p.cover : { type: 'color', value: 'var(--surface-2)' },
+});
+
+const normalizeClient = (c) => ({
+  ...c,
+  name:     c.name     ?? '',
+  industry: c.industry ?? 'Sin categoría',
+  tags:     Array.isArray(c.tags) ? c.tags : [],
+  notes:    c.notes    ?? '',
+  contact:  c.contact && typeof c.contact === 'object' ? c.contact : { name: '—', email: '—', phone: '—' },
+});
+
+const normalizeMember = (m) => ({
+  ...m,
+  name:   m.name   ?? '',
+  role:   m.role   ?? 'Colaborador',
+  email:  m.email  ?? '',
+  skills: Array.isArray(m.skills) ? m.skills : [],
+  status: m.status ?? 'pending',
+});
+
 Object.assign(window, {
   USERS, PROJECT_TYPES, STATUSES, PRIORITIES, SEED_PROJECTS, COVER_IMAGES,
   TODAY, d,
   getUser, getType, getStatus, getPrio,
   fmtMoney, fmtDate, fmtDateLong, daysUntil, relativeTime, progressOf,
+  localISO, normalizeProject, normalizeClient, normalizeMember,
 });

@@ -429,7 +429,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
   const submitNewCol = () => {
     const lbl = newColLabel.trim();
     if (!lbl) return;
-    const id    = 'col_' + Date.now();
+    const id    = 'col_' + Date.now() + Math.random().toString(36).slice(2, 5);
     const color = COL_COLORS[baseCols.length % COL_COLORS.length];
     onAddColumn({ id, label: lbl, color });
     setNewColLabel('');

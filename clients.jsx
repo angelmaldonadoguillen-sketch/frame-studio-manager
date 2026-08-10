@@ -440,7 +440,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
   const submit = () => {
     if (!name.trim()) return;
     onCreate({
-      id: 'cl' + Date.now(),
+      id: 'cl' + Date.now() + Math.random().toString(36).slice(2, 5),
       name: name.trim(),
       industry: industry.trim() || 'Sin categoría',
       color,
@@ -606,7 +606,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
     const words    = q.split(/\s+/);
     const initials = words.map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
     const color    = CLIENT_COLORS[clients.length % CLIENT_COLORS.length];
-    if (onCreateClient) onCreateClient({ id: 'cl' + Date.now(), name: q, industry: 'Sin categoría', color, initials, contact: { name: '—', email: '—', phone: '—' }, tags: [], notes: '', createdAt: localISO(new Date()) });
+    if (onCreateClient) onCreateClient({ id: 'cl' + Date.now() + Math.random().toString(36).slice(2, 5), name: q, industry: 'Sin categoría', color, initials, contact: { name: '—', email: '—', phone: '—' }, tags: [], notes: '', createdAt: localISO(new Date()) });
     onChange(q);
     setOpen(false);
   };
