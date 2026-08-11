@@ -1504,8 +1504,53 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     document.execCommand(cmd, false, val ?? null);
   };
 
+  const captureEditorRange = () => {
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    return editorRef.current?.contains(range.commonAncestorContainer) ? range.cloneRange() : null;
+  };
+
+  const restoreEditorRange = (range) => {
+    editorRef.current?.focus();
+    if (!range) return;
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
+
+  const insertRemoteImages = (urls, savedRange) => {
+    const safeUrls = (urls || []).map(FrameAttachments.normalizeRemoteImageUrl).filter(Boolean);
+    if (safeUrls.length === 0) return;
+    restoreEditorRange(savedRange);
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    if (!range || !editorRef.current?.contains(range.commonAncestorContainer)) return;
+
+    range.deleteContents();
+    const fragment = document.createDocumentFragment();
+    let lastNode = null;
+    safeUrls.forEach(src => {
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = 'Imagen de referencia';
+      img.referrerPolicy = 'no-referrer';
+      img.loading = 'lazy';
+      const br = document.createElement('br');
+      fragment.append(img, br);
+      lastNode = br;
+    });
+    range.insertNode(fragment);
+    if (lastNode) {
+      range.setStartAfter(lastNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  };
+
   // Sube imagen a Firebase Storage (igual que cover) y la inserta en el cursor
-  const uploadAndInsert = async (blob) => {
+  const uploadAndInsert = async (blob, savedRange = null) => {
     if (!blob) return;
     if (!window.storage) {
       window.frameToast?.('Las imágenes necesitan Storage habilitado en Firebase.');
@@ -1524,8 +1569,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
       // para siempre y no había forma de saber que pasaba.
       const snapshot = await FrameAttachments.waitForUpload(task, { onProgress: setProgress });
       const src = await snapshot.ref.getDownloadURL();
-      editorRef.current?.focus();
-      document.execCommand('insertHTML', false, `<img src="${src}" /><br>`);
+      insertRemoteImages([src], savedRange);
     } catch (err) {
       console.error('[FRAME] Subir imagen:', err);
       window.frameToast?.(FrameAttachments.storageErrorMessage(err));
@@ -1539,15 +1583,36 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   // Intercepta imágenes pegadas desde el portapapeles
   const handlePaste = async (e) => {
     const items = [...(e.clipboardData?.items || [])];
-    const imgItem = items.find(i => i.type.startsWith('image/'));
-    if (!imgItem) return; // texto normal → comportamiento por defecto
-    e.preventDefault();
-    const file = imgItem.getAsFile();
-    const validation = FrameAttachments.validateImageFile(file);
-    if (!validation.ok) { window.frameToast?.(validation.message); return; }
-    const compressed = await compressImg(file);
-    if (!compressed) { window.frameToast?.('No se pudo procesar la imagen.'); return; }
-    await uploadAndInsert(compressed);
+    const html = e.clipboardData?.getData('text/html') || '';
+    const text = e.clipboardData?.getData('text/plain') || '';
+    const source = FrameAttachments.classifyPasteSource({ items, html, text });
+    const savedRange = captureEditorRange();
+
+    if (source.kind === 'file') {
+      e.preventDefault();
+      const file = source.item.getAsFile();
+      const validation = FrameAttachments.validateImageFile(file);
+      if (!validation.ok) { window.frameToast?.(validation.message); return; }
+      const compressed = await compressImg(file);
+      if (!compressed) { window.frameToast?.('No se pudo procesar la imagen.'); return; }
+      await uploadAndInsert(compressed, savedRange);
+      return;
+    }
+
+    if (source.kind === 'html-images' || source.kind === 'text-image-url') {
+      e.preventDefault();
+      insertRemoteImages(source.urls, savedRange);
+      window.frameToast?.('Imagen externa insertada. Seguirá disponible mientras el sitio de origen la mantenga pública.');
+      return;
+    }
+
+    if (source.kind === 'html') {
+      // Nunca se deja que HTML externo entre directo al contentEditable.
+      e.preventDefault();
+      restoreEditorRange(savedRange);
+      document.execCommand('insertHTML', false, sanitizeDescHTML(source.html));
+    }
+    // Texto ordinario conserva el comportamiento nativo del navegador.
   };
 
   // Sube desde selector de archivo
@@ -1598,14 +1663,14 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           <div className="w-px h-3.5 mx-1 flex-shrink-0" style={{ background: 'var(--border-2)' }} />
           {/* Upload imagen */}
           <label
-            title="Insertar imagen (también podés pegar con Ctrl+V)"
+            title="Insertar imagen o pegar un archivo, imagen web o URL con Ctrl+V"
             className={`px-2 py-1 rounded text-[12px] select-none cursor-pointer flex items-center gap-1 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]'}`}
           >
             <Icon name="camera" size={12} />
             {uploading && <span className="text-[10px] font-mono animate-pulse">{progress}%</span>}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
-          <span className="ml-auto text-[10px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Ctrl+V para pegar imagen</span>
+          <span className="ml-auto text-[10px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Ctrl+V: archivo, web o URL</span>
         </div>
 
         {/* ── Área editable ── */}
