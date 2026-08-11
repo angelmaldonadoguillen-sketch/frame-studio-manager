@@ -339,13 +339,18 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
     all:       state.projects.filter(p => p.status !== 'archived').length,
     favorites: state.projects.filter(p => p.favorite).length,
     mine:      state.projects.filter(p => p.assignees.includes(state.currentUserId) && p.status !== 'archived').length,
-    urgent:    state.projects.filter(p => { const d = daysUntil(p.deadline); return d >= 0 && d < 3 && p.status !== 'delivered' && p.status !== 'archived'; }).length,
+    urgent:    state.projects.filter(isUrgent).length,
     delivered: state.projects.filter(p => p.status === 'delivered').length,
     archived:  state.projects.filter(p => p.status === 'archived').length,
     trash:     state.trash.length,
   };
   const sf = state.sidebarFilter;
   const setFilter = (f) => dispatch({ type: 'set_sidebar_filter', filter: f });
+
+  // Solicitudes de acceso esperando. Sólo el admin de plataforma las ve: es
+  // el único que puede resolverlas, así que a nadie más le sirve el aviso.
+  const iAmAdmin    = !!state.team.find(m => m.id === state.currentUserId)?.platformAdmin;
+  const pendingCount = iAmAdmin ? state.team.filter(m => m.status === 'pending').length : 0;
 
   return (
     <aside className="w-[240px] flex-shrink-0 border-r border-app flex flex-col" style={{ background: 'var(--surface)' }}>
@@ -403,7 +408,11 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4 select-none">Trabajo</div>
         <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
-        <NavItem icon="users"     label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
+        {/* El contador de pendientes es lo que hace que la aprobación exista:
+            sin un aviso visible, las solicitudes se quedan esperando sin que
+            nadie sepa que están ahí. */}
+        <NavItem icon="users"     label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })}
+                 count={pendingCount || undefined} accent={pendingCount > 0} />
         <NavItem icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
         <NavItem icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} />
 
@@ -811,7 +820,7 @@ const applyFilters = (state) => {
     if (state.sidebarFilter === 'mine' && !p.assignees.includes(state.currentUserId)) return false;
     if (state.sidebarFilter === 'urgent') {
       const d = daysUntil(p.deadline);
-      if (!(d >= 0 && d < 3 && p.status !== 'delivered' && p.status !== 'archived')) return false;
+      if (!isUrgent(p)) return false;
     }
     if (state.sidebarFilter === 'delivered' && p.status !== 'delivered') return false;
     if (state.sidebarFilter === 'archived'  && p.status !== 'archived')  return false;
@@ -1834,12 +1843,6 @@ const App = () => {
       .catch(err => console.error('Error al guardar integrante:', err));
   };
 
-  const handleCreateMember = (member) => {
-    dispatch({ type: 'create_member', member });
-    window.db.collection('frame_users').doc(member.id).set(member)
-      .catch(err => console.error('Error al crear integrante:', err));
-  };
-
   const handleDeleteClient = (id) => {
     dispatch({ type: 'delete_client', id });
     window.db.collection('frame_clients').doc(id).delete()
@@ -1908,7 +1911,9 @@ const App = () => {
         <TeamSection
           team={state.team}
           projects={state.projects}
-          onCreateMember={handleCreateMember}
+          isPlatformAdmin={!!state.team.find(m => m.id === state.currentUserId)?.platformAdmin}
+          onApproveUser={handleApproveUser}
+          onRejectUser={handleRejectUser}
           onUpdateMember={handleUpdateMember}
           onDeleteMember={handleDeleteMember}
           openMemberId={state.openMemberId}

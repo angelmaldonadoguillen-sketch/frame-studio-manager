@@ -842,7 +842,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
   const t        = getType(project.type);
   const st       = getStatus(project.status);
   const days     = daysUntil(project.deadline);
-  const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
+  const urgent = isUrgent(project);
   const isOver   = days < 0  && project.status !== 'delivered' && project.status !== 'archived';
   const progress = progressOf(project);
   const hasTags  = pf.tags && project.tags?.length > 0;
@@ -862,7 +862,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
         <div className="flex items-start justify-between gap-1">
           <div className="flex items-center gap-1 flex-wrap">
             {pf.tipo !== false && <TypePill type={project.type} />}
-            {pf.prioridad !== false && isUrgent && (
+            {pf.prioridad !== false && urgent && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URG</span>
             )}
             {pf.prioridad !== false && isOver && (
@@ -1207,7 +1207,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
   const t = getType(project.type);
   const progress = progressOf(project);
   const days = daysUntil(project.deadline);
-  const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
+  const urgent = isUrgent(project);
   const [confirmDel, setConfirmDel] = React.useState(false);
   const hasTags = pf.tags && project.tags && project.tags.length > 0;
 
@@ -1225,7 +1225,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
           {pf.tipo !== false && <TypePill type={project.type} />}
           <div className="flex items-center gap-1.5 ml-auto">
-            {pf.prioridad !== false && isUrgent && (
+            {pf.prioridad !== false && urgent && (
               <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URGENTE</span>
             )}
             {onToggleFavorite && !confirmDel && (
@@ -1315,8 +1315,8 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
 const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite }) => {
   const t = getType(p.type);
   const days = daysUntil(p.deadline);
-  const isUrgent = days >= 0 && days < 3 && p.status !== 'delivered' && p.status !== 'archived';
-  const isOverdue = days < 0 && p.status !== 'delivered' && p.status !== 'archived';
+  const urgent = isUrgent(p);
+  const overdue = isOverdue(p);
   const progress = progressOf(p);
   const [confirmDel, setConfirmDel] = React.useState(false);
 
@@ -1343,11 +1343,11 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
       <td className="px-3 py-3"><AvatarStack ids={p.assignees} size={20} max={3} /></td>
       <td className="px-3 py-3 font-mono text-[12px]">
         <div className="flex items-center gap-2">
-          <span className={isOverdue ? 'text-[var(--danger)]' : 'text-[var(--text-dim)]'}>
+          <span className={overdue ? 'text-[var(--danger)]' : 'text-[var(--text-dim)]'}>
             {fmtDate(p.deadline)}
           </span>
-          {isUrgent && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URG</span>}
-          {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>VENC</span>}
+          {urgent && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URG</span>}
+          {overdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>VENC</span>}
         </div>
       </td>
       <td className="px-3 py-3"><PriorityBadge priority={p.priority} /></td>
@@ -1514,7 +1514,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
               const t   = getType(item.type);
               const dl  = daysLeft(item.deletedAt);
               const pct = progressOf(item);
-              const isUrgent = dl <= 1;
+              const purgeSoon = dl <= 1;
               const isConfirming = confirmId === item.id;
 
               return (
@@ -1523,7 +1523,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                   className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all"
                   style={{
                     background: 'var(--surface)',
-                    borderColor: isUrgent ? 'var(--danger-soft-2)' : 'var(--border)',
+                    borderColor: purgeSoon ? 'var(--danger-soft-2)' : 'var(--border)',
                   }}
                 >
                   {/* Color strip */}
@@ -1553,7 +1553,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                   <div className="flex-shrink-0 text-right mr-1 min-w-[80px]">
                     <div
                       className="text-[11px] font-semibold"
-                      style={{ color: isUrgent ? 'var(--danger)' : 'var(--text-dim)' }}
+                      style={{ color: purgeSoon ? 'var(--danger)' : 'var(--text-dim)' }}
                     >
                       {dl === 0 ? 'Expira hoy' : `${dl}d restantes`}
                     </div>
@@ -1566,7 +1566,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${(dl / 5) * 100}%`,
-                          background: isUrgent ? 'var(--danger)' : 'var(--text-muted)',
+                          background: purgeSoon ? 'var(--danger)' : 'var(--text-muted)',
                         }}
                       />
                     </div>

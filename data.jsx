@@ -456,6 +456,25 @@ const progressOf = (project) => {
   return Math.round((project.checklist.filter(c => c.done).length / project.checklist.length) * 100);
 };
 
+// ── Urgencia ─────────────────────────────────────────────────────
+// Un solo lugar donde se define qué es "urgente". Estaba repetido en cinco
+// puntos con dos criterios distintos: la sidebar y los filtros usaban
+// "menos de 3 días" y el contador de la tarjeta pintaba de amarillo "3 días
+// o menos". Un proyecto a exactamente 3 días se veía amarillo pero no
+// contaba en "Deadlines urgentes".
+const URGENT_DAYS = 3;
+
+const isClosed = (project) =>
+  project.status === 'delivered' || project.status === 'archived';
+
+const isUrgent = (project) => {
+  if (isClosed(project)) return false;
+  const d = daysUntil(project.deadline);
+  return d >= 0 && d <= URGENT_DAYS;
+};
+
+const isOverdue = (project) => !isClosed(project) && daysUntil(project.deadline) < 0;
+
 // ── Normalización de proyectos ───────────────────────────────────
 // Firestore no garantiza forma: un documento puede no tener un campo si se
 // creó con otra versión del esquema, se editó desde la consola o entró por
@@ -509,4 +528,5 @@ Object.assign(window, {
   getUser, getType, getStatus, getPrio,
   fmtMoney, fmtDate, fmtDateLong, daysUntil, relativeTime, progressOf,
   localISO, normalizeProject, normalizeClient, normalizeMember,
+  URGENT_DAYS, isClosed, isUrgent, isOverdue,
 });

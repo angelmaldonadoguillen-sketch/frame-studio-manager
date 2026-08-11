@@ -683,14 +683,70 @@ const NewMemberModal = ({ onCreate, onClose }) => {
 };
 
 // ── Team section (main) ──────────────────────────────────────────
-const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember, currentUserId }) => {
+// ── Solicitudes de acceso ────────────────────────────────────────
+// Antes esto vivía como una notificación que se creaba al registrarse. Ese
+// camino ya no existe: crear la notificación exigía recorrer todos los
+// usuarios, algo que las reglas rechazan. Y al quedar sin productor, el
+// panel de aprobación no se mostraba nunca — quien se registraba quedaba
+// esperando para siempre sin que nadie se enterara.
+// Ahora se leen directo de frame_users, que es la fuente real.
+const PendingApprovals = ({ pending, onApprove, onReject }) => {
+  if (pending.length === 0) return null;
+  return (
+    <div className="px-5 py-4 border-b border-app" style={{ background: 'var(--surface)' }}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>
+          Solicitudes de acceso
+        </span>
+        <span className="text-[10px] tnum px-1.5 py-0.5 rounded"
+              style={{ background: 'var(--warn-soft-2)', color: 'var(--warn)' }}>
+          {pending.length}
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        {pending.map(u => (
+          <div key={u.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+               style={{ background: 'var(--surface-2)', boxShadow: 'inset 0 .5px 0 rgba(255,255,255,.06)' }}>
+            <Avatar user={u} size={30} />
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold truncate">{u.name || 'Sin nombre'}</div>
+              <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
+                {u.email} · {u.role}
+              </div>
+            </div>
+            <button
+              onClick={() => onApprove(u.id)}
+              className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition-all"
+              style={{ background: 'var(--accent)', color: '#131315' }}
+            >
+              Aprobar
+            </button>
+            <button
+              onClick={() => onReject(u.id)}
+              className="px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors"
+              style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}
+            >
+              Rechazar
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const TeamSection = ({ team, projects, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember, currentUserId, isPlatformAdmin, onApproveUser, onRejectUser }) => {
   const [search, setSearch]         = useState('');
   const [filterAvail, setFilterAvail] = useState('all');
-  const [showNew, setShowNew]       = useState(false);
 
   const openMember = openMemberId ? team.find(m => m.id === openMemberId) : null;
 
-  const filtered = team.filter(m => {
+  // Los pendientes se listan aparte, no mezclados con el equipo activo.
+  const pending = isPlatformAdmin ? team.filter(m => m.status === 'pending') : [];
+  const active  = team.filter(m => m.status !== 'pending' && m.status !== 'rejected');
+
+  const filtered = active.filter(m => {
     if (filterAvail !== 'all' && m.availability !== filterAvail) return false;
     if (!search) return true;
     const q = search.toLowerCase();
@@ -698,11 +754,6 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
            m.role.toLowerCase().includes(q) ||
            (m.skills || []).some(s => s.toLowerCase().includes(q));
   });
-
-  const handleCreate = async (member) => {
-    await onCreateMember(member);
-    setShowNew(false);
-  };
 
   const totalActive = team.reduce((sum, m) =>
     sum + projects.filter(p =>
@@ -758,15 +809,14 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
 
           <div className="flex-1" />
 
-          <button
-            onClick={() => setShowNew(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold hover:brightness-110 transition-all"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
-          >
-            <Icon name="plus" size={13} strokeWidth={2.4} />
-            Nuevo integrante
-          </button>
+          {/* Se quitó "Nuevo integrante": escribía en frame_users con un id
+              inventado, y las reglas sólo permiten crear el perfil propio.
+              La escritura se rechazaba pero el error iba a console.error, así
+              que la interfaz mostraba el integrante como creado y desaparecía
+              al recargar. Ahora la gente entra registrándose y vos aprobás. */}
         </header>
+
+        <PendingApprovals pending={pending} onApprove={onApproveUser} onReject={onRejectUser} />
 
         {/* Summary bar */}
         <div className="flex items-center gap-5 px-5 py-2 border-b border-app text-[12px]" style={{ background: 'var(--surface)' }}>
@@ -828,12 +878,6 @@ const TeamSection = ({ team, projects, onCreateMember, onUpdateMember, onDeleteM
         />
       )}
 
-      {showNew && (
-        <NewMemberModal
-          onCreate={handleCreate}
-          onClose={() => setShowNew(false)}
-        />
-      )}
     </>
   );
 };
