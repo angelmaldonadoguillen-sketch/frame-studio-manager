@@ -1745,7 +1745,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     if (!img?.isConnected) return;
     const rect = img.getBoundingClientRect();
     const viewportPadding = 12;
-    const menuWidth = Math.min(520, window.innerWidth - viewportPadding * 2);
+    const menuWidth = Math.min(240, window.innerWidth - viewportPadding * 2);
     const menuHeight = imageMenuRef.current?.offsetHeight || 108;
     const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - menuWidth - viewportPadding));
     const belowTop = rect.bottom + 8;
@@ -1843,7 +1843,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
         {selectedImage && imageMenuPosition && ReactDOM.createPortal(
           <div
             ref={imageMenuRef}
-            className="fixed z-[10000] flex flex-wrap items-center gap-1.5 rounded-lg border px-3 py-2 shadow-xl anim-fade-in"
+            className="fixed z-[10000] flex flex-col items-stretch gap-0.5 rounded-lg border p-1.5 shadow-xl anim-fade-in"
             style={{
               left: imageMenuPosition.left,
               top: imageMenuPosition.top,
@@ -1855,19 +1855,19 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
               boxShadow: '0 12px 32px rgba(0,0,0,0.28)',
             }}
           >
-            <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Imagen seleccionada</span>
-            <div className="inline-flex items-center rounded-md border p-0.5" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-3)' }}>
+            <span className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Imagen seleccionada</span>
+            <div className="flex flex-col items-stretch rounded-md border p-0.5" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-3)' }}>
               <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'sm')} title="Ancho pequeño">Pequeña</TB>
               <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'md')} title="Ancho mediano">Mediana</TB>
               <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'lg')} title="Ancho completo">Completa</TB>
             </div>
-            <div className="w-px h-3.5 mx-1" style={{ background: 'var(--border-2)' }} />
-            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'left')} title="Alinear a la izquierda">Izquierda</TB>
+            <div className="h-px my-1" style={{ background: 'var(--border-2)' }} />
+            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'left')} title="Alinear a la izquierda">Alinear a la izquierda</TB>
             <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'center')} title="Centrar">Centrar</TB>
-            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Alinear a la derecha">Derecha</TB>
-            <div className="w-px h-3.5 mx-1" style={{ background: 'var(--border-2)' }} />
-            <TB onMouseDown={() => setLightbox(selectedImage.src)} title="Abrir imagen a tamaño completo">Abrir</TB>
-            <TB onMouseDown={() => { clearImageSelection(); setSelectedImage(null); setImageMenuPosition(null); }} title="Cerrar opciones"><Icon name="x" size={12} /></TB>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Alinear a la derecha">Alinear a la derecha</TB>
+            <div className="h-px my-1" style={{ background: 'var(--border-2)' }} />
+            <TB onMouseDown={() => setLightbox(selectedImage.src)} title="Abrir imagen a tamaño completo">Abrir imagen</TB>
+            <TB onMouseDown={() => { clearImageSelection(); setSelectedImage(null); setImageMenuPosition(null); }} title="Cerrar opciones">Cerrar</TB>
           </div>,
           document.body
         )}
