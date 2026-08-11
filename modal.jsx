@@ -1456,13 +1456,15 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
 
   // Inicializa HTML solo al montar (no en cada re-render para no romper el cursor)
   useEffect(() => {
-    if (editorRef.current) editorRef.current.innerHTML = blocksToHTML(blocks);
+    if (editorRef.current) editorRef.current.innerHTML = sanitizeDescHTML(blocksToHTML(blocks));
   }, []);
 
   // Guarda al perder foco (solo si no está subiendo imagen)
   const save = () => {
     if (uploadingRef.current) return;
-    const html = editorRef.current?.innerHTML?.trim() || '';
+    // Se limpia también al guardar, no sólo al pintar: pegar desde otra web
+    // trae el HTML de origen entero, con scripts y manejadores incluidos.
+    const html = sanitizeDescHTML(editorRef.current?.innerHTML || '').trim();
     const empty = html === '' || html === '<br>' || html === '<div><br></div>';
     onChange(empty ? [] : [{ type: 'html', content: html }]);
   };

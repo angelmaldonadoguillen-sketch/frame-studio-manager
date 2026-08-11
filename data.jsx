@@ -456,6 +456,60 @@ const progressOf = (project) => {
   return Math.round((project.checklist.filter(c => c.done).length / project.checklist.length) * 100);
 };
 
+// ── Sanitizado del HTML de la descripción ────────────────────────
+// La descripción se guarda como HTML y se pinta con innerHTML. innerHTML no
+// ejecuta <script>, pero SÍ ejecuta manejadores de evento: basta un
+// <img src=x onerror="..."> guardado en una tarjeta para que el código corra
+// en el navegador de cualquier compañero que la abra — con su sesión de
+// Firebase disponible.
+//
+// Se limpia con lista blanca: lo que no está permitido, se va. Al revés
+// (lista negra) siempre queda algo afuera.
+const DESC_ALLOWED_TAGS = new Set([
+  'P','BR','DIV','SPAN','STRONG','B','EM','I','U','S',
+  'UL','OL','LI','H1','H2','H3','BLOCKQUOTE','CODE','PRE','IMG','A',
+]);
+
+const sanitizeDescHTML = (html) => {
+  if (!html || typeof html !== 'string') return '';
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+
+  const walk = (node) => {
+    [...node.children].forEach(el => {
+      if (!DESC_ALLOWED_TAGS.has(el.tagName)) {
+        // Se conserva el texto de adentro: quitar la etiqueta no debería
+        // hacer desaparecer lo que la persona escribió.
+        el.replaceWith(...el.childNodes);
+        return;
+      }
+      [...el.attributes].forEach(attr => {
+        const name = attr.name.toLowerCase();
+        const val  = (attr.value || '').trim();
+
+        // Cualquier on* es un manejador de evento: fuera sin excepción.
+        if (name.startsWith('on')) { el.removeAttribute(attr.name); return; }
+
+        if (el.tagName === 'IMG' && name === 'src') {
+          // Sólo http(s) y data:image. javascript: y data:text/html ejecutan.
+          if (!/^(https?:\/\/|data:image\/)/i.test(val)) el.removeAttribute(attr.name);
+          return;
+        }
+        if (el.tagName === 'A' && name === 'href') {
+          if (!/^(https?:\/\/|mailto:)/i.test(val)) el.removeAttribute(attr.name);
+          return;
+        }
+        // Todo lo demás sobra, incluido style: permite posicionar cosas
+        // encima de la interfaz para engañar al que mira.
+        el.removeAttribute(attr.name);
+      });
+      walk(el);
+    });
+  };
+
+  walk(doc.body);
+  return doc.body.innerHTML;
+};
+
 // ── Datos de presentación de un miembro ──────────────────────────
 // Se guarda una copia dentro del tablero, no una referencia al perfil.
 // Motivo: las reglas no permiten leer perfiles ajenos —y está bien que no lo
@@ -553,5 +607,5 @@ Object.assign(window, {
   fmtMoney, fmtDate, fmtDateLong, daysUntil, relativeTime, progressOf,
   localISO, normalizeProject, normalizeClient, normalizeMember,
   URGENT_DAYS, isClosed, isUrgent, isOverdue,
-  memberCard, workspaceMembers,
+  memberCard, workspaceMembers, sanitizeDescHTML,
 });

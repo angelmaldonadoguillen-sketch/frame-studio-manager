@@ -206,6 +206,62 @@ window.pushNotif = (toUserId, data) => {
     .catch(err => console.error('pushNotif error:', err));
 };
 
+// ── Avisos de error ─────────────────────────────────────────────
+// Todas las escrituras terminaban en .catch(console.error). Como el dispatch
+// optimista ya había pintado el cambio, la interfaz mostraba el trabajo como
+// guardado aunque Firestore lo hubiera rechazado: se creía tener algo que en
+// realidad se perdió al recargar.
+//
+// window.frameToast lo usan los handlers sin tener que pasar props por toda
+// la app. Es el mismo criterio que window.db.
+const ToastStack = () => {
+  const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    window.frameToast = (msg, kind = 'error') => {
+      const id = Date.now() + Math.random();
+      setToasts(t => [...t, { id, msg, kind }]);
+      // Los errores se quedan más tiempo: hay que leerlos y decidir qué hacer.
+      setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), kind === 'error' ? 7000 : 3500);
+    };
+    return () => { delete window.frameToast; };
+  }, []);
+
+  if (toasts.length === 0) return null;
+  return (
+    <div className="fixed bottom-5 left-1/2 z-[9999] flex flex-col gap-2"
+         style={{ transform: 'translateX(-50%)', maxWidth: 'min(92vw, 420px)' }}>
+      {toasts.map(t => (
+        <div key={t.id} className="flex items-start gap-2.5 px-4 py-3 rounded-xl anim-fade-in"
+             style={{
+               background: 'var(--surface-2)',
+               boxShadow: 'inset 0 .5px 0 rgba(255,255,255,.08), 0 12px 32px -8px rgba(0,0,0,.8)',
+               borderLeft: `2px solid ${t.kind === 'error' ? 'var(--danger)' : 'var(--accent)'}`,
+             }}>
+          <Icon name={t.kind === 'error' ? 'alert' : 'check'} size={14}
+                style={{ color: t.kind === 'error' ? 'var(--danger)' : 'var(--accent)', flexShrink: 0, marginTop: 1 }} />
+          <span className="text-[13px] leading-snug" style={{ color: 'var(--text)' }}>{t.msg}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Traduce el error de Firestore a algo accionable. "Missing or insufficient
+// permissions" no le dice nada a nadie.
+const explainWriteError = (err, que) => {
+  const code = err?.code || '';
+  if (code === 'permission-denied')  return `No tenés permiso para ${que}.`;
+  if (code === 'unavailable')        return `Sin conexión. ${que} no se guardó — revisá tu internet.`;
+  if (code === 'resource-exhausted') return `Se agotó la cuota de la base de datos. ${que} no se guardó.`;
+  return `No se pudo guardar: ${que}. Recargá para ver el estado real.`;
+};
+
+const notifyWriteError = (err, que) => {
+  console.error('[FRAME]', que, err);
+  if (window.frameToast) window.frameToast(explainWriteError(err, que));
+};
+
 // ── Invitaciones recibidas ──────────────────────────────────────
 // Barra sobre el contenido, no una pantalla aparte: una invitación no debe
 // interrumpir lo que la persona estaba haciendo en su propio tablero.
@@ -1540,7 +1596,7 @@ const App = () => {
       if (next) dispatch({ type: 'set_active_workspace', id: next.id });
     }
     window.db.collection('frame_workspaces').doc(ws.id).delete()
-      .catch(err => console.error('[FRAME] Eliminar tablero:', err));
+      .catch(err => notifyWriteError(err, 'la eliminacion del tablero'));
   };
 
   // Invitaciones enviadas desde el tablero abierto, para que el dueño vea a
@@ -1973,7 +2029,7 @@ const App = () => {
     };
     dispatch({ type: 'duplicate_project', project: copy });
     window.db.collection('frame_projects').doc(newId).set(stampWs(copy))
-      .catch(err => console.error('[FRAME] Error al duplicar proyecto:', err));
+      .catch(err => notifyWriteError(err, 'la copia del proyecto'));
   };
 
   // Todo lo que se crea nace sellado con el tablero activo. Sin esto el
@@ -2001,7 +2057,7 @@ const App = () => {
     };
     window.db.collection('frame_workspaces').doc(id).set(workspace)
       .then(() => dispatch({ type: 'set_active_workspace', id }))
-      .catch(err => console.error('[FRAME] Crear tablero de equipo:', err));
+      .catch(err => notifyWriteError(err, 'el tablero de equipo'));
   };
 
   // ── Guardado de proyectos: por campos y con debounce ────────
@@ -2024,7 +2080,7 @@ const App = () => {
     if (saveTimers.current[id]) { clearTimeout(saveTimers.current[id]); delete saveTimers.current[id]; }
     if (!patch || Object.keys(patch).length === 0) return;
     window.db.collection('frame_projects').doc(id).update(patch)
-      .catch(err => console.error('[FRAME] Guardar proyecto:', err));
+      .catch(err => notifyWriteError(err, 'el proyecto'));
   };
 
   const handleUpdateProject = (project) => {
@@ -2038,7 +2094,7 @@ const App = () => {
     });
     if (!prev) { // alta: no hay con qué comparar, va entero
       window.db.collection('frame_projects').doc(project.id).set(stampWs(project))
-        .catch(err => console.error('[FRAME] Guardar proyecto:', err));
+        .catch(err => notifyWriteError(err, 'el proyecto'));
       return;
     }
     if (Object.keys(patch).length === 0) return;
@@ -2096,7 +2152,7 @@ const App = () => {
     };
     dispatch({ type: 'create_project_quiet', project });
     window.db.collection('frame_projects').doc(id).set(stampWs(project))
-      .catch(err => console.error('[FRAME] Quick create:', err));
+      .catch(err => notifyWriteError(err, 'la tarjeta nueva'));
   };
 
   const handleToggleFavorite = (id) => {
@@ -2105,7 +2161,7 @@ const App = () => {
     const updated = { ...project, favorite: !project.favorite };
     dispatch({ type: 'update_project', project: updated });
     window.db.collection('frame_projects').doc(id).set(stampWs(updated))
-      .catch(err => console.error('[FRAME] Error al guardar favorito:', err));
+      .catch(err => notifyWriteError(err, 'el favorito'));
   };
 
   const handleDeleteMember = (id) => {
@@ -2119,7 +2175,7 @@ const App = () => {
     const member = state.team.find(m => m.id === userId);
     if (member) dispatch({ type: 'update_member', member: { ...member, status: 'active' } });
     window.db.collection('frame_users').doc(userId).update({ status: 'active' })
-      .catch(err => console.error('[FRAME] Error al aprobar usuario:', err));
+      .catch(err => notifyWriteError(err, 'la aprobacion'));
     if (notifId) {
       dispatch({ type: 'resolve_notif', id: notifId, action: 'approved' });
       window.db.collection('frame_notifications')
@@ -2133,7 +2189,7 @@ const App = () => {
     const member = state.team.find(m => m.id === userId);
     if (member) dispatch({ type: 'update_member', member: { ...member, status: 'rejected' } });
     window.db.collection('frame_users').doc(userId).update({ status: 'rejected' })
-      .catch(err => console.error('[FRAME] Error al rechazar usuario:', err));
+      .catch(err => notifyWriteError(err, 'el rechazo'));
     if (notifId) {
       dispatch({ type: 'resolve_notif', id: notifId, action: 'rejected' });
       window.db.collection('frame_notifications')
@@ -2158,7 +2214,7 @@ const App = () => {
   const handleUpdateClient = (client) => {
     dispatch({ type: 'update_client', client });
     window.db.collection('frame_clients').doc(client.id).set(stampWs(client))
-      .catch(err => console.error('Error al guardar cliente:', err));
+      .catch(err => notifyWriteError(err, 'el cliente'));
   };
 
   const handleCreateClient = (client) => {
@@ -2200,6 +2256,7 @@ const App = () => {
 
   return (
     <div className="h-screen flex" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
+      <ToastStack />
       <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} onCreateTeam={handleCreateTeamWorkspace} onDeleteWorkspace={handleDeleteWorkspace} />
 
       {/* El banner va dentro de la columna de contenido y no sobre toda la
