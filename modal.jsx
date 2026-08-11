@@ -1559,6 +1559,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   const [focused,   setFocused]   = useState(false);
   const [lightbox,  setLightbox]  = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imageMenuPosition, setImageMenuPosition] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress,   setProgress]   = useState(0);
 
@@ -1713,6 +1714,32 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     editorRef.current?.querySelectorAll('img.frame-image-selected').forEach(img => img.classList.remove('frame-image-selected'));
   };
 
+  const positionImageMenu = (img) => {
+    if (!img?.isConnected) return;
+    const rect = img.getBoundingClientRect();
+    const viewportPadding = 12;
+    const menuWidth = Math.min(520, window.innerWidth - viewportPadding * 2);
+    const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - menuWidth - viewportPadding));
+    const showBelow = window.innerHeight - rect.bottom >= 64 || rect.top < 64;
+    setImageMenuPosition({
+      left,
+      top: showBelow ? rect.bottom + 8 : Math.max(viewportPadding, rect.top - 56),
+      width: menuWidth,
+    });
+  };
+
+  useEffect(() => {
+    if (!selectedImage) return undefined;
+    const reposition = () => positionImageMenu(selectedImage);
+    reposition();
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+    return () => {
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
+    };
+  }, [selectedImage]);
+
   const updateSelectedImage = (attribute, value) => {
     if (!selectedImage || !editorRef.current?.contains(selectedImage)) return;
     selectedImage.setAttribute(attribute, value);
@@ -1725,10 +1752,12 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
       clearImageSelection();
       e.target.classList.add('frame-image-selected');
       setSelectedImage(e.target);
+      positionImageMenu(e.target);
       return;
     }
     clearImageSelection();
     setSelectedImage(null);
+    setImageMenuPosition(null);
   };
 
   // Botón de toolbar reutilizable
@@ -1772,8 +1801,18 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           <span className="ml-auto text-[10px] hidden sm:block" style={{ color: 'var(--text-muted)' }}>Seleccioná una imagen para editarla</span>
         </div>
 
-        {selectedImage && (
-          <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border-b" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+        {selectedImage && imageMenuPosition && (
+          <div
+            className="fixed z-[10000] flex flex-wrap items-center gap-1.5 rounded-lg border px-3 py-2 shadow-xl anim-fade-in"
+            style={{
+              left: imageMenuPosition.left,
+              top: imageMenuPosition.top,
+              width: imageMenuPosition.width,
+              background: 'var(--surface-2)',
+              borderColor: 'var(--border-2)',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.28)',
+            }}
+          >
             <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Imagen seleccionada</span>
             <div className="inline-flex items-center rounded-md border p-0.5" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-3)' }}>
               <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'sm')} title="Ancho pequeño">Pequeña</TB>
@@ -1786,7 +1825,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
             <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Alinear a la derecha">Derecha</TB>
             <div className="w-px h-3.5 mx-1" style={{ background: 'var(--border-2)' }} />
             <TB onMouseDown={() => setLightbox(selectedImage.src)} title="Abrir imagen a tamaño completo">Abrir</TB>
-            <TB onMouseDown={() => { clearImageSelection(); setSelectedImage(null); }} title="Cerrar opciones"><Icon name="x" size={12} /></TB>
+            <TB onMouseDown={() => { clearImageSelection(); setSelectedImage(null); setImageMenuPosition(null); }} title="Cerrar opciones"><Icon name="x" size={12} /></TB>
           </div>
         )}
 
