@@ -34,7 +34,7 @@ const SEED_CLIENTS = [
     initials: 'RR',
     contact: { name: 'Nicolás Palma', email: 'nico@riff.com', phone: '+54 11 5555-0303' },
     tags: ['música', 'high-profile'],
-    notes: 'Sello independiente. Proyectos de alto perfil creativo. Pago por adelantado.',
+    notes: 'Sello independiente. Tareas de alto perfil creativo. Pago por adelantado.',
     createdAt: d(-80),
   },
   {
@@ -67,7 +67,7 @@ const SEED_CLIENTS = [
     initials: 'MO',
     contact: { name: 'Tomás Herrera', email: 'tomas@moveon.com', phone: '+54 11 5555-0606' },
     tags: ['fitness', 'nuevo'],
-    notes: 'Cliente nuevo. Primer proyecto en curso. Potencial de contrato anual si la entrega es conforme.',
+    notes: 'Cliente nuevo. Primera tarea en curso. Potencial de contrato anual si la entrega es conforme.',
     createdAt: d(-15),
   },
 ];
@@ -152,7 +152,7 @@ const ClientCard = ({ client, projects, onClick }) => {
             >
               {cp.length}
             </div>
-            <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Proyectos</div>
+            <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.12em]">Tareas</div>
           </div>
           <div>
             <div className="text-[22px] font-display font-bold leading-none mb-0.5 text-white" style={{ letterSpacing: '-0.03em' }}>
@@ -239,7 +239,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
             {/* Stats strip */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { value: cp.length,    label: 'Proyectos',  color: client.color },
+                { value: cp.length,    label: 'Tareas',     color: client.color },
                 { value: inProgress,   label: 'En curso',   color: '#ededef' },
                 { value: totalBudget > 0 ? fmtMoney(totalBudget) : '—', label: 'Budget total', color: '#ededef', mono: true },
               ].map(s => (
@@ -335,7 +335,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
             <section>
               <div className="flex items-center justify-between mb-3">
                 <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">
-                  Proyectos ({cp.length})
+                  Tareas ({cp.length})
                 </div>
               </div>
               {cp.length === 0 ? (
@@ -343,7 +343,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                   className="text-center py-8 rounded-lg text-[12px] text-[var(--text-muted)]"
                   style={{ background: 'var(--surface-2)' }}
                 >
-                  Sin proyectos registrados para este cliente
+                  Sin tareas registradas para este cliente
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -361,7 +361,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                           <div className="flex items-center gap-2 mt-0.5">
                             <TypePill type={p.type} />
                             <span className="text-[10px] text-[var(--text-muted)] font-mono">
-                              deadline {fmtDate(p.deadline)}
+                              fecha límite {fmtDate(p.deadline)}
                             </span>
                           </div>
                         </div>
@@ -392,7 +392,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] mb-3">
                       {cp.length > 0
-                        ? `Este cliente tiene ${cp.length} proyecto${cp.length > 1 ? 's' : ''} vinculado${cp.length > 1 ? 's' : ''}. Los proyectos conservarán el nombre pero el cliente se eliminará del directorio.`
+                        ? `Este cliente tiene ${cp.length} tarea${cp.length > 1 ? 's' : ''} vinculada${cp.length > 1 ? 's' : ''}. Las tareas conservarán el nombre, pero el cliente se eliminará del directorio.`
                         : 'Esta acción no se puede deshacer.'}
                     </div>
                     <div className="flex gap-2">

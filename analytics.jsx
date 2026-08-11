@@ -97,7 +97,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         <div>
           <div className="font-display font-bold text-xl" style={{ letterSpacing: '-0.02em' }}>Analytics</div>
           <div className="text-[12px] text-[var(--text-muted)] mt-0.5">
-            {projects.length} proyectos · {activeTeam.length} integrantes activos · {clients.length} clientes
+            {projects.length} tareas · {activeTeam.length} integrantes activos · {clients.length} clientes
           </div>
         </div>
         <div
@@ -115,7 +115,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         <div className="grid grid-cols-4 gap-4">
           <KpiCard
             icon="layers"
-            label="Proyectos activos"
+            label="Tareas activas"
             value={active.length}
             sub={`${projects.length} en total · ${favCount} favorito${favCount !== 1 ? 's' : ''}`}
             color="var(--accent)"
@@ -124,7 +124,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
             icon="zap"
             label="Presupuesto activo"
             value={fmtCurrency(totalBudget)}
-            sub={totalBudget > 0 ? 'en proyectos activos' : 'sin presupuesto registrado'}
+            sub={totalBudget > 0 ? 'en tareas activas' : 'sin presupuesto registrado'}
             color="#7DD3C0"
           />
           <KpiCard
@@ -136,7 +136,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
           />
           <KpiCard
             icon="alert"
-            label="Deadlines urgentes"
+            label="Fechas límite urgentes"
             value={urgent.length}
             sub="vencen en menos de 3 días"
             color="var(--danger)"
@@ -149,7 +149,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
           {/* Status breakdown */}
           <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
             <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-4">
-              Estado de proyectos
+              Estado de tareas
             </div>
             <div className="space-y-3">
               {statusGroups.map(s => {
@@ -213,9 +213,9 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
           <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
             <div className="flex items-center justify-between mb-4">
               <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">
-                Proyectos por mes — últimos 6 meses
+                Tareas por mes — últimos 6 meses
               </div>
-              <div className="text-[10px] text-[var(--text-muted)]">por fecha de deadline</div>
+              <div className="text-[10px] text-[var(--text-muted)]">por fecha límite</div>
             </div>
             <div className="flex items-end gap-3" style={{ height: 120 }}>
               {months.map(m => {
@@ -269,7 +269,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                         <div className="flex items-center justify-between">
                           <span className="text-[12px] truncate">{(m.name || '').split(' ')[0]}</span>
                           <span className="text-[11px] font-mono text-[var(--text-muted)]">
-                            {m.count} {m.count === 1 ? 'proyecto' : 'proyectos'}
+                            {m.count} {m.count === 1 ? 'tarea' : 'tareas'}
                           </span>
                         </div>
                         <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
@@ -314,7 +314,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-medium truncate">{c.name}</div>
                       <div className="text-[11px] text-[var(--text-muted)]">
-                        {c.count} proyecto{c.count !== 1 ? 's' : ''}
+                        {c.count} tarea{c.count !== 1 ? 's' : ''}
                       </div>
                     </div>
                     {c.budget > 0 && (
@@ -336,7 +336,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">
-              Próximos deadlines
+              Próximas fechas límite
             </div>
             {urgent.length > 0 && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>
@@ -376,7 +376,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
               );
             })}
             {upcoming.length === 0 && (
-              <div className="text-[12px] text-[var(--text-muted)] py-4 text-center">Sin proyectos activos con deadline</div>
+              <div className="text-[12px] text-[var(--text-muted)] py-4 text-center">Sin tareas activas con fecha límite</div>
             )}
           </div>
         </div>

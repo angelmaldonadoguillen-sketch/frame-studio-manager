@@ -2,7 +2,7 @@
 // ROUTINE WIDGET — Floating daily checklist with beacon animation
 // ─────────────────────────────────────────────────────────────────
 
-const RoutineWidget = () => {
+const RoutineWidget = ({ workspaceId }) => {
   const { useState, useEffect, useRef, useMemo } = React;
 
   // ── Panel open/close ──────────────────────────────────────────
@@ -22,22 +22,44 @@ const RoutineWidget = () => {
   const [debt,      setDebt]      = useState({}); // { taskId: diasAcumulados }
   const [carryOver, setCarryOver] = useState(false);
   const [loaded,    setLoaded]    = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   // Evita que el reset se ejecute dos veces cuando onSnapshot dispara
   // dos veces al iniciar (cache + network) antes de que el write se aplique
   const resetDoneRef = useRef(false);
 
   const todayISO = localISO(new Date()); // global de views.jsx
+  const routineRef = useMemo(() => workspaceId
+    ? window.db.collection('frame_workspaces').doc(workspaceId).collection('config').doc('daily_routine')
+    : null, [workspaceId]);
+
+  const reportSaveError = (err, action) => {
+    console.error(`[FRAME] Routine ${action}:`, err);
+    window.frameToast?.(`No se pudo guardar ${action} de la rutina. Recargá para ver el estado real.`);
+  };
 
   // ── Firestore listener ────────────────────────────────────────
   useEffect(() => {
-    const ref = window.db.collection('frame_config').doc('daily_routine');
+    if (!routineRef) return;
+    const ref = routineRef;
+    resetDoneRef.current = false;
+    setLoaded(false);
+    setLoadError(false);
+    setTasks([]);
+    setChecks({});
+    setHistory([]);
+    setDebt({});
+    setCarryOver(false);
 
     const unsub = ref.onSnapshot((snap) => {
       if (!snap.exists) {
-        ref.set({ tasks: [], today: { date: todayISO, checks: {} }, history: [] })
-          .catch(err => console.error('[FRAME] Routine init:', err));
-        setLoaded(true);
+        ref.set({ tasks: [], today: { date: todayISO, checks: {} }, history: [], config: { carryOver: false } })
+          .then(() => setLoaded(true))
+          .catch(err => {
+            setLoadError(true);
+            setLoaded(true);
+            reportSaveError(err, 'la configuración inicial');
+          });
         return;
       }
 
@@ -57,7 +79,7 @@ const RoutineWidget = () => {
         return true;
       });
       if (cleanHistory.length !== storedHistory.length) {
-        ref.update({ history: cleanHistory }).catch(() => {});
+        ref.update({ history: cleanHistory }).catch(err => reportSaveError(err, 'el historial'));
       }
 
       // ── Auto-reset si cambió el día ──
@@ -92,7 +114,12 @@ const RoutineWidget = () => {
         ref.update({
           today:   { date: todayISO, checks: {}, debt: newDebt },
           history: updatedHist,
-        }).catch(err => console.error('[FRAME] Routine reset:', err));
+        }).catch(err => {
+          setChecks(storedToday.checks || {});
+          setDebt(storedToday.debt || {});
+          setHistory(cleanHistory);
+          reportSaveError(err, 'el reinicio diario');
+        });
 
         setChecks({});
         setDebt(newDebt);
@@ -107,11 +134,13 @@ const RoutineWidget = () => {
       setLoaded(true);
     }, (err) => {
       console.error('[FRAME] Routine error:', err);
+      setLoadError(true);
+      window.frameToast?.('No se pudo cargar la rutina de este tablero. No se mostrará como vacía para evitar cambios sobre un estado desconocido.');
       setLoaded(true);
     });
 
     return () => unsub();
-  }, []);
+  }, [routineRef]);
 
   // ── Cerrar al click fuera del panel ──────────────────────────
   useEffect(() => {
@@ -138,9 +167,11 @@ const RoutineWidget = () => {
       setDebt(nextDebt);
       updates['today.debt'] = nextDebt;
     }
-    window.db.collection('frame_config').doc('daily_routine')
-      .update(updates)
-      .catch(err => console.error('[FRAME] Routine toggle:', err));
+    routineRef.update(updates).catch(err => {
+      setChecks(checks);
+      setDebt(debt);
+      reportSaveError(err, 'el progreso');
+    });
   };
 
   // ── Agregar tarea ─────────────────────────────────────────────
@@ -151,9 +182,10 @@ const RoutineWidget = () => {
     const updated = [...tasks, { id, text }];
     setTasks(updated);
     setNewText('');
-    window.db.collection('frame_config').doc('daily_routine')
-      .update({ tasks: updated })
-      .catch(err => console.error('[FRAME] Routine addTask:', err));
+    routineRef.update({ tasks: updated }).catch(err => {
+      setTasks(tasks);
+      reportSaveError(err, 'la nueva tarea');
+    });
     setTimeout(() => addInputRef.current?.focus(), 40);
   };
 
@@ -163,9 +195,11 @@ const RoutineWidget = () => {
     const updatedChecks = Object.fromEntries(Object.entries(checks).filter(([k]) => k !== taskId));
     setTasks(updatedTasks);
     setChecks(updatedChecks);
-    window.db.collection('frame_config').doc('daily_routine')
-      .update({ tasks: updatedTasks, 'today.checks': updatedChecks })
-      .catch(err => console.error('[FRAME] Routine delete:', err));
+    routineRef.update({ tasks: updatedTasks, 'today.checks': updatedChecks }).catch(err => {
+      setTasks(tasks);
+      setChecks(checks);
+      reportSaveError(err, 'la eliminación');
+    });
   };
 
   // ── Asignar tarea a un perfil ────────────────────────────────
@@ -173,9 +207,10 @@ const RoutineWidget = () => {
     const updated = tasks.map(t => t.id === taskId ? { ...t, assignee: userId || null } : t);
     setTasks(updated);
     setAssignPickerId(null);
-    window.db.collection('frame_config').doc('daily_routine')
-      .update({ tasks: updated })
-      .catch(err => console.error('[FRAME] Routine assign:', err));
+    routineRef.update({ tasks: updated }).catch(err => {
+      setTasks(tasks);
+      reportSaveError(err, 'la asignación');
+    });
   };
 
   // ── Renombrar tarea ───────────────────────────────────────────
@@ -186,9 +221,10 @@ const RoutineWidget = () => {
     const updated = tasks.map(t => t.id === editingId ? { ...t, text } : t);
     setTasks(updated);
     setEditingId(null);
-    window.db.collection('frame_config').doc('daily_routine')
-      .update({ tasks: updated })
-      .catch(err => console.error('[FRAME] Routine rename:', err));
+    routineRef.update({ tasks: updated }).catch(err => {
+      setTasks(tasks);
+      reportSaveError(err, 'el nombre');
+    });
   };
 
   // ── Computados ────────────────────────────────────────────────
@@ -223,7 +259,7 @@ const RoutineWidget = () => {
   });
 
   // No renderizar hasta que haya datos (evitar flicker)
-  if (!loaded) return null;
+  if (!loaded || loadError) return null;
 
   // ── Render ────────────────────────────────────────────────────
   return (
