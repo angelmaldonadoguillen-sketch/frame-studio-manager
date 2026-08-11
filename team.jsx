@@ -594,8 +594,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 backdrop flex items-center justify-center p-6 anim-fade-in" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl border anim-scale-in overflow-hidden"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        className="w-full max-w-md surf-panel anim-scale-in overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-app">

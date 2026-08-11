@@ -99,8 +99,8 @@ const TypeForm = ({ initial = {}, onSubmit, onCancel, submitLabel = 'Crear' }) =
         onChange={(e) => setLabel(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onCancel(); }}
         placeholder="Nombre del tipo…"
-        className="w-full px-2.5 py-1.5 rounded-md text-[13px] border outline-none"
-        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+        className="w-full px-2.5 py-1.5 field text-[13px]"
+       
       />
       <div>
         <div className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Ícono</div>
@@ -208,7 +208,7 @@ const TypeDropdownContent = ({ allTypes, currentType, onSelect, onCreateCustomTy
         </div>
       ))}
 
-      <div className="my-1 mx-1 border-t" style={{ borderColor: 'var(--border)' }} />
+      <div className="my-1 mx-1 hair-t" />
 
       <button
         onClick={() => setMode('create')}
@@ -491,7 +491,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
           onChange={(e) => setUrlVal(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') applyUrl(); }}
           placeholder="https://…"
-          className="flex-1 px-2.5 py-1.5 rounded-md text-[12px] border"
+          className="flex-1 px-2.5 py-1.5 field text-[12px]"
           style={{ background: 'var(--surface-3)', borderColor: 'var(--border-2)', color: 'var(--text)' }}
         />
         <button
@@ -1152,7 +1152,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   <SectionTitle icon="upload">Entregables</SectionTitle>
                   <div className="space-y-1.5">
                     {project.deliverables.map(dv => (
-                      <div key={dv.id} className="group rounded-md border border-app surface-2 overflow-hidden">
+                      <div key={dv.id} className="group field border-app surface-2 overflow-hidden">
                         {editingDvId === dv.id ? (
                           /* ── Modo edición ── */
                           <div className="p-2.5 space-y-2">
@@ -1172,7 +1172,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                                 value={editingDvData.kind}
                                 onChange={(e) => setEditingDvData(d => ({ ...d, kind: e.target.value }))}
                                 className="text-[11px] px-1.5 py-0.5 rounded border cursor-pointer"
-                                style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text-dim)', colorScheme: 'dark' }}
+                               
                               >
                                 <option value="video">Video</option>
                                 <option value="photos">Foto</option>
@@ -1426,14 +1426,14 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
         placeholder="Nuevo entregable…"
-        className="flex-1 px-2.5 py-1.5 rounded-md text-[13px] border"
-        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+        className="flex-1 px-2.5 py-1.5 field text-[13px]"
+       
       />
       <select
         value={kind}
         onChange={(e) => setKind(e.target.value)}
         className="px-2 py-1.5 rounded-md text-[12px] border cursor-pointer appearance-none"
-        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)', colorScheme: 'dark' }}
+       
       >
         <option value="video">Video</option>
         <option value="photos">Foto</option>
@@ -1483,14 +1483,14 @@ const TimelineAdd = ({ onAdd }) => {
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
         placeholder="Nuevo hito…"
         className="flex-1 px-2.5 py-1.5 rounded-md text-[13px] border ml-3"
-        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+       
       />
       <input
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
         className="px-2 py-1.5 rounded-md text-[12px] border cursor-pointer"
-        style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)', colorScheme: 'dark' }}
+       
       />
       <button aria-label="Agregar hito"
         onClick={submit}
@@ -1817,7 +1817,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
         style={{ borderColor: focused ? 'rgba(212,255,79,0.4)' : 'var(--border-2)' }}
       >
         {/* ── Toolbar ── */}
-        <div className="flex items-center gap-0.5 px-2 py-1 border-b" style={{ background: 'var(--surface-3)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-0.5 px-2 py-1 hair" style={{ background: 'var(--surface-3)' }}>
           <TB onMouseDown={() => exec('bold')}   title="Negrita (Ctrl+B)"><strong>B</strong></TB>
           <TB onMouseDown={() => exec('italic')} title="Cursiva (Ctrl+I)"><em style={{ fontStyle:'italic' }}>I</em></TB>
           <div className="w-px h-3.5 mx-1 flex-shrink-0" style={{ background: 'var(--border-2)' }} />

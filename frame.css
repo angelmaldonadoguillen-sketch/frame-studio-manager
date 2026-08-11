@@ -135,6 +135,25 @@
   .surf-hover { transition: background 280ms var(--ease), transform 280ms var(--ease); }
   .surf-hover:hover { background: var(--surface-3); }
 
+  /* ── Campos de formulario ──────────────────────────────────────
+     El mismo trío de propiedades estaba repetido en nueve lugares. Un campo
+     se distingue por su fondo hundido, no por un contorno: el borde de 1px
+     lo convertía en una caja dentro de otra caja. */
+  .field {
+    background: var(--surface-3);
+    border-radius: var(--r-sm);
+    color: var(--text);
+    box-shadow: inset 0 0.5px 0 rgba(0, 0, 0, 0.3);
+    transition: box-shadow 180ms var(--ease);
+  }
+  .field:focus,
+  .field:focus-within {
+    /* El foco se marca por dentro, sin mover nada de lugar: un borde que
+       aparece al enfocar empuja el contenido un píxel. */
+    box-shadow: inset 0 0 0 1.5px var(--accent-soft), inset 0 0 0 1px var(--accent);
+    outline: none;
+  }
+
   /* Separador de medio píxel. border: 1px es el doble de lo que hace falta
      y se lee como una caja; esto se lee como una división. */
   .hair   { border-bottom: 0.5px solid var(--border); }

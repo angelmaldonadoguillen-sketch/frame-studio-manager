@@ -246,8 +246,8 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
           onChange={(e) => setLabel(e.target.value)}
           onBlur={commitLabel}
           onKeyDown={(e) => { if (e.key === 'Enter') { commitLabel(); e.target.blur(); } }}
-          className="w-full px-2.5 py-1.5 rounded-md text-[13px] border"
-          style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+          className="w-full px-2.5 py-1.5 field text-[13px]"
+         
         />
       </div>
 
@@ -263,8 +263,8 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
             if (next !== (col.wipLimit || 0)) onUpdate({ ...col, wipLimit: next || undefined });
           }}
           placeholder="Sin límite"
-          className="w-full px-2.5 py-1.5 rounded-md text-[13px] border"
-          style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+          className="w-full px-2.5 py-1.5 field text-[13px]"
+         
         />
         <div className="mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>0 o vacío = sin límite</div>
       </div>
@@ -617,8 +617,8 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     if (e.key === 'Escape') { setAddingCol(false); setNewColLabel(''); }
                   }}
                   placeholder="Nombre de la columna…"
-                  className="w-full px-2.5 py-1.5 rounded-md text-[13px] border"
-                  style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                  className="w-full px-2.5 py-1.5 field text-[13px]"
+                 
                 />
                 <div className="flex gap-1.5">
                   <button
@@ -890,8 +890,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`group cursor-pointer rounded-lg overflow-hidden select-none border lift ${dragging ? 'dragging' : ''}`}
-      style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', borderTop: `3px solid ${t.color}` }}
+      className={`group cursor-pointer surf surf-hover overflow-hidden select-none lift ${dragging ? 'dragging' : ''}`}
     >
       <div className="p-2.5 flex flex-col gap-1.5">
 

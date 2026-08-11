@@ -167,8 +167,7 @@ const LoginScreen = () => {
 
         {/* Card */}
         <div
-          className="rounded-2xl border overflow-hidden anim-scale-in"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className="surf-panel overflow-hidden anim-scale-in"
         >
           {/* Tabs modo */}
           <div className="flex p-1 gap-0.5" style={{ background: 'var(--surface-2)' }}>

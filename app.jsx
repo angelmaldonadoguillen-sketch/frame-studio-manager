@@ -420,7 +420,7 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace })
             )}
           </div>
 
-          <div className="p-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="p-1.5 hair-t">
             {creating ? (
               <div className="px-1 py-0.5">
                 <input
@@ -666,7 +666,6 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
       {open && (
         <div
           className="absolute right-0 top-full mt-2 w-80 surf-float overflow-hidden anim-scale-in z-50"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           {/* Panel header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-app">
@@ -1039,8 +1038,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
   return (
     <div className="fixed inset-0 z-50 backdrop flex items-center justify-center p-6 anim-fade-in" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-2xl border anim-scale-in overflow-hidden"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        className="w-full max-w-lg surf-panel anim-scale-in overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-app">
