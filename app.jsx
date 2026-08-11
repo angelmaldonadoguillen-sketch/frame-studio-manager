@@ -2073,28 +2073,10 @@ const App = () => {
       .catch(err => notifyWriteError(err, 'el tablero de equipo'));
   };
 
-  // ── Guardado de proyectos: por campos y con debounce ────────
-  // Antes hacía .set(proyectoEntero) en cada cambio. Dos problemas:
-  //
-  //   · .set() REEMPLAZA el documento. Si dos personas editaban la misma
-  //     tarjeta, la última en guardar borraba los cambios de la otra aunque
-  //     hubieran tocado campos distintos.
-  //   · Una escritura por cada cambio: marcar una tarea, mover una fecha,
-  //     reordenar el checklist. Editar una tarjeta generaba decenas.
-  //
-  // Ahora se manda .update() sólo con los campos que cambiaron, agrupando lo
-  // que pase en 700 ms. La UI no espera: el dispatch es inmediato.
-  const saveTimers  = useRef({});   // por proyecto: varios pueden editarse
-  const savePending = useRef({});
-
-  const flushProject = (id) => {
-    const patch = savePending.current[id];
-    delete savePending.current[id];
-    if (saveTimers.current[id]) { clearTimeout(saveTimers.current[id]); delete saveTimers.current[id]; }
-    if (!patch || Object.keys(patch).length === 0) return;
-    window.db.collection('frame_projects').doc(id).update(patch)
-      .catch(err => notifyWriteError(err, 'la tarea'));
-  };
+  // ── Guardado de proyectos ───────────────────────────────────
+  // .set(objetoEntero) REEMPLAZABA el documento: dos personas editando la
+  // misma tarjeta se pisaban aunque tocaran campos distintos. Se manda
+  // .update() con lo que cambio.
 
   const activitySummary = (before, after) => {
     if (before.status !== after.status) return `cambió el estado a ${getStatus(after.status)?.label || after.status}`;
@@ -2144,18 +2126,18 @@ const App = () => {
         .catch(err => console.error('Task activity:', err));
     }
 
-    savePending.current[project.id] = { ...(savePending.current[project.id] || {}), ...patch };
-    if (saveTimers.current[project.id]) clearTimeout(saveTimers.current[project.id]);
-    saveTimers.current[project.id] = setTimeout(() => flushProject(project.id), 700);
+    // Se escribe YA, sin agrupar. Hubo un debounce de 700 ms acá para reducir
+    // escrituras, y rompía la app: durante esa ventana Firestore no tiene nada
+    // pendiente, así que cualquier snapshot que llegara reemplazaba el estado
+    // con el del servidor —todavía sin el cambio— y la edición se deshacía
+    // sola. Cambiar una fecha o arrastrar una tarjeta parecía no funcionar.
+    //
+    // Tampoco hacía falta: InlineEdit ya guarda al perder el foco, así que
+    // escribir no generaba una escritura por tecla. Lo que sí se conserva es
+    // mandar sólo los campos que cambiaron.
+    window.db.collection('frame_projects').doc(project.id).update(patch)
+      .catch(err => notifyWriteError(err, 'la tarea'));
   };
-
-  // Al desmontar se manda lo que quedó pendiente: cerrar la pestaña o salir
-  // antes de los 700 ms perdía el último cambio.
-  useEffect(() => {
-    const onLeave = () => Object.keys(savePending.current).forEach(flushProject);
-    window.addEventListener('beforeunload', onLeave);
-    return () => { window.removeEventListener('beforeunload', onLeave); onLeave(); };
-  }, []);
 
   const handleCreateProject = (project) => {
     // Optimistic: dispatch first → snapshot replaces array (no duplicate)
