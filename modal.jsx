@@ -1480,6 +1480,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   const uploadingRef = useRef(false); // evita guardar mientras sube imagen
   const [focused,   setFocused]   = useState(false);
   const [lightbox,  setLightbox]  = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress,   setProgress]   = useState(0);
 
@@ -1536,6 +1537,8 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
       img.alt = 'Imagen de referencia';
       img.referrerPolicy = 'no-referrer';
       img.loading = 'lazy';
+      img.dataset.frameSize = 'lg';
+      img.dataset.frameAlign = 'left';
       const br = document.createElement('br');
       fragment.append(img, br);
       lastNode = br;
@@ -1628,8 +1631,14 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   };
 
   // Click en imagen → lightbox
+  const updateSelectedImage = (attribute, value) => {
+    if (!selectedImage || !editorRef.current?.contains(selectedImage)) return;
+    selectedImage.setAttribute(attribute, value);
+    save();
+  };
+
   const handleClick = (e) => {
-    if (e.target.tagName === 'IMG') { e.preventDefault(); setLightbox(e.target.src); }
+    if (e.target.tagName === 'IMG') { e.preventDefault(); setSelectedImage(e.target); }
   };
 
   // Botón de toolbar reutilizable
@@ -1672,6 +1681,22 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           </label>
           <span className="ml-auto text-[10px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Ctrl+V: archivo, web o URL</span>
         </div>
+
+        {selectedImage && (
+          <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 border-b" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Imagen</span>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'sm')} title="Tamaño pequeño">Pequeña</TB>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'md')} title="Tamaño mediano">Mediana</TB>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'lg')} title="Tamaño grande">Grande</TB>
+            <div className="w-px h-3.5 mx-1" style={{ background: 'var(--border-2)' }} />
+            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'left')} title="Anclar a la izquierda">Izquierda</TB>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'center')} title="Centrar imagen">Centro</TB>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Anclar a la derecha">Derecha</TB>
+            <div className="w-px h-3.5 mx-1" style={{ background: 'var(--border-2)' }} />
+            <TB onMouseDown={() => setLightbox(selectedImage.src)} title="Ver imagen ampliada">Ampliar</TB>
+            <TB onMouseDown={() => setSelectedImage(null)} title="Ocultar controles"><Icon name="x" size={12} /></TB>
+          </div>
+        )}
 
         {/* ── Área editable ── */}
         <div

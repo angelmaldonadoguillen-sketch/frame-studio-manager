@@ -508,6 +508,14 @@ const sanitizeDescHTML = (html) => {
           el.setAttribute('referrerpolicy', 'no-referrer');
           return;
         }
+        if (el.tagName === 'IMG' && name === 'data-frame-size') {
+          if (!['sm', 'md', 'lg'].includes(val)) el.removeAttribute(attr.name);
+          return;
+        }
+        if (el.tagName === 'IMG' && name === 'data-frame-align') {
+          if (!['left', 'center', 'right'].includes(val)) el.removeAttribute(attr.name);
+          return;
+        }
         if (el.tagName === 'A' && name === 'href') {
           if (!/^(https?:\/\/|mailto:)/i.test(val)) el.removeAttribute(attr.name);
           return;
