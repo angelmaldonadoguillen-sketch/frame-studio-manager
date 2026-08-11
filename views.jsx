@@ -67,20 +67,6 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
             <div className="flex items-center gap-1.5 mb-1" style={{ color: 'var(--text-muted)' }}>
               <span className="rounded-full flex-shrink-0" style={{ width: 5, height: 5, background: t.color }} />
               <span className="text-[11px] font-medium truncate">{t.label}</span>
-              {/* En el calendario un proyecto aparece en DOS días —el de
-                  sesión y el de entrega— y hasta ahora se veía la misma
-                  tarjeta repetida sin ninguna diferencia. El dato existía
-                  (_kind, se usa para arrastrar) pero no se mostraba, así que
-                  era indistinguible de un duplicado por error. */}
-              {project._kind && (
-                <>
-                  <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>·</span>
-                  <span className="text-[11px] font-medium flex-shrink-0"
-                        style={{ color: project._kind === 'session' ? 'var(--info)' : 'var(--text-dim)' }}>
-                    {project._kind === 'session' ? 'Trabajo' : 'Fecha límite'}
-                  </span>
-                </>
-              )}
               {pf.estado !== false && (
                 <>
                   <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>·</span>
@@ -680,15 +666,22 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     return cells;
   }, [year, month]);
 
+  // Una tarea, un día: se ubica por su fecha límite y nada más.
+  //
+  // Antes se mapeaba a deadline Y sessionDate, así que una tarea con fechas
+  // distintas aparecía dos veces. Y como arrastrar movía una sola de las dos,
+  // mover una tarjeta la partía en dos: la que arrastrabas iba al día nuevo y
+  // quedaba una copia en el día de la otra fecha.
+  //
+  // sessionDate se conserva en el dato —lo usa el carry-over automático— pero
+  // deja de dibujarse aparte en el calendario.
   const projectsByDate = useMemo(() => {
     const map = {};
     projects.forEach(p => {
-      [p.deadline, p.sessionDate].filter(Boolean).forEach(date => {
-        if (!map[date]) map[date] = [];
-        if (!map[date].some(x => x.id === p.id)) {
-          map[date].push({ ...p, _kind: date === p.deadline ? 'deadline' : 'session' });
-        }
-      });
+      const date = p.deadline || p.sessionDate;
+      if (!date) return;
+      if (!map[date]) map[date] = [];
+      if (!map[date].some(x => x.id === p.id)) map[date].push(p);
     });
     return map;
   }, [projects]);
@@ -738,7 +731,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
 
   // ── Drag handlers ─────────────────────────────────────────────
   const handleDragStart = (e, p) => {
-    setDragging({ id: p.id, kind: p._kind });
+    setDragging({ id: p.id });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', p.id); // needed for Firefox
   };
@@ -753,10 +746,10 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     if (!dragging) return;
     const project = projects.find(p => p.id === dragging.id);
     if (!project) return;
-    const currentDate = dragging.kind === 'deadline' ? project.deadline : project.sessionDate;
+    const currentDate = project.deadline;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
     // Mueve deadline Y sessionDate juntos para que el proyecto no aparezca en dos días
-    onUpdateProject && onUpdateProject({ ...project, [dragging.kind]: iso });
+    onUpdateProject && onUpdateProject({ ...project, deadline: iso, sessionDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
 
@@ -831,13 +824,13 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
                   <div className="space-y-1.5">
                     {items.map(p => (
                       <WeekCard
-                        key={p.id + p._kind}
+                        key={p.id}
                         project={p}
                         onClick={() => !dragging && onOpenProject(p.id)}
                         draggable
                         onDragStart={(e) => handleDragStart(e, p)}
                         onDragEnd={handleDragEnd}
-                        dragging={dragging?.id === p.id && dragging?.kind === p._kind}
+                        dragging={dragging?.id === p.id}
                         onDelete={onDeleteProject}
                         onDuplicate={onDuplicateProject}
                         onToggleFavorite={onToggleFavorite}
@@ -1018,7 +1011,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
 
   // ── Drag handlers ───────────────────────────────────────────────
   const handleDragStart = (e, p) => {
-    setDragging({ id: p.id, kind: p._kind });
+    setDragging({ id: p.id });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', p.id);
   };
@@ -1033,21 +1026,21 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
   const handleDrop = (e, iso) => {
     e.preventDefault();
     if (!dragging) return;
-    // Find the project across all days (items have _kind injected)
+    // El proyecto puede estar en cualquier dia del mapa.
     let found = null;
     Object.values(projectsByDate).forEach(items => {
-      const match = items.find(p => p.id === dragging.id && p._kind === dragging.kind);
+      const match = items.find(p => p.id === dragging.id);
       if (match) found = match;
     });
     if (!found) return;
-    const currentDate = dragging.kind === 'deadline' ? found.deadline : found.sessionDate;
+    const currentDate = found.deadline;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
-    // Strip _kind before saving, move both dates together
-    const { _kind, ...cleanProject } = found;
-    onUpdateProject && onUpdateProject({ ...cleanProject, [dragging.kind]: iso });
+    // Las dos fechas se mueven juntas: moviendo una sola volverian a
+    // separarse y la tarjeta se partiria en dos. cleanProject ya no lleva _kind.
+    const cleanProject = found;
+    onUpdateProject && onUpdateProject({ ...cleanProject, deadline: iso, sessionDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
-
   return (
     // overflow-x-auto: scroll horizontal cuando las 7 columnas no caben
     // Cada columna tiene min-width 190px para que las tarjetas no se aplasten
@@ -1056,7 +1049,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
         {days.map((dt, i) => {
           const iso        = localISO(dt);
           const items      = projectsByDate[iso] || [];
-          const isToday    = dt.toDateString() === todayDt.toDateString();
+    // Las dos fechas se mueven juntas: si se moviera una sola volverian a
           const isDragOver = dragOverDate === iso;
           return (
             <div
@@ -1097,13 +1090,13 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                 )}
                 {items.map(p => (
                   <WeekCard
-                    key={p.id + p._kind}
+                    key={p.id}
                     project={p}
                     onClick={() => !dragging && onOpenProject(p.id)}
                     draggable
                     onDragStart={(e) => handleDragStart(e, p)}
                     onDragEnd={handleDragEnd}
-                    dragging={dragging?.id === p.id && dragging?.kind === p._kind}
+                    dragging={dragging?.id === p.id}
                     onToggleFavorite={onToggleFavorite}
                     onDelete={onDeleteProject}
                     onDuplicate={onDuplicateProject}
@@ -1146,7 +1139,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
           </div>
         )}
         {items.map(p => (
-          <ProjectCardMini key={p.id + p._kind} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />
+          <ProjectCardMini key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />
         ))}
         {/* Alta rápida en este día */}
         {onQuickCreate && (
