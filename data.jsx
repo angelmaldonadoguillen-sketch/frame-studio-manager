@@ -490,8 +490,22 @@ const sanitizeDescHTML = (html) => {
         if (name.startsWith('on')) { el.removeAttribute(attr.name); return; }
 
         if (el.tagName === 'IMG' && name === 'src') {
-          // Sólo http(s) y data:image. javascript: y data:text/html ejecutan.
-          if (!/^(https?:\/\/|data:image\/)/i.test(val)) el.removeAttribute(attr.name);
+          // Sólo imágenes remotas http(s) raster. Se rechazan data:, blob: y
+          // SVG para no guardar contenido activo dentro de la descripción.
+          if (!FrameAttachments.normalizeRemoteImageUrl(val)) el.removeAttribute(attr.name);
+          else el.setAttribute('src', FrameAttachments.normalizeRemoteImageUrl(val));
+          return;
+        }
+        if (el.tagName === 'IMG' && name === 'alt') {
+          el.setAttribute('alt', val.slice(0, 200));
+          return;
+        }
+        if (el.tagName === 'IMG' && name === 'loading') {
+          el.setAttribute('loading', 'lazy');
+          return;
+        }
+        if (el.tagName === 'IMG' && name === 'referrerpolicy') {
+          el.setAttribute('referrerpolicy', 'no-referrer');
           return;
         }
         if (el.tagName === 'A' && name === 'href') {

@@ -27,6 +27,65 @@
     } catch (_) { return false; }
   };
 
+  const normalizeRemoteImageUrl = (value) => {
+    try {
+      const url = new URL(String(value || '').trim());
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+      // SVG remoto no se admite: puede contener contenido activo y no forma
+      // parte de los formatos raster aceptados por las cargas locales.
+      if (/\.svg(?:z)?$/i.test(url.pathname)) return null;
+      url.username = '';
+      url.password = '';
+      return url.href;
+    } catch (_) { return null; }
+  };
+
+  const safeCodePoint = (raw, radix) => {
+    const point = parseInt(raw, radix);
+    return Number.isInteger(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : '';
+  };
+
+  const decodeHtmlEntities = (value) => String(value || '')
+    .replace(/&#(\d+);/g, (_, n) => safeCodePoint(n, 10))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => safeCodePoint(n, 16))
+    .replace(/&amp;/gi, '&').replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
+
+  const extractImageUrlsFromHtml = (html) => {
+    const urls = [];
+    const seen = new Set();
+    const re = /<img\b[^>]*\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
+    let match;
+    while ((match = re.exec(String(html || ''))) !== null && urls.length < 10) {
+      const normalized = normalizeRemoteImageUrl(decodeHtmlEntities(match[1] || match[2] || match[3] || ''));
+      if (normalized && !seen.has(normalized)) { seen.add(normalized); urls.push(normalized); }
+    }
+    return urls;
+  };
+
+  const looksLikeImageUrl = (value) => {
+    const normalized = normalizeRemoteImageUrl(value);
+    if (!normalized) return false;
+    const url = new URL(normalized);
+    if (/\.(?:jpe?g|png|webp|gif|avif)(?:$|[?#])/i.test(normalized)) return true;
+    if (/^(?:i\.pinimg\.com|images\.unsplash\.com|encrypted-tbn\d*\.gstatic\.com)$/i.test(url.hostname)) return true;
+    if (/(?:^|\.)googleusercontent\.com$/i.test(url.hostname)) return true;
+    return /^(?:jpe?g|png|webp|gif|avif)$/i.test(url.searchParams.get('format') || url.searchParams.get('fm') || '');
+  };
+
+  const classifyPasteSource = ({ items = [], html = '', text = '' } = {}) => {
+    const imageItem = [...items].find(item => String(item?.type || '').toLowerCase().startsWith('image/'));
+    if (imageItem) return { kind: 'file', item: imageItem };
+    if (html) {
+      const urls = extractImageUrlsFromHtml(html);
+      return urls.length ? { kind: 'html-images', urls } : { kind: 'html', html };
+    }
+    const trimmed = String(text || '').trim();
+    const url = normalizeRemoteImageUrl(trimmed);
+    if (url && looksLikeImageUrl(url)) return { kind: 'text-image-url', urls: [url] };
+    return { kind: 'text' };
+  };
+
   const safeFileName = (name) => String(name || 'image')
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
@@ -65,5 +124,8 @@
     });
   };
 
-  return { MAX_IMAGE_BYTES, validateImageFile, validateImageUrl, safeFileName, storageErrorMessage, waitForUpload };
+  return {
+    MAX_IMAGE_BYTES, validateImageFile, validateImageUrl, normalizeRemoteImageUrl,
+    extractImageUrlsFromHtml, looksLikeImageUrl, classifyPasteSource, safeFileName, storageErrorMessage, waitForUpload,
+  };
 });
