@@ -8,6 +8,7 @@ Thumbs.db
 
 # Logs
 *.log
+node_modules/
 
 # Credenciales Firebase personales — cada quien tiene las suyas
 firebase.config.js
