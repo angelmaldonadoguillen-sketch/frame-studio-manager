@@ -1555,6 +1555,7 @@ const compressImg = (file, maxW = 1200, quality = 0.80) => new Promise(res => {
 const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   const editorRef   = useRef(null);
   const fileRef     = useRef(null);
+  const imageMenuRef = useRef(null);
   const uploadingRef = useRef(false); // evita guardar mientras sube imagen
   const [focused,   setFocused]   = useState(false);
   const [lightbox,  setLightbox]  = useState(null);
@@ -1719,11 +1720,14 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     const rect = img.getBoundingClientRect();
     const viewportPadding = 12;
     const menuWidth = Math.min(520, window.innerWidth - viewportPadding * 2);
+    const menuHeight = imageMenuRef.current?.offsetHeight || 108;
     const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - menuWidth - viewportPadding));
-    const showBelow = window.innerHeight - rect.bottom >= 64 || rect.top < 64;
+    const belowTop = rect.bottom + 8;
+    const aboveTop = rect.top - menuHeight - 8;
+    const showBelow = belowTop + menuHeight <= window.innerHeight - viewportPadding;
     setImageMenuPosition({
       left,
-      top: showBelow ? rect.bottom + 8 : Math.max(viewportPadding, rect.top - 56),
+      top: Math.max(viewportPadding, Math.min(showBelow ? belowTop : aboveTop, window.innerHeight - menuHeight - viewportPadding)),
       width: menuWidth,
     });
   };
@@ -1739,6 +1743,14 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
       window.removeEventListener('scroll', reposition, true);
     };
   }, [selectedImage]);
+
+  // La primera posiciÃ³n usa una estimaciÃ³n. Cuando la barra ya se renderizÃ³,
+  // se recoloca con su altura real para no salirse en pantallas pequeÃ±as.
+  useEffect(() => {
+    if (!selectedImage || !imageMenuPosition) return undefined;
+    const frame = window.requestAnimationFrame(() => positionImageMenu(selectedImage));
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedImage, imageMenuPosition?.width]);
 
   const updateSelectedImage = (attribute, value) => {
     if (!selectedImage || !editorRef.current?.contains(selectedImage)) return;
@@ -1803,11 +1815,14 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
 
         {selectedImage && imageMenuPosition && (
           <div
+            ref={imageMenuRef}
             className="fixed z-[10000] flex flex-wrap items-center gap-1.5 rounded-lg border px-3 py-2 shadow-xl anim-fade-in"
             style={{
               left: imageMenuPosition.left,
               top: imageMenuPosition.top,
               width: imageMenuPosition.width,
+              maxWidth: 'calc(100vw - 24px)',
+              boxSizing: 'border-box',
               background: 'var(--surface-2)',
               borderColor: 'var(--border-2)',
               boxShadow: '0 12px 32px rgba(0,0,0,0.28)',
