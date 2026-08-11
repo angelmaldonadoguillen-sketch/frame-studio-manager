@@ -135,9 +135,14 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/frame_invites/$(wsId + '__' + request.auth.token.email)) )
       );
 
-      allow delete: if approved()
-                    && resource.data.ownerId == myUid()
-                    && resource.data.kind == 'team';
+      // El dueño puede borrar cualquier tablero suyo, personal incluido.
+      // Antes sólo se permitía borrar los de equipo, con lo cual los tableros
+      // personales duplicados —que se generaron cuando el listener fallaba y
+      // el alta automática los leía como "no tiene ninguno"— quedaban para
+      // siempre y sin forma de limpiarlos desde la app.
+      // Que no se quede sin ninguno se controla en la interfaz: es una regla
+      // de usabilidad, no de seguridad.
+      allow delete: if approved() && resource.data.ownerId == myUid();
 
       // ── Config por tablero ──
       // kanban_columns, project_types, display_settings. Antes eran

@@ -25,6 +25,7 @@ const initialState = {
   // pertenece al tablero activo y se vacía al cambiar de uno a otro.
   workspaces: [],
   workspacesLoading: true,
+  workspacesError: false,
   activeWorkspaceId: _savedWorkspaceId,
   // ── Proyectos ──
   projects: [],
@@ -101,6 +102,9 @@ function reducer(state, action) {
     };
     // ── Tableros ──
     case 'set_workspaces': {
+      // error: la consulta fallo. Distinto de "no tiene tableros": sin esta
+      // marca, el alta automatica creaba uno nuevo en cada recarga.
+
       // El id guardado en localStorage sólo vale si sigue siendo un tablero
       // al que el usuario pertenece: pueden haberlo sacado del equipo, o el
       // tablero pudo borrarse. Si no vale, cae al personal.
@@ -111,6 +115,7 @@ function reducer(state, action) {
         ...state,
         workspaces: action.workspaces,
         workspacesLoading: false,
+        workspacesError: !!action.error,
         activeWorkspaceId: valid ? state.activeWorkspaceId : (fallback ? fallback.id : null),
       };
     }
@@ -243,7 +248,7 @@ const InviteBanner = ({ invites, onAccept, onDecline }) => {
 // ── Selector de tablero ─────────────────────────────────────────
 // Cambiar de tablero recarga todos los datos: el estado se vacía en el
 // dispatch y los listeners se vuelven a suscribir con el workspaceId nuevo.
-const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam }) => {
+const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace }) => {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
@@ -267,27 +272,58 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam }) => {
     setName(''); setCreating(false); setOpen(false);
   };
 
-  const Row = ({ w }) => {
+  const Row = ({ w, canDelete }) => {
     const isActive = w.id === state.activeWorkspaceId;
+    const [confirm, setConfirm] = useState(false);
+    const isOwner = w.ownerId === state.currentUserId;
+    const empty   = (w.projectCount || 0) === 0;
+
     return (
-      <button
-        onClick={() => { dispatch({ type: 'set_active_workspace', id: w.id }); setOpen(false); }}
-        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors"
+      <div
+        className="group flex items-center gap-1 pr-1 rounded-lg transition-colors"
         style={{ background: isActive ? 'var(--accent-soft)' : 'transparent' }}
         onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--surface-3)'; }}
         onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
       >
-        <Icon name={w.kind === 'personal' ? 'user' : 'users'} size={13}
-              style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)', flexShrink: 0 }} />
-        <span className="flex-1 min-w-0 truncate text-[13px]" style={{ color: isActive ? 'var(--accent)' : 'var(--text)' }}>
-          {w.name}
-        </span>
-        {w.kind === 'team' && (
-          <span className="text-[10px] tnum flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-            {(w.memberIds || []).length}/3
+        <button
+          onClick={() => { dispatch({ type: 'set_active_workspace', id: w.id }); setOpen(false); }}
+          className="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2 text-left"
+        >
+          <Icon name={w.kind === 'personal' ? 'user' : 'users'} size={13}
+                style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)', flexShrink: 0 }} />
+          <span className="flex-1 min-w-0 truncate text-[13px]" style={{ color: isActive ? 'var(--accent)' : 'var(--text)' }}>
+            {w.name}
           </span>
+          {w.kind === 'team' && (
+            <span className="text-[10px] tnum flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+              {(w.memberIds || []).length}/3
+            </span>
+          )}
+        </button>
+
+        {/* Borrar: sólo el dueño, y nunca el último que queda — sin ningún
+            tablero la app no tiene dónde poner nada. */}
+        {isOwner && canDelete && (
+          confirm ? (
+            <span className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => { onDeleteWorkspace(w); setConfirm(false); }}
+                className="text-[11px] font-semibold px-1.5 py-0.5 rounded"
+                style={{ background: 'var(--danger)', color: '#fff' }}>Borrar</button>
+              <button onClick={() => setConfirm(false)}
+                className="text-[11px] px-1 py-0.5 rounded" style={{ color: 'var(--text-muted)' }}>No</button>
+            </span>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirm(true); }}
+              className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+              style={{ color: 'var(--text-muted)' }}
+              title="Eliminar tablero"
+            >
+              <Icon name="trash" size={12} />
+            </button>
+          )
         )}
-      </button>
+      </div>
     );
   };
 
@@ -314,14 +350,14 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam }) => {
           }}
         >
           <div className="p-1.5 space-y-0.5">
-            {personal.map(w => <Row key={w.id} w={w} />)}
+            {personal.map(w => <Row key={w.id} w={w} canDelete={state.workspaces.length > 1} />)}
 
             {teams.length > 0 && (
               <>
                 <div className="px-2.5 pt-2 pb-1 text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                   Equipos
                 </div>
-                {teams.map(w => <Row key={w.id} w={w} />)}
+                {teams.map(w => <Row key={w.id} w={w} canDelete={state.workspaces.length > 1} />)}
               </>
             )}
           </div>
@@ -370,7 +406,7 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam }) => {
 };
 
 // ── Sidebar ─────────────────────────────────────────────────────
-const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
+const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }) => {
   const recentProjects = state.projects.slice(0, 5);
   const me = state.team.find(m => m.id === state.currentUserId) || getUser(state.currentUserId);
 
@@ -393,6 +429,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
 
   // Quiénes integran el tablero abierto (no la plataforma entera).
   const wsPeople = workspaceMembers(state.workspaces.find(w => w.id === state.activeWorkspaceId));
+  const activeKind = state.workspaces.find(w => w.id === state.activeWorkspaceId)?.kind;
 
   return (
     <aside className="w-[240px] flex-shrink-0 border-r border-app flex flex-col" style={{ background: 'var(--surface)' }}>
@@ -418,7 +455,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
       </div>
 
       {/* Tablero activo */}
-      <WorkspaceSwitcher state={state} dispatch={dispatch} onCreateTeam={onCreateTeam} />
+      <WorkspaceSwitcher state={state} dispatch={dispatch} onCreateTeam={onCreateTeam} onDeleteWorkspace={onDeleteWorkspace} />
 
       {/* Usuario autenticado */}
       <div className="px-3 py-3 border-b border-app">
@@ -450,13 +487,16 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
 
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4 select-none">Trabajo</div>
         <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
-        {/* El contador de pendientes es lo que hace que la aprobación exista:
-            sin un aviso visible, las solicitudes se quedan esperando sin que
-            nadie sepa que están ahí. */}
-        <NavItem icon="users"     label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })}
-                 count={pendingCount || undefined} accent={pendingCount > 0} />
+        {/* "Equipo" sólo aparece en tableros de equipo: en el personal estás
+            solo y la sección no tenía nada que mostrar.
+            Las aprobaciones se mudaron a Ajustes — son permiso de plataforma,
+            no pertenencia a un tablero, y mezclarlas obligaba a mostrar
+            "Equipo" donde no correspondía. */}
+        {activeKind === 'team' && (
+          <NavItem icon="users"   label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
+        )}
         <NavItem icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
-        <NavItem icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} />
+        <NavItem icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} count={pendingCount || undefined} accent={pendingCount > 0} />
 
         <div className="mt-5">
           <div className="flex items-center justify-between px-2 py-1.5">
@@ -1133,7 +1173,7 @@ const PREVIEW_FIELD_LABELS = [
   { key: 'progreso',     label: 'Progreso',       icon: 'layers'   },
 ];
 
-const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleCarryOverProjects }) => {
+const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleCarryOverProjects, pendingUsers = [], onApproveUser, onRejectUser }) => {
   const [carryOver, setCarryOver] = useState(false);
 
   useEffect(() => {
@@ -1195,6 +1235,43 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
           <h1 className="font-display text-2xl font-bold mb-1" style={{ letterSpacing: '-0.02em' }}>Ajustes</h1>
           <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Configuración del espacio de trabajo</p>
         </div>
+
+        {/* Solicitudes de acceso — permiso de PLATAFORMA, no de tablero.
+            Vivían en la sección Equipo, lo que obligaba a mostrarla incluso en
+            un tablero personal donde no hay equipo que ver. */}
+        {pendingUsers.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-[13px] font-semibold">Solicitudes de acceso</h2>
+              <span className="text-[10px] tnum px-1.5 py-0.5 rounded"
+                    style={{ background: 'var(--warn-soft-2)', color: 'var(--warn)' }}>
+                {pendingUsers.length}
+              </span>
+            </div>
+            <p className="text-[12px] mb-3" style={{ color: 'var(--text-muted)' }}>
+              Al aprobar a alguien puede usar FRAME y se le crea su tablero personal.
+              No entra a ninguno de los tuyos: para eso hay que invitarlo.
+            </p>
+            <div className="space-y-1.5">
+              {pendingUsers.map(u => (
+                <div key={u.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+                     style={{ background: 'var(--surface-2)', boxShadow: 'inset 0 .5px 0 rgba(255,255,255,.06)' }}>
+                  <Avatar user={u} size={30} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-semibold truncate">{u.name || 'Sin nombre'}</div>
+                    <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{u.email} · {u.role}</div>
+                  </div>
+                  <button onClick={() => onApproveUser(u.id)}
+                    className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition-all"
+                    style={{ background: 'var(--accent)', color: '#131315' }}>Aprobar</button>
+                  <button onClick={() => onRejectUser(u.id)}
+                    className="px-3 py-1.5 rounded-md text-[12px] font-medium"
+                    style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}>Rechazar</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Vista previa de tarjetas */}
         <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -1299,7 +1376,7 @@ const App = () => {
         dispatch({ type: 'set_workspaces', workspaces });
       }, (err) => {
         console.error('[FRAME] Workspaces:', err);
-        dispatch({ type: 'set_workspaces', workspaces: [] });
+        dispatch({ type: 'set_workspaces', workspaces: [], error: true });
       });
     return () => unsub();
   }, [authUser?.uid]);
@@ -1319,6 +1396,12 @@ const App = () => {
     if (!authUser || state.workspacesLoading) return;
     if (state.workspaces.length > 0) return;
     if (creatingWsRef.current) return;           // evita duplicar si el efecto se re-dispara
+
+    // Sólo si la consulta REALMENTE devolvió vacío. Si falló —como pasaba
+    // cuando las reglas estaban mal— el error handler también dejaba la lista
+    // en cero, y esto lo leía como "no tiene ningún tablero" y creaba uno.
+    // Cada recarga durante ese rato generaba otro duplicado.
+    if (state.workspacesError) return;
 
     // Sólo si ya está aprobado; si sigue pendiente ve la pantalla de espera.
     const me = state.team.find(m => m.id === authUser.uid);
@@ -1445,6 +1528,20 @@ const App = () => {
   const handleDeclineInvite = (invite) =>
     window.db.collection('frame_invites').doc(invite.id).delete()
       .catch(err => console.error('[FRAME] Rechazar invitación:', err));
+
+  // ── Eliminar un tablero ─────────────────────────────────────
+  // No borra los proyectos ni los clientes que tuviera: quedan huérfanos en
+  // Firestore en vez de desaparecer sin aviso. Es deliberado — perder trabajo
+  // por un clic es mucho peor que dejar documentos sin usar.
+  const handleDeleteWorkspace = (ws) => {
+    if (!ws || state.workspaces.length <= 1) return;
+    if (state.activeWorkspaceId === ws.id) {
+      const next = state.workspaces.find(w => w.id !== ws.id);
+      if (next) dispatch({ type: 'set_active_workspace', id: next.id });
+    }
+    window.db.collection('frame_workspaces').doc(ws.id).delete()
+      .catch(err => console.error('[FRAME] Eliminar tablero:', err));
+  };
 
   // Invitaciones enviadas desde el tablero abierto, para que el dueño vea a
   // quién le falta responder y pueda cancelar.
@@ -2057,7 +2154,7 @@ const App = () => {
 
   return (
     <div className="h-screen flex" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
-      <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} onCreateTeam={handleCreateTeamWorkspace} />
+      <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} onCreateTeam={handleCreateTeamWorkspace} onDeleteWorkspace={handleDeleteWorkspace} />
 
       {/* El banner va dentro de la columna de contenido y no sobre toda la
           pantalla: avisa sin tapar ni interrumpir lo que se estaba haciendo. */}
@@ -2078,7 +2175,6 @@ const App = () => {
       ) : state.section === 'team' ? (
         <TeamSection
           team={wsMembers}
-          pending={iAmAdmin ? state.team.filter(m => m.status === 'pending') : []}
           workspaceName={activeWs?.name}
           canInvite={activeWs?.kind === 'team' && activeWs?.ownerId === authUser?.uid}
           onInvite={handleInvite}
@@ -2103,6 +2199,9 @@ const App = () => {
         />
       ) : state.section === 'settings' ? (
         <SettingsSection
+          pendingUsers={iAmAdmin ? state.team.filter(m => m.status === 'pending') : []}
+          onApproveUser={handleApproveUser}
+          onRejectUser={handleRejectUser}
           previewFields={state.previewFields}
           onToggle={handleTogglePreviewField}
           carryOverProjects={state.carryOverProjects}

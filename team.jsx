@@ -903,7 +903,6 @@ const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMem
               al recargar. Ahora la gente entra registrándose y vos aprobás. */}
         </header>
 
-        <PendingApprovals pending={pending} onApprove={onApproveUser} onReject={onRejectUser} />
         <InviteMember
           canInvite={canInvite}
           full={team.length >= 3}
