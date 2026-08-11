@@ -1358,6 +1358,32 @@ const App = () => {
 
   const iAmAdmin = !!state.team.find(m => m.id === state.currentUserId)?.platformAdmin;
 
+  // ── Mantener al día mi copia dentro del tablero ─────────────
+  // El tablero guarda una copia de los datos de presentación de cada miembro
+  // (ver memberCard). Toda copia se desactualiza: si alguien cambia su nombre
+  // o su avatar, el tablero seguiría mostrando los viejos. Y los tableros
+  // creados antes de que existiera ese campo directamente no lo tienen, con
+  // lo cual el miembro aparece como "?" sin nombre.
+  //
+  // Cada quien reescribe SU propia tarjeta cuando detecta que quedó distinta.
+  // Sólo la propia: las reglas no dejan tocar la de otro, y además nadie
+  // conoce el perfil ajeno para poder actualizarlo.
+  useEffect(() => {
+    if (!authUser || !activeWs) return;
+    const me = state.team.find(m => m.id === authUser.uid);
+    if (!me) return;
+
+    const mine    = (activeWs.members || {})[authUser.uid];
+    const fresh   = memberCard(me);
+    const changed = !mine || ['name', 'initials', 'color', 'role', 'email']
+      .some(k => mine[k] !== fresh[k]);
+    if (!changed) return;
+
+    window.db.collection('frame_workspaces').doc(activeWs.id)
+      .update({ [`members.${authUser.uid}`]: fresh })
+      .catch(err => console.error('[FRAME] Sincronizar mi ficha del tablero:', err));
+  }, [authUser?.uid, activeWs?.id, activeWs?.members, state.team]);
+
   // ── Invitaciones dirigidas a mí ─────────────────────────────
   // Se filtran por email porque al invitar sólo se conoce el email, no el
   // uid: la persona puede ni siquiera tener cuenta todavía.
