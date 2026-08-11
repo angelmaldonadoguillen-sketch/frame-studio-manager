@@ -114,10 +114,17 @@
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
 
+  <!-- Mismo orden que index.html. clients.jsx y team.jsx hacen falta aunque
+       no se rendericen directamente: el modal usa ClientAutocomplete y la
+       sección de equipo usa Avatar/AVAILABILITY. Sin ellos el modal crashea
+       al abrirse — que es exactamente lo que este banco existe para detectar
+       antes de subir nada. -->
   <script type="text/babel" src="icons.jsx"></script>
   <script type="text/babel" src="data.jsx"></script>
   <script type="text/babel" src="modal.jsx"></script>
   <script type="text/babel" src="views.jsx"></script>
+  <script type="text/babel" src="clients.jsx"></script>
+  <script type="text/babel" src="team.jsx"></script>
 
   <script type="text/babel">
     // localISO, no toISOString: en UTC-6 este último devuelve mañana
@@ -137,6 +144,9 @@
       { id:'u3', name:'Rafael A.',       initials:'RA', color:'#64d2ff', status:'active' },
     ];
 
+    // Se normaliza igual que en la app: los datos entran por normalizeProject
+    // en el listener de Firestore. Sin esto el banco miente — probaría contra
+    // objetos que en la app real nunca existen.
     const MOCK = [
       { id:'p1', title:'Reel — ID Motos Nacaome', client:'ID Motos', type:'reel',
         status:'editing', priority:'high', assignees:['u1','u2'],
@@ -160,10 +170,14 @@
         cover:{type:'color',value:'#252527'}, description:[] },
     ];
 
+    const PROJECTS = MOCK.map(normalizeProject);
+
     const PF = { tipo:true, cliente:true, estado:true, prioridad:true,
                  responsables:true, deadline:true, presupuesto:true, tags:true, progreso:true };
 
-    const Harness = () => (
+    const Harness = () => {
+      const [openId, setOpenId] = React.useState(null);
+      return (
       <div>
         <div className="harness-bar">
           <b>Banco de pruebas</b>
@@ -173,7 +187,7 @@
         <div className="harness-sec">
           <div className="harness-h">ProjectCardMini — los cuatro estados de entrega</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(268px,1fr))', gap:10 }}>
-            {MOCK.map(p => (
+            {PROJECTS.map(p => (
               <ProjectCardMini key={p.id} project={p} previewFields={PF}
                 onClick={()=>{}} onToggleFavorite={()=>{}}
                 onDelete={()=>{}} onDuplicate={()=>{}} />
@@ -184,7 +198,7 @@
         <div className="harness-sec">
           <div className="harness-h">Variante compacta</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(268px,1fr))', gap:10 }}>
-            {MOCK.slice(0,2).map(p => (
+            {PROJECTS.slice(0,2).map(p => (
               <ProjectCardMini key={p.id} project={p} previewFields={PF} compact
                 onClick={()=>{}} onToggleFavorite={()=>{}} />
             ))}
@@ -192,16 +206,48 @@
         </div>
 
         <div className="harness-sec">
+          <div className="harness-h">ProjectModal — abrir para revisar el detalle</div>
+          <button
+            onClick={() => setOpenId(PROJECTS[0].id)}
+            className="px-3 py-2 rounded-lg text-[13px] font-semibold"
+            style={{ background: 'var(--accent)', color: '#131315' }}
+          >
+            Abrir tarjeta de ejemplo
+          </button>
+        </div>
+
+        {openId && (
+          <ProjectModal
+            key={openId}
+            project={PROJECTS.find(p => p.id === openId)}
+            projects={PROJECTS}
+            onNavigate={setOpenId}
+            currentUserId="u1"
+            team={window.__liveTeam}
+            clients={[{ id:'cl1', name:'ID Motos', color:'#64D2FF', initials:'IM' }]}
+            onCreateClient={()=>{}}
+            onClose={() => setOpenId(null)}
+            onUpdate={()=>{}}
+            onDelete={()=>{}}
+            customTypes={PROJECT_TYPES}
+            onCreateCustomType={()=>{}}
+            onUpdateCustomType={()=>{}}
+            onDeleteCustomType={()=>{}}
+          />
+        )}
+
+        <div className="harness-sec">
           <div className="harness-h">GalleryCard</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))', gap:12 }}>
-            {MOCK.slice(0,3).map(p => (
+            {PROJECTS.slice(0,3).map(p => (
               <GalleryCard key={p.id} project={p} previewFields={PF}
                 onClick={()=>{}} onToggleFavorite={()=>{}} />
             ))}
           </div>
         </div>
       </div>
-    );
+      );
+    };
 
     ReactDOM.createRoot(document.getElementById('root')).render(<Harness />);
   </script>

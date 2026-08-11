@@ -570,6 +570,11 @@ const normalizeProject = (p) => ({
   type:         p.type         ?? 'other',
   status:       p.status       ?? 'briefing',
   priority:     p.priority     ?? 'medium',
+  // Las fechas faltantes dejaban el campo del modal en "dd/mm/aaaa" y
+  // rompían el cálculo de urgencia, que compara contra deadline.
+  startDate:    p.startDate    ?? localISO(new Date()),
+  deadline:     p.deadline     ?? p.sessionDate ?? localISO(new Date()),
+  sessionDate:  p.sessionDate  ?? p.deadline    ?? localISO(new Date()),
   currency:     p.currency     ?? 'USD',
   budget:       typeof p.budget === 'number' ? p.budget : 0,
   tags:         Array.isArray(p.tags)         ? p.tags         : [],

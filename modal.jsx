@@ -1199,7 +1199,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 <section>
                   <SectionTitle icon="clock">Timeline interno</SectionTitle>
                   <div className="relative pl-4">
-                    <div className="absolute left-[5px] top-1 bottom-1 w-px bg-[var(--border-2)]"></div>
+                    {/* La línea va en x=10 porque los puntos, con -left-[11px]
+                        dentro del pl-4, quedan centrados ahí. Estaba en x=5 y
+                        los puntos se veían montados sobre ella en vez de
+                        ensartados. */}
+                    <div className="absolute left-[10px] top-1 bottom-1 w-px bg-[var(--border-2)]"></div>
                     {project.timeline.map((t, i) => (
                       <div key={t.id} className="group relative flex items-start gap-3 py-2">
                         <button
@@ -1477,21 +1481,46 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
 
   // Sube imagen a Firebase Storage (igual que cover) y la inserta en el cursor
   const uploadAndInsert = async (blob) => {
-    if (!blob || !window.storage) return;
+    if (!blob) return;
+    if (!window.storage) {
+      window.frameToast?.('Las imágenes necesitan Storage habilitado en Firebase.');
+      return;
+    }
     uploadingRef.current = true;
     setUploading(true);
     try {
       const path  = `frame-descriptions/${projectId || 'general'}/${Date.now()}.jpg`;
       const stRef = window.storage.ref(path);
       const task  = stRef.put(blob, { contentType: 'image/jpeg' });
+
+      // Timeout obligatorio: si el bucket de Storage no está creado, la tarea
+      // no falla — se queda esperando. Sin esto el editor mostraba "subiendo…"
+      // para siempre y no había forma de saber que pasaba.
       await new Promise((resolve, reject) => {
-        task.on('state_changed', null, reject, resolve);
+        const t = setTimeout(
+          () => reject(Object.assign(new Error('timeout'), { code: 'storage/timeout' })),
+          25000
+        );
+        task.on('state_changed', null,
+          (e) => { clearTimeout(t); reject(e); },
+          ()  => { clearTimeout(t); resolve(); });
       });
+
       const src = await task.snapshot.ref.getDownloadURL();
       editorRef.current?.focus();
       document.execCommand('insertHTML', false, `<img src="${src}" /><br>`);
     } catch (err) {
-      console.error('[FRAME] Image upload:', err);
+      console.error('[FRAME] Subir imagen:', err);
+      const code = err?.code || '';
+      const msg =
+        code === 'storage/timeout' || code === 'storage/unknown' || code === 'storage/retry-limit-exceeded'
+          ? 'No se pudo subir la imagen. Falta habilitar Storage en Firebase (requiere plan Blaze).'
+        : code === 'storage/unauthorized'
+          ? 'No tenés permiso para subir imágenes. Revisá las reglas de Storage.'
+        : code === 'storage/quota-exceeded'
+          ? 'Se agotó el espacio de Storage.'
+          : 'No se pudo subir la imagen. Probá de nuevo.';
+      window.frameToast?.(msg);
     } finally {
       uploadingRef.current = false;
       setUploading(false);
