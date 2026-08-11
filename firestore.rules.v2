@@ -1,0 +1,202 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────
+// FRAME Studio Manager — Reglas v2: tableros (workspaces)
+//
+// NO PUBLICAR TODAVÍA. Estas reglas asumen que el código ya escribe
+// workspaceId en los documentos y que existe frame_workspaces. Publicarlas
+// antes de desplegar la Fase 1 deja la app sin acceso a nada.
+// Las que están activas hoy son firestore.rules.
+//
+// ── El modelo ──
+// Dos niveles de permiso, que hoy están mezclados en uno solo:
+//
+//   1. APROBACIÓN DE PLATAFORMA — frame_users/{uid}.status == 'active'
+//      Decide quién puede usar FRAME. La otorga un platformAdmin.
+//
+//   2. PERTENENCIA A UN TABLERO — uid dentro de workspace.memberIds
+//      Decide qué ve cada quien. Un usuario aprobado sin tablero no ve
+//      absolutamente nada.
+//
+// ── Por qué memberIds es un array y no una subcolección ──
+// Las reglas de Firestore no pueden contar documentos de una subcolección,
+// así que el límite de 3 personas sería inaplicable desde el servidor y
+// quedaría sólo en la interfaz — es decir, se saltaría desde la consola del
+// navegador. Con un array se valida con memberIds.size() <= 3.
+// ─────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myUid() {
+      return request.auth.uid;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/frame_users/$(myUid())).data;
+    }
+
+    function userExists() {
+      return exists(/databases/$(database)/documents/frame_users/$(myUid()));
+    }
+
+    // Nivel 1: aprobado para usar la plataforma.
+    function approved() {
+      return signedIn() && userExists() && userDoc().status == 'active';
+    }
+
+    function isPlatformAdmin() {
+      return approved() && userDoc().platformAdmin == true;
+    }
+
+    function ws(wsId) {
+      return get(/databases/$(database)/documents/frame_workspaces/$(wsId)).data;
+    }
+
+    function wsExists(wsId) {
+      return exists(/databases/$(database)/documents/frame_workspaces/$(wsId));
+    }
+
+    // Nivel 2: pertenece a ese tablero.
+    function isMember(wsId) {
+      return approved() && wsExists(wsId) && myUid() in ws(wsId).memberIds;
+    }
+
+    function isOwner(wsId) {
+      return approved() && wsExists(wsId) && ws(wsId).ownerId == myUid();
+    }
+
+    // Los datos de un proyecto/cliente viven o van a vivir en un tablero.
+    // En create hay que mirar el documento entrante; en el resto, el guardado.
+    function memberOfIncoming() {
+      return isMember(request.resource.data.workspaceId);
+    }
+    function memberOfExisting() {
+      return isMember(resource.data.workspaceId);
+    }
+
+    // ── Tableros ─────────────────────────────────────────────────
+    match /frame_workspaces/{wsId} {
+
+      allow read: if isMember(wsId);
+
+      // Crear: sólo para uno mismo, arrancando como único miembro y dueño.
+      // Sin esto, alguien podría crear un tablero poniendo a otro de dueño.
+      allow create: if approved()
+                    && request.resource.data.ownerId == myUid()
+                    && request.resource.data.memberIds == [myUid()]
+                    && request.resource.data.kind in ['personal', 'team'];
+
+      // Actualizar: cualquier miembro puede editar el tablero (nombre, etc.),
+      // pero el dueño no se puede cambiar y el límite de 3 es infranqueable.
+      // Los tableros personales no admiten un segundo miembro.
+      allow update: if isMember(wsId)
+                    && request.resource.data.ownerId == resource.data.ownerId
+                    && request.resource.data.kind    == resource.data.kind
+                    && request.resource.data.memberIds.size() <=
+                       (resource.data.kind == 'personal' ? 1 : 3)
+                    // Sólo el dueño toca la lista de miembros; el resto puede
+                    // editar todo lo demás pero no invitar ni expulsar.
+                    && (request.resource.data.memberIds == resource.data.memberIds
+                        || isOwner(wsId)
+                        // salvo irse por cuenta propia
+                        || (request.resource.data.memberIds ==
+                            resource.data.memberIds.removeAll([myUid()])));
+
+      allow delete: if isOwner(wsId) && resource.data.kind == 'team';
+
+      // ── Config por tablero ──
+      // kanban_columns, project_types, display_settings. Antes eran
+      // singletons globales en frame_config: con varios tableros, las
+      // columnas de uno se le aplicaban a todos.
+      match /config/{doc} {
+        allow read, write: if isMember(wsId);
+      }
+
+      // ── Invitaciones ──
+      // El id del documento es el email invitado, así el invitado puede
+      // leer la suya sin poder listar las de nadie más.
+      match /invites/{email} {
+        allow read:   if isMember(wsId) || (signedIn() && request.auth.token.email == email);
+        allow create, delete: if isOwner(wsId);
+      }
+    }
+
+    // ── Datos del tablero ────────────────────────────────────────
+    match /frame_projects/{doc} {
+      allow read, delete: if memberOfExisting();
+      allow create:       if memberOfIncoming();
+      // En update se exigen ambos: impide mover un documento a un tablero
+      // ajeno cambiándole el workspaceId.
+      allow update:       if memberOfExisting() && memberOfIncoming();
+    }
+
+    match /frame_clients/{doc} {
+      allow read, delete: if memberOfExisting();
+      allow create:       if memberOfIncoming();
+      allow update:       if memberOfExisting() && memberOfIncoming();
+    }
+
+    match /frame_trash/{doc} {
+      allow read, delete: if memberOfExisting();
+      allow create:       if memberOfIncoming();
+      allow update:       if memberOfExisting() && memberOfIncoming();
+    }
+
+    // ── Perfiles ─────────────────────────────────────────────────
+    match /frame_users/{uid} {
+
+      // Antes era `allow read: if signedIn()`, que con varios equipos dejaba
+      // que cualquier registrado leyera el email, nombre y rol de todos los
+      // usuarios de todos los demás tableros. Ahora: sólo el propio perfil,
+      // y el admin para poder aprobar.
+      allow read: if signedIn() && (myUid() == uid || isPlatformAdmin());
+
+      // Alta obligatoriamente pendiente y sin privilegios: si se permitiera
+      // cualquier valor, bastaría con registrarse mandando status:'active'
+      // y platformAdmin:true para tomar control de la plataforma.
+      allow create: if signedIn() && myUid() == uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.get('platformAdmin', false) == false;
+
+      // Editar el propio perfil sin poder auto-promoverse.
+      allow update: if signedIn() && myUid() == uid
+                    && request.resource.data.status == resource.data.status
+                    && request.resource.data.get('platformAdmin', false)
+                       == resource.data.get('platformAdmin', false);
+
+      // Aprobar, rechazar y dar de baja: sólo el admin de plataforma.
+      // Antes lo podía hacer cualquier miembro activo, con lo cual el primer
+      // aprobado podía aprobar a cualquiera.
+      allow update, delete: if isPlatformAdmin();
+    }
+
+    // ── Notificaciones ───────────────────────────────────────────
+    match /frame_notifications/{uid} {
+      allow read, write: if signedIn() && myUid() == uid;
+
+      match /items/{item} {
+        allow read, update, delete: if signedIn() && myUid() == uid;
+        // Cualquiera con sesión puede dejar una notificación en la bandeja
+        // de otro: es lo que hace el alta al pedir aprobación, y en ese
+        // momento el solicitante todavía no está aprobado.
+        allow create: if signedIn();
+      }
+    }
+
+    // ── TOONED-OS ────────────────────────────────────────────────
+    // Sistema de ventas. Sigue con su propia puerta: aprobado en la
+    // plataforma, sin depender de tableros.
+    // Si FRAME se muda a su propio proyecto Firebase, estas dos líneas se
+    // van con TOONED-OS y este archivo deja de mencionarlo.
+    match /data/{doc}   { allow read, write: if approved(); }
+    match /thumbs/{doc} { allow read, write: if approved(); }
+
+    // Sin comodín: lo que ninguna regla concede queda denegado.
+  }
+}
