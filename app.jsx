@@ -12,8 +12,20 @@ const _savedNav = (() => {
 // Vista fija: si hay una pinneada, se abre siempre en esa (anula el historial de nav)
 const _pinnedView = localStorage.getItem('frame_pinned_view') || null;
 
+// Último tablero abierto. Se valida contra la lista real de tableros del
+// usuario antes de usarse: si le sacaron el acceso, este id ya no sirve.
+const _savedWorkspaceId = localStorage.getItem('frame_workspace') || null;
+
 // ── Initial state + reducer ─────────────────────────────────────
 const initialState = {
+  // ── Tableros ──
+  // Un usuario aprobado puede pertenecer a varios: su tablero personal
+  // (kind:'personal', él solo) y los de equipo (kind:'team', hasta 3).
+  // activeWorkspaceId decide qué datos se cargan: TODO lo demás del estado
+  // pertenece al tablero activo y se vacía al cambiar de uno a otro.
+  workspaces: [],
+  workspacesLoading: true,
+  activeWorkspaceId: _savedWorkspaceId,
   // ── Proyectos ──
   projects: [],
   loading: true,
@@ -84,6 +96,36 @@ function reducer(state, action) {
       ...state,
       projects: [action.project, ...state.projects],
     };
+    // ── Tableros ──
+    case 'set_workspaces': {
+      // El id guardado en localStorage sólo vale si sigue siendo un tablero
+      // al que el usuario pertenece: pueden haberlo sacado del equipo, o el
+      // tablero pudo borrarse. Si no vale, cae al personal.
+      const ids   = action.workspaces.map(w => w.id);
+      const valid = state.activeWorkspaceId && ids.includes(state.activeWorkspaceId);
+      const fallback = (action.workspaces.find(w => w.kind === 'personal') || action.workspaces[0] || null);
+      return {
+        ...state,
+        workspaces: action.workspaces,
+        workspacesLoading: false,
+        activeWorkspaceId: valid ? state.activeWorkspaceId : (fallback ? fallback.id : null),
+      };
+    }
+    case 'set_active_workspace': {
+      if (action.id === state.activeWorkspaceId) return state;
+      // Se vacían los datos del tablero anterior en el mismo dispatch: si no,
+      // durante el instante que tardan los listeners nuevos en responder se
+      // verían los proyectos del tablero del que uno viene.
+      return {
+        ...state,
+        activeWorkspaceId: action.id,
+        projects: [], loading: true,
+        clients: [],  clientsLoading: true,
+        trash: [],    trashLoading: true,
+        kanbanColumns: [],
+        openProjectId: null, openClientId: null,
+      };
+    }
     case 'show_new':       return { ...state, showNewProject: true };
     case 'hide_new':       return { ...state, showNewProject: false };
     case 'toggle_filter': {
@@ -1055,9 +1097,65 @@ const App = () => {
   // IMPORTANTE: todas las suscripciones esperan a que haya sesión.
   // Un onSnapshot que arranca sin auth falla con permission-denied y el
   // listener queda muerto para siempre (no se reconecta al loguearse).
+  // ── Tableros del usuario ────────────────────────────────────
+  // array-contains sobre memberIds: Firestore devuelve sólo los tableros
+  // donde el uid figura, así que el aislamiento no depende de filtrar en el
+  // cliente. Las reglas lo respaldan por si alguien consulta a mano.
   useEffect(() => {
     if (!authUser) return;
-    const col = window.db.collection('frame_projects');
+    const unsub = window.db.collection('frame_workspaces')
+      .where('memberIds', 'array-contains', authUser.uid)
+      .onSnapshot((snap) => {
+        const workspaces = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        dispatch({ type: 'set_workspaces', workspaces });
+      }, (err) => {
+        console.error('[FRAME] Workspaces:', err);
+        dispatch({ type: 'set_workspaces', workspaces: [] });
+      });
+    return () => unsub();
+  }, [authUser?.uid]);
+
+  // Recordar el tablero abierto entre sesiones
+  useEffect(() => {
+    if (state.activeWorkspaceId) localStorage.setItem('frame_workspace', state.activeWorkspaceId);
+  }, [state.activeWorkspaceId]);
+
+  // ── Alta del tablero personal ───────────────────────────────
+  // Un usuario aprobado sin ningún tablero no vería absolutamente nada, así
+  // que al entrar por primera vez se le crea el suyo. Se hace acá y no al
+  // aprobarlo porque el admin no puede escribir tableros ajenos: las reglas
+  // sólo dejan crear un tablero donde uno mismo es el dueño y único miembro.
+  const creatingWsRef = useRef(false);
+  useEffect(() => {
+    if (!authUser || state.workspacesLoading) return;
+    if (state.workspaces.length > 0) return;
+    if (creatingWsRef.current) return;           // evita duplicar si el efecto se re-dispara
+
+    // Sólo si ya está aprobado; si sigue pendiente ve la pantalla de espera.
+    const me = state.team.find(m => m.id === authUser.uid);
+    if (!me || me.status !== 'active') return;
+
+    creatingWsRef.current = true;
+    const id = 'ws' + Date.now() + Math.random().toString(36).slice(2, 5);
+    window.db.collection('frame_workspaces').doc(id).set({
+      id,
+      name:      'Mi tablero',
+      kind:      'personal',
+      ownerId:   authUser.uid,
+      memberIds: [authUser.uid],
+      roles:     { [authUser.uid]: 'owner' },
+      createdAt: new Date().toISOString(),
+    }).catch(err => {
+      creatingWsRef.current = false;
+      console.error('[FRAME] Alta de tablero personal:', err);
+    });
+  }, [authUser?.uid, state.workspacesLoading, state.workspaces.length, state.team.length]);
+
+  const wsId = state.activeWorkspaceId;
+
+  useEffect(() => {
+    if (!authUser || !wsId) return;
+    const col = window.db.collection('frame_projects').where('workspaceId', '==', wsId);
 
     const unsub = col.onSnapshot((snap) => {
       // normalizeProject garantiza la forma en el borde: de acá para adentro
@@ -1070,7 +1168,7 @@ const App = () => {
     });
 
     return () => unsub();
-  }, [authUser?.uid]);
+  }, [authUser?.uid, wsId]);
 
   // ── Firestore: equipo ───────────────────────────────────────
   useEffect(() => {
@@ -1090,8 +1188,8 @@ const App = () => {
 
   // ── Firestore: clientes ─────────────────────────────────────
   useEffect(() => {
-    if (!authUser) return;
-    const col = window.db.collection('frame_clients');
+    if (!authUser || !wsId) return;
+    const col = window.db.collection('frame_clients').where('workspaceId', '==', wsId);
     const unsub = col.onSnapshot((snap) => {
       const clients = snap.docs.map(doc => normalizeClient({ ...doc.data(), id: doc.id }));
       dispatch({ type: 'set_clients', clients });
@@ -1100,7 +1198,7 @@ const App = () => {
       dispatch({ type: 'set_clients', clients: [] });
     });
     return () => unsub();
-  }, [authUser?.uid]);
+  }, [authUser?.uid, wsId]);
 
   // ── Firebase Auth: sesión ───────────────────────────────────
   useEffect(() => {
@@ -1123,8 +1221,8 @@ const App = () => {
 
   // ── Firestore: display settings (vista previa + carry-over) ───
   useEffect(() => {
-    if (!authUser) return;
-    const ref = window.db.collection('frame_config').doc('display_settings');
+    if (!authUser || !wsId) return;
+    const ref = window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('display_settings');
     const unsub = ref.onSnapshot((snap) => {
       if (!snap.exists) return;
       const data = snap.data();
@@ -1139,12 +1237,12 @@ const App = () => {
       }
     }, (err) => console.error('Display settings error:', err));
     return () => unsub();
-  }, [authUser?.uid]);
+  }, [authUser?.uid, wsId]);
 
   const handleTogglePreviewField = (key) => {
     const next = { ...state.previewFields, [key]: !state.previewFields[key] };
     dispatch({ type: 'set_preview_fields', fields: next });
-    window.db.collection('frame_config').doc('display_settings')
+    window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('display_settings')
       .set({ previewFields: next }, { merge: true })
       .catch(err => console.error('Error guardando display settings:', err));
   };
@@ -1155,7 +1253,7 @@ const App = () => {
     dispatch({ type: 'set_view',        view: next || view }); // ir a la vista al pinear
     if (next) localStorage.setItem('frame_pinned_view', next);
     else      localStorage.removeItem('frame_pinned_view');
-    window.db.collection('frame_config').doc('display_settings')
+    window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('display_settings')
       .set({ pinnedView: next }, { merge: true })
       .catch(err => console.error('[FRAME] PinView:', err));
   };
@@ -1163,7 +1261,7 @@ const App = () => {
   const handleToggleCarryOverProjects = () => {
     const next = !state.carryOverProjects;
     dispatch({ type: 'set_carryover_projects', value: next });
-    window.db.collection('frame_config').doc('display_settings')
+    window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('display_settings')
       .set({ carryOverProjects: next }, { merge: true })
       .catch(err => console.error('[FRAME] CarryOver projects toggle:', err));
   };
@@ -1203,8 +1301,8 @@ const App = () => {
 
   // ── Firestore: columnas Kanban ─────────────────────────────
   useEffect(() => {
-    if (!authUser) return;
-    const ref = window.db.collection('frame_config').doc('kanban_columns');
+    if (!authUser || !wsId) return;
+    const ref = window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('kanban_columns');
     const unsub = ref.onSnapshot((snap) => {
       if (!snap.exists) {
         // Primera vez: sembrar con columnas por defecto
@@ -1222,12 +1320,12 @@ const App = () => {
       dispatch({ type: 'set_columns', columns: defaults });
     });
     return () => unsub();
-  }, [authUser?.uid]);
+  }, [authUser?.uid, wsId]);
 
   // ── Firestore: tipos de proyecto ──────────────────────────────
   useEffect(() => {
-    if (!authUser) return;
-    const ref = window.db.collection('frame_config').doc('project_types');
+    if (!authUser || !wsId) return;
+    const ref = window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('project_types');
     const unsub = ref.onSnapshot((snap) => {
       if (!snap.exists) {
         // Primera vez: sembrar con los tipos predefinidos para que sean editables
@@ -1243,17 +1341,17 @@ const App = () => {
       dispatch({ type: 'set_custom_types', types: PROJECT_TYPES });
     });
     return () => unsub();
-  }, [authUser?.uid]);
+  }, [authUser?.uid, wsId]);
 
   const saveTypes = (types) =>
-    window.db.collection('frame_config').doc('project_types').set({ types })
+    window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('project_types').set({ types })
       .catch(err => console.error('Error al guardar tipos:', err));
 
   // ── Firestore: papelera de reciclaje ──────────────────────────
   useEffect(() => {
-    if (!authUser) return;
+    if (!authUser || !wsId) return;
     const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-    const col = window.db.collection('frame_trash');
+    const col = window.db.collection('frame_trash').where('workspaceId', '==', wsId);
     const unsub = col.onSnapshot(async (snap) => {
       const now = Date.now();
       // Auto-purge items older than 5 days
@@ -1276,13 +1374,13 @@ const App = () => {
       dispatch({ type: 'set_trash', trash: [] });
     });
     return () => unsub();
-  }, [authUser?.uid]);
+  }, [authUser?.uid, wsId]);
 
   const handleCreateCustomType = (typeObj) => {
     // Actualizar global ANTES del dispatch para que getType() lea datos correctos en el siguiente render
     window.FRAME_CUSTOM_TYPES = [...(window.FRAME_CUSTOM_TYPES || []), typeObj];
     dispatch({ type: 'add_custom_type', typeObj });
-    window.db.collection('frame_config').doc('project_types').get()
+    window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('project_types').get()
       .then(snap => {
         const existing = snap.exists ? (snap.data().types || []) : PROJECT_TYPES;
         return saveTypes([...existing, typeObj]);
@@ -1293,7 +1391,7 @@ const App = () => {
     // Sincronizar global antes del dispatch (optimistic sync)
     window.FRAME_CUSTOM_TYPES = (window.FRAME_CUSTOM_TYPES || []).map(t => t.id === id ? { ...t, ...patch } : t);
     dispatch({ type: 'update_custom_type', id, patch });
-    window.db.collection('frame_config').doc('project_types').get()
+    window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('project_types').get()
       .then(snap => {
         const existing = snap.exists ? (snap.data().types || []) : PROJECT_TYPES;
         return saveTypes(existing.map(t => t.id === id ? { ...t, ...patch } : t));
@@ -1303,7 +1401,7 @@ const App = () => {
   const handleDeleteCustomType = (id) => {
     window.FRAME_CUSTOM_TYPES = (window.FRAME_CUSTOM_TYPES || []).filter(t => t.id !== id);
     dispatch({ type: 'delete_custom_type', id });
-    window.db.collection('frame_config').doc('project_types').get()
+    window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('project_types').get()
       .then(snap => {
         const existing = snap.exists ? (snap.data().types || []) : PROJECT_TYPES;
         return saveTypes(existing.filter(t => t.id !== id));
@@ -1312,7 +1410,7 @@ const App = () => {
   };
 
   const saveColumns = (cols) => {
-    window.db.collection('frame_config').doc('kanban_columns').set({ columns: cols })
+    window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('kanban_columns').set({ columns: cols })
       .catch(err => console.error('Error guardando columnas:', err));
   };
 
@@ -1445,20 +1543,26 @@ const App = () => {
       createdAt: new Date().toISOString(),
     };
     dispatch({ type: 'duplicate_project', project: copy });
-    window.db.collection('frame_projects').doc(newId).set(copy)
+    window.db.collection('frame_projects').doc(newId).set(stampWs(copy))
       .catch(err => console.error('[FRAME] Error al duplicar proyecto:', err));
   };
 
+  // Todo lo que se crea nace sellado con el tablero activo. Sin esto el
+  // documento no aparece en ninguna consulta (todas filtran por workspaceId)
+  // y las reglas lo rechazan.
+  const stampWs = (obj) => ({ ...obj, workspaceId: obj.workspaceId || wsId });
+
   const handleUpdateProject = (project) => {
     dispatch({ type: 'update_project', project }); // optimistic: actualiza UI al instante
-    window.db.collection('frame_projects').doc(project.id).set(project)
+    window.db.collection('frame_projects').doc(project.id).set(stampWs(project))
       .catch(err => console.error('Error al guardar proyecto:', err));
   };
 
   const handleCreateProject = (project) => {
     // Optimistic: dispatch first → snapshot replaces array (no duplicate)
-    dispatch({ type: 'create_project', project });
-    window.db.collection('frame_projects').doc(project.id).set(project)
+    const p = stampWs(project);
+    dispatch({ type: 'create_project', project: p });
+    window.db.collection('frame_projects').doc(p.id).set(p)
       .catch(err => console.error('Error al crear proyecto:', err));
   };
 
@@ -1493,7 +1597,7 @@ const App = () => {
       comments:    [],
     };
     dispatch({ type: 'create_project_quiet', project });
-    window.db.collection('frame_projects').doc(id).set(project)
+    window.db.collection('frame_projects').doc(id).set(stampWs(project))
       .catch(err => console.error('[FRAME] Quick create:', err));
   };
 
@@ -1502,7 +1606,7 @@ const App = () => {
     if (!project) return;
     const updated = { ...project, favorite: !project.favorite };
     dispatch({ type: 'update_project', project: updated });
-    window.db.collection('frame_projects').doc(id).set(updated)
+    window.db.collection('frame_projects').doc(id).set(stampWs(updated))
       .catch(err => console.error('[FRAME] Error al guardar favorito:', err));
   };
 
@@ -1561,13 +1665,13 @@ const App = () => {
 
   const handleUpdateClient = (client) => {
     dispatch({ type: 'update_client', client });
-    window.db.collection('frame_clients').doc(client.id).set(client)
+    window.db.collection('frame_clients').doc(client.id).set(stampWs(client))
       .catch(err => console.error('Error al guardar cliente:', err));
   };
 
   const handleCreateClient = (client) => {
     dispatch({ type: 'create_client', client });
-    window.db.collection('frame_clients').doc(client.id).set(client)
+    window.db.collection('frame_clients').doc(client.id).set(stampWs(client))
       .catch(err => console.error('Error al crear cliente:', err));
   };
 
