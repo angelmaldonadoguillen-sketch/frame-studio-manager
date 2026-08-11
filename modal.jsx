@@ -1473,9 +1473,18 @@ const TimelineAdd = ({ onAdd }) => {
 
   return (
     <div className="relative flex items-center gap-2 py-2">
+      {/* El punto era un anillo punteado con el centro transparente y sin
+          máscara, así que la línea vertical del timeline se veía pasar por
+          dentro. Ahora lleva fondo propio y el mismo anillo del color del
+          panel que usan los hitos ya creados: la línea se corta al llegar y
+          el punto queda ensartado en ella, no atravesado. */}
       <div
-        className="absolute -left-[11px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-dashed flex-shrink-0"
-        style={{ borderColor: 'var(--border-2)' }}
+        className="absolute -left-[11px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full flex-shrink-0"
+        style={{
+          background:  'var(--surface)',
+          border:      '1.5px dashed var(--border-2)',
+          boxShadow:   '0 0 0 4px var(--surface)',
+        }}
       ></div>
       <input
         value={label}
