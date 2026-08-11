@@ -19,7 +19,8 @@ assert.doesNotMatch(modal, /batch\.set\(col\.doc\(c\.id\), c\)/);
 assert.match(modal, /_legacy:\s*true/);
 assert.match(storage, /match \/frame-covers\/\{projectId\}\/\{fileName\}/);
 assert.match(storage, /match \/frame-descriptions\/\{projectId\}\/\{fileName\}/);
-assert.match(storage, /status == 'active'/);
+assert.doesNotMatch(storage, /frame_users/);
+assert.match(storage, /let projectDoc = firestore\.get[\s\S]*let workspaceDoc = firestore\.get/);
 assert.equal(firebase.storage.rules, 'storage.rules');
 
 console.log('security-contract: 13 checks passed');

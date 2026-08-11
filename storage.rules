@@ -6,17 +6,13 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function approved() {
-      return signedIn()
-             && firestore.exists(/databases/(default)/documents/frame_users/$(request.auth.uid))
-             && firestore.get(/databases/(default)/documents/frame_users/$(request.auth.uid)).data.status == 'active';
-    }
-
     function projectMember(projectId) {
       let projectDoc = firestore.get(/databases/(default)/documents/frame_projects/$(projectId));
       let workspaceId = projectDoc.data.workspaceId;
       let workspaceDoc = firestore.get(/databases/(default)/documents/frame_workspaces/$(workspaceId));
-      return approved() && request.auth.uid in workspaceDoc.data.memberIds;
+      // Storage permite consultar como máximo dos documentos de Firestore por
+      // operación. Tarea + tablero prueban el aislamiento sin exceder el límite.
+      return signedIn() && request.auth.uid in workspaceDoc.data.memberIds;
     }
 
     function validImage() {
