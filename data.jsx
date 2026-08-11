@@ -556,6 +556,92 @@ const workspaceMembers = (ws) => {
     .sort((a, b) => (b.isOwner ? 1 : 0) - (a.isOwner ? 1 : 0));
 };
 
+// ── Plantillas de checklist ──────────────────────────────────────
+// El proceso de un reel es siempre el mismo; escribirlo de nuevo en cada
+// tarjeta es trabajo repetido y además hace que cada una quede distinta,
+// con lo cual el progreso deja de ser comparable entre proyectos.
+//
+// Se indexan por tipo de proyecto para que la plantilla se ofrezca sola:
+// si la tarjeta es un Reel, la plantilla que aparece es la de Reel.
+const CHECKLIST_TEMPLATES = {
+  reel: {
+    label: 'Reel',
+    steps: [
+      'Briefing con el cliente',
+      'Concepto y guion aprobados',
+      'Shot list y locación confirmadas',
+      'Agenda de rodaje cerrada',
+      'Grabación',
+      'Selección de tomas',
+      'Edición — primer corte',
+      'Música y efectos de sonido',
+      'Corrección de color',
+      'Revisión interna',
+      'Envío al cliente',
+      'Ajustes y aprobación final',
+      'Entrega de archivos',
+    ],
+  },
+  campaign: {
+    label: 'Post / Campaña',
+    steps: [
+      'Briefing y objetivo del post',
+      'Referencias visuales aprobadas',
+      'Copy redactado',
+      'Copy aprobado por el cliente',
+      'Diseño de la pieza',
+      'Revisión interna',
+      'Envío al cliente',
+      'Ajustes',
+      'Aprobación final',
+      'Programación o publicación',
+    ],
+  },
+  corp: {
+    label: 'Video corporativo',
+    steps: [
+      'Reunión de brief con el cliente',
+      'Guion aprobado',
+      'Plan de rodaje y entrevistados',
+      'Grabación de entrevistas',
+      'Captura de b-roll',
+      'Edición — primer corte',
+      'Musicalización',
+      'Corrección de color y sonido',
+      'Subtitulado',
+      'Revisión del cliente',
+      'Ajustes y entrega final',
+    ],
+  },
+  photo: {
+    label: 'Fotografía',
+    steps: [
+      'Briefing y moodboard',
+      'Locación y permisos',
+      'Lista de tomas',
+      'Sesión de fotos',
+      'Selección de imágenes',
+      'Retoque',
+      'Envío de galería al cliente',
+      'Selección final del cliente',
+      'Entrega en alta resolución',
+    ],
+  },
+};
+
+// Convierte una plantilla en items de checklist listos para guardar.
+const templateChecklist = (typeId) => {
+  const tpl = CHECKLIST_TEMPLATES[typeId];
+  if (!tpl) return null;
+  const stamp = Date.now();
+  return tpl.steps.map((text, i) => ({
+    // El índice va en el id porque todos se crean en el mismo milisegundo.
+    id: `c${stamp}${i}${Math.random().toString(36).slice(2, 5)}`,
+    text,
+    done: false,
+  }));
+};
+
 // ── Urgencia ─────────────────────────────────────────────────────
 // Un solo lugar donde se define qué es "urgente". Estaba repetido en cinco
 // puntos con dos criterios distintos: la sidebar y los filtros usaban
@@ -635,4 +721,5 @@ Object.assign(window, {
   localISO, normalizeProject, normalizeClient, normalizeMember,
   URGENT_DAYS, isClosed, isUrgent, isOverdue,
   memberCard, workspaceMembers, sanitizeDescHTML,
+  CHECKLIST_TEMPLATES, templateChecklist,
 });

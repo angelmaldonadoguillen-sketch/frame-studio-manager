@@ -137,6 +137,16 @@
         cover:{type:'color',value:'#252527'}, description:[] },
     ];
 
+    // Tarjeta recién creada, sin checklist: es el único estado donde se
+    // ofrece la plantilla, así que sin ella no se puede probar ese camino.
+    MOCK.push({
+      id:'p5', title:'Reel nuevo — sin checklist', client:'', type:'reel',
+      status:'briefing', priority:'medium', assignees:[],
+      deadline:iso(7), sessionDate:iso(7), budget:0, currency:'USD',
+      tags:[], checklist:[],
+      cover:{type:'color',value:'#252527'}, description:[],
+    });
+
     const PROJECTS = MOCK.map(normalizeProject);
 
     const PF = { tipo:true, cliente:true, estado:true, prioridad:true,
@@ -144,6 +154,11 @@
 
     const Harness = () => {
       const [openId, setOpenId] = React.useState(null);
+      // Estado real en vez de onUpdate vacío: sin esto no se puede probar
+      // nada que escriba — marcar una tarea, aplicar una plantilla, reordenar
+      // el checklist. El banco mostraba la interfaz pero no reaccionaba.
+      const [data, setData] = React.useState(PROJECTS);
+      const upd = (p) => setData(d => d.map(x => x.id === p.id ? p : x));
       return (
       <div>
         <div className="harness-bar">
@@ -154,7 +169,7 @@
         <div className="harness-sec">
           <div className="harness-h">Tarjeta de tarea — los cuatro estados de entrega</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(268px,1fr))', gap:10 }}>
-            {PROJECTS.map(p => (
+            {data.map(p => (
               <ProjectCardMini key={p.id} project={p} previewFields={PF}
                 onClick={()=>{}} onToggleFavorite={()=>{}}
                 onDelete={()=>{}} onDuplicate={()=>{}} />
@@ -165,7 +180,7 @@
         <div className="harness-sec">
           <div className="harness-h">Variante compacta</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(268px,1fr))', gap:10 }}>
-            {PROJECTS.slice(0,2).map(p => (
+            {data.slice(0,2).map(p => (
               <ProjectCardMini key={p.id} project={p} previewFields={PF} compact
                 onClick={()=>{}} onToggleFavorite={()=>{}} />
             ))}
@@ -175,7 +190,7 @@
         <div className="harness-sec">
           <div className="harness-h">Modal de tarea — abrir para revisar el detalle</div>
           <button
-            onClick={() => setOpenId(PROJECTS[0].id)}
+            onClick={() => setOpenId(data[0].id)}
             className="px-3 py-2 rounded-lg text-[13px] font-semibold"
             style={{ background: 'var(--accent)', color: '#131315' }}
           >
@@ -186,15 +201,15 @@
         {openId && (
           <ProjectModal
             key={openId}
-            project={PROJECTS.find(p => p.id === openId)}
-            projects={PROJECTS}
+            project={data.find(p => p.id === openId)}
+            projects={data}
             onNavigate={setOpenId}
             currentUserId="u1"
             team={window.__liveTeam}
             clients={[{ id:'cl1', name:'ID Motos', color:'#64D2FF', initials:'IM' }]}
             onCreateClient={()=>{}}
             onClose={() => setOpenId(null)}
-            onUpdate={()=>{}}
+            onUpdate={upd}
             onDelete={()=>{}}
             customTypes={PROJECT_TYPES}
             onCreateCustomType={()=>{}}
@@ -207,7 +222,7 @@
           <div className="harness-h">ListView — la vista de tabla</div>
           <div style={{ height: 260, position: 'relative' }}>
             <ListView
-              projects={PROJECTS}
+              projects={data}
               onOpenProject={setOpenId}
               onDeleteProject={()=>{}}
               onDuplicateProject={()=>{}}
@@ -219,7 +234,7 @@
         <div className="harness-sec">
           <div className="harness-h">GalleryCard</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))', gap:12 }}>
-            {PROJECTS.slice(0,3).map(p => (
+            {data.slice(0,3).map(p => (
               <GalleryCard key={p.id} project={p} previewFields={PF}
                 onClick={()=>{}} onToggleFavorite={()=>{}} />
             ))}

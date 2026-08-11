@@ -1090,6 +1090,30 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   <SectionTitle icon="check" right={`${project.checklist.filter(c => c.done).length}/${project.checklist.length}`}>
                     Checklist de producción
                   </SectionTitle>
+
+                  {/* La plantilla se ofrece sólo con el checklist vacío: una
+                      vez que hay tareas propias, el botón sería una invitación
+                      a pisarlas. Y sale la del tipo de la tarjeta, no un menú
+                      con todas — si es un Reel, la única que interesa es la
+                      de Reel. */}
+                  {project.checklist.length === 0 && CHECKLIST_TEMPLATES[project.type] && (
+                    <button
+                      onClick={() => upd({ checklist: templateChecklist(project.type) })}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 mb-2 rounded-lg text-left transition"
+                      style={{ background: 'var(--surface-2)', color: 'var(--text-dim)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-3)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; }}
+                    >
+                      <Icon name="check" size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                      <span className="text-[13px]">
+                        Usar el proceso de <strong style={{ color: 'var(--text)' }}>{CHECKLIST_TEMPLATES[project.type].label}</strong>
+                      </span>
+                      <span className="ml-auto text-[11px] tnum" style={{ color: 'var(--text-muted)' }}>
+                        {CHECKLIST_TEMPLATES[project.type].steps.length} pasos
+                      </span>
+                    </button>
+                  )}
+
                   <div className="space-y-1">
                     {project.checklist.map(c => {
                       const isDragging = dragCheckId === c.id;
