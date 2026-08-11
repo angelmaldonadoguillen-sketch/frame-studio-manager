@@ -1709,6 +1709,10 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   };
 
   // Click en imagen → lightbox
+  const clearImageSelection = () => {
+    editorRef.current?.querySelectorAll('img.frame-image-selected').forEach(img => img.classList.remove('frame-image-selected'));
+  };
+
   const updateSelectedImage = (attribute, value) => {
     if (!selectedImage || !editorRef.current?.contains(selectedImage)) return;
     selectedImage.setAttribute(attribute, value);
@@ -1716,11 +1720,15 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   };
 
   const handleClick = (e) => {
-    if (e.target.tagName === 'IMG') { e.preventDefault(); setSelectedImage(e.target); }
-  };
-
-  const handleDoubleClick = (e) => {
-    if (e.target.tagName === 'IMG') { e.preventDefault(); setLightbox(e.target.src); }
+    if (e.target.tagName === 'IMG') {
+      e.preventDefault();
+      clearImageSelection();
+      e.target.classList.add('frame-image-selected');
+      setSelectedImage(e.target);
+      return;
+    }
+    clearImageSelection();
+    setSelectedImage(null);
   };
 
   // Botón de toolbar reutilizable
@@ -1761,22 +1769,24 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
             {uploading && <span className="text-[10px] font-mono animate-pulse">{progress}%</span>}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
-          <span className="ml-auto text-[10px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Clic: ajustar · doble clic: ampliar</span>
+          <span className="ml-auto text-[10px] hidden sm:block" style={{ color: 'var(--text-muted)' }}>Seleccioná una imagen para editarla</span>
         </div>
 
         {selectedImage && (
-          <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 border-b" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-            <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Imagen</span>
-            <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'sm')} title="Tamaño pequeño">Pequeña</TB>
-            <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'md')} title="Tamaño mediano">Mediana</TB>
-            <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'lg')} title="Tamaño grande">Grande</TB>
+          <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border-b" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Imagen seleccionada</span>
+            <div className="inline-flex items-center rounded-md border p-0.5" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-3)' }}>
+              <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'sm')} title="Ancho pequeño">Pequeña</TB>
+              <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'md')} title="Ancho mediano">Mediana</TB>
+              <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'lg')} title="Ancho completo">Completa</TB>
+            </div>
             <div className="w-px h-3.5 mx-1" style={{ background: 'var(--border-2)' }} />
-            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'left')} title="Anclar a la izquierda">Izquierda</TB>
-            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'center')} title="Centrar imagen">Centro</TB>
-            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Anclar a la derecha">Derecha</TB>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'left')} title="Alinear a la izquierda">Izquierda</TB>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'center')} title="Centrar">Centrar</TB>
+            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Alinear a la derecha">Derecha</TB>
             <div className="w-px h-3.5 mx-1" style={{ background: 'var(--border-2)' }} />
-            <TB onMouseDown={() => setLightbox(selectedImage.src)} title="Ver imagen ampliada">Ampliar</TB>
-            <TB onMouseDown={() => setSelectedImage(null)} title="Ocultar controles"><Icon name="x" size={12} /></TB>
+            <TB onMouseDown={() => setLightbox(selectedImage.src)} title="Abrir imagen a tamaño completo">Abrir</TB>
+            <TB onMouseDown={() => { clearImageSelection(); setSelectedImage(null); }} title="Cerrar opciones"><Icon name="x" size={12} /></TB>
           </div>
         )}
 
@@ -1789,7 +1799,6 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           onBlur={() => { setFocused(false); save(); }}
           onPaste={handlePaste}
           onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
           data-placeholder="Describí la tarea, el brief y las referencias…"
           className="desc-editor p-3 text-[15px] leading-relaxed"
           style={{ minHeight: 100, background: 'var(--surface-2)', color: 'var(--text)' }}

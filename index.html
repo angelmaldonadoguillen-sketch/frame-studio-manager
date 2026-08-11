@@ -271,7 +271,13 @@
   .desc-editor em { font-style: italic; }
   .desc-editor img {
     max-width: 100%; border-radius: 6px; margin: 6px 0;
-    cursor: zoom-in; display: block;
+    cursor: pointer; display: block;
+    transition: outline-color .15s ease, box-shadow .15s ease;
+  }
+  .desc-editor img.frame-image-selected {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px var(--accent-soft);
   }
   .desc-editor img[data-frame-size="sm"] { width: min(33%, 240px); }
   .desc-editor img[data-frame-size="md"] { width: min(66%, 560px); }
