@@ -201,8 +201,137 @@ window.pushNotif = (toUserId, data) => {
     .catch(err => console.error('pushNotif error:', err));
 };
 
+// ── Selector de tablero ─────────────────────────────────────────
+// Cambiar de tablero recarga todos los datos: el estado se vacía en el
+// dispatch y los listeners se vuelven a suscribir con el workspaceId nuevo.
+const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam }) => {
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setCreating(false); } };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  const active = state.workspaces.find(w => w.id === state.activeWorkspaceId);
+  const personal = state.workspaces.filter(w => w.kind === 'personal');
+  const teams    = state.workspaces.filter(w => w.kind === 'team');
+
+  const submit = () => {
+    const t = name.trim();
+    if (!t) return;
+    onCreateTeam(t);
+    setName(''); setCreating(false); setOpen(false);
+  };
+
+  const Row = ({ w }) => {
+    const isActive = w.id === state.activeWorkspaceId;
+    return (
+      <button
+        onClick={() => { dispatch({ type: 'set_active_workspace', id: w.id }); setOpen(false); }}
+        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors"
+        style={{ background: isActive ? 'var(--accent-soft)' : 'transparent' }}
+        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--surface-3)'; }}
+        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+      >
+        <Icon name={w.kind === 'personal' ? 'user' : 'users'} size={13}
+              style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)', flexShrink: 0 }} />
+        <span className="flex-1 min-w-0 truncate text-[13px]" style={{ color: isActive ? 'var(--accent)' : 'var(--text)' }}>
+          {w.name}
+        </span>
+        {w.kind === 'team' && (
+          <span className="text-[10px] tnum flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+            {(w.memberIds || []).length}/3
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div className="px-3 py-2.5 border-b border-app relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors"
+        style={{ background: open ? 'var(--surface-3)' : 'var(--surface-2)' }}
+      >
+        <Icon name={active?.kind === 'team' ? 'users' : 'user'} size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+        <span className="flex-1 min-w-0 text-left truncate text-[13px] font-medium">
+          {active ? active.name : 'Sin tablero'}
+        </span>
+        <Icon name="chevronDown" size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-3 right-3 mt-1.5 rounded-xl overflow-hidden z-50 anim-fade-in"
+          style={{
+            background: 'var(--surface-2)',
+            boxShadow: 'inset 0 .5px 0 rgba(255,255,255,.08), 0 16px 40px -12px rgba(0,0,0,.8)',
+          }}
+        >
+          <div className="p-1.5 space-y-0.5">
+            {personal.map(w => <Row key={w.id} w={w} />)}
+
+            {teams.length > 0 && (
+              <>
+                <div className="px-2.5 pt-2 pb-1 text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  Equipos
+                </div>
+                {teams.map(w => <Row key={w.id} w={w} />)}
+              </>
+            )}
+          </div>
+
+          <div className="p-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+            {creating ? (
+              <div className="px-1 py-0.5">
+                <input
+                  autoFocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter')  { e.preventDefault(); submit(); }
+                    if (e.key === 'Escape') { setCreating(false); setName(''); }
+                  }}
+                  placeholder="Nombre del equipo"
+                  className="w-full px-2.5 py-2 rounded-lg text-[13px]"
+                  style={{ background: 'var(--surface-3)', color: 'var(--text)' }}
+                />
+                <div className="flex items-center gap-1.5 mt-1.5 px-0.5">
+                  <button onClick={submit} disabled={!name.trim()}
+                    className="px-2.5 py-1 rounded-md text-[12px] font-semibold disabled:opacity-40"
+                    style={{ background: 'var(--accent)', color: '#131315' }}>Crear</button>
+                  <button onClick={() => { setCreating(false); setName(''); }}
+                    className="px-2 py-1 rounded-md text-[12px]" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+                  <span className="ml-auto text-[10px]" style={{ color: 'var(--text-muted)' }}>Hasta 3 personas</span>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setCreating(true)}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-[13px] transition-colors"
+                style={{ color: 'var(--text-dim)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-3)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <Icon name="plus" size={13} style={{ flexShrink: 0 }} />
+                Crear tablero de equipo
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Sidebar ─────────────────────────────────────────────────────
-const Sidebar = ({ state, dispatch, onSignOut }) => {
+const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
   const recentProjects = state.projects.slice(0, 5);
   const me = state.team.find(m => m.id === state.currentUserId) || getUser(state.currentUserId);
 
@@ -240,6 +369,9 @@ const Sidebar = ({ state, dispatch, onSignOut }) => {
           </div>
         </button>
       </div>
+
+      {/* Tablero activo */}
+      <WorkspaceSwitcher state={state} dispatch={dispatch} onCreateTeam={onCreateTeam} />
 
       {/* Usuario autenticado */}
       <div className="px-3 py-3 border-b border-app">
@@ -1582,6 +1714,27 @@ const App = () => {
   // y las reglas lo rechazan.
   const stampWs = (obj) => ({ ...obj, workspaceId: obj.workspaceId || wsId });
 
+  // ── Crear tablero de equipo ─────────────────────────────────
+  // Nace con el creador como único miembro; el resto entra por invitación.
+  // Las reglas exigen exactamente eso (memberIds == [uid] en el alta), así
+  // que no se puede fabricar un tablero metiendo gente adentro de una.
+  const handleCreateTeamWorkspace = (name) => {
+    if (!authUser || !name?.trim()) return;
+    const id = 'ws' + Date.now() + Math.random().toString(36).slice(2, 5);
+    const workspace = {
+      id,
+      name:      name.trim(),
+      kind:      'team',
+      ownerId:   authUser.uid,
+      memberIds: [authUser.uid],
+      roles:     { [authUser.uid]: 'owner' },
+      createdAt: new Date().toISOString(),
+    };
+    window.db.collection('frame_workspaces').doc(id).set(workspace)
+      .then(() => dispatch({ type: 'set_active_workspace', id }))
+      .catch(err => console.error('[FRAME] Crear tablero de equipo:', err));
+  };
+
   const handleUpdateProject = (project) => {
     dispatch({ type: 'update_project', project }); // optimistic: actualiza UI al instante
     window.db.collection('frame_projects').doc(project.id).set(stampWs(project))
@@ -1738,7 +1891,7 @@ const App = () => {
 
   return (
     <div className="h-screen flex" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
-      <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} />
+      <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} onCreateTeam={handleCreateTeamWorkspace} />
 
       {state.section === 'clients' ? (
         <ClientsSection
