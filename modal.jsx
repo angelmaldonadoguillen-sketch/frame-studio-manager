@@ -1641,6 +1641,10 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     if (e.target.tagName === 'IMG') { e.preventDefault(); setSelectedImage(e.target); }
   };
 
+  const handleDoubleClick = (e) => {
+    if (e.target.tagName === 'IMG') { e.preventDefault(); setLightbox(e.target.src); }
+  };
+
   // Botón de toolbar reutilizable
   const TB = ({ onMouseDown, title, children }) => (
     <button
@@ -1679,7 +1683,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
             {uploading && <span className="text-[10px] font-mono animate-pulse">{progress}%</span>}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
-          <span className="ml-auto text-[10px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Ctrl+V: archivo, web o URL</span>
+          <span className="ml-auto text-[10px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Clic: ajustar · doble clic: ampliar</span>
         </div>
 
         {selectedImage && (
@@ -1707,6 +1711,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           onBlur={() => { setFocused(false); save(); }}
           onPaste={handlePaste}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
           data-placeholder="Describí la tarea, el brief y las referencias…"
           className="desc-editor p-3 text-[15px] leading-relaxed"
           style={{ minHeight: 100, background: 'var(--surface-2)', color: 'var(--text)' }}

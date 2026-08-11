@@ -2100,6 +2100,12 @@ const App = () => {
 
   const handleUpdateProject = (project) => {
     const prev = state.projects.find(p => p.id === project.id);
+    // A task with a checklist cannot be delivered until it is complete.
+    if (prev && project.status === 'delivered' && prev.status !== 'delivered'
+      && project.checklist?.length && progressOf(project) < 100) {
+      window.frameToast?.('Completá el checklist antes de entregar la tarea.');
+      return;
+    }
     dispatch({ type: 'update_project', project }); // optimista: la UI ya lo refleja
 
     // Sólo los campos que realmente cambiaron respecto de lo que había.

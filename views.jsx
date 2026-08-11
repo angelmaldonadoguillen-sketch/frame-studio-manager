@@ -197,11 +197,12 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
   const [open, setOpen]   = useState(false);
   const [pos, setPos]     = useState({ top: 0, right: 0 });
   const [label, setLabel] = useState(col.label);
+  const [wipLimit, setWipLimit] = useState(col.wipLimit || '');
   const btnRef  = useRef(null);
   const panelRef = useRef(null);
 
   // sync label when col changes (e.g. after save)
-  useEffect(() => setLabel(col.label), [col.label]);
+  useEffect(() => { setLabel(col.label); setWipLimit(col.wipLimit || ''); }, [col.label, col.wipLimit]);
 
   useEffect(() => {
     if (!open) return;
@@ -248,6 +249,24 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
           className="w-full px-2.5 py-1.5 rounded-md text-[13px] border"
           style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
         />
+      </div>
+
+      <div className="mb-3">
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Límite en curso</div>
+        <input
+          type="number"
+          min="1"
+          value={wipLimit}
+          onChange={(e) => setWipLimit(e.target.value)}
+          onBlur={() => {
+            const next = Math.max(0, Number.parseInt(wipLimit, 10) || 0);
+            if (next !== (col.wipLimit || 0)) onUpdate({ ...col, wipLimit: next || undefined });
+          }}
+          placeholder="Sin límite"
+          className="w-full px-2.5 py-1.5 rounded-md text-[13px] border"
+          style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
+        />
+        <div className="mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>0 o vacío = sin límite</div>
       </div>
 
       {/* Color */}
@@ -427,7 +446,11 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
     e.preventDefault();
     if (!draggingId) return;
     const p = projects.find(x => x.id === draggingId);
-    if (p && p.status !== statusId) onUpdateProject({ ...p, status: statusId });
+    const target = baseCols.find(c => c.id === statusId);
+    const atLimit = target?.wipLimit && projects.filter(x => x.status === statusId).length >= target.wipLimit;
+    if (p && p.status !== statusId && atLimit) {
+      window.frameToast?.(`Límite de ${target.wipLimit} tareas alcanzado en ${target.label}. Terminá o mové una antes.`);
+    } else if (p && p.status !== statusId) onUpdateProject({ ...p, status: statusId });
     resetDrag();
   };
 
@@ -506,8 +529,8 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                   )}
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }}></span>
                   <span className="text-[12px] font-semibold">{s.label}</span>
-                  <span className="text-[11px] text-[var(--text-muted)] font-mono px-1.5 rounded" style={{ background: 'var(--surface-2)' }}>
-                    {items.length}
+                  <span className="text-[11px] font-mono px-1.5 rounded" style={{ background: 'var(--surface-2)', color: s.wipLimit && items.length >= s.wipLimit ? 'var(--warn)' : 'var(--text-muted)' }}>
+                    {items.length}{s.wipLimit ? `/${s.wipLimit}` : ''}
                   </span>
                 </div>
                 {onUpdateColumn && (
@@ -733,7 +756,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     const currentDate = dragging.kind === 'deadline' ? project.deadline : project.sessionDate;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
     // Mueve deadline Y sessionDate juntos para que el proyecto no aparezca en dos días
-    onUpdateProject && onUpdateProject({ ...project, deadline: iso, sessionDate: iso });
+    onUpdateProject && onUpdateProject({ ...project, [dragging.kind]: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
 
@@ -1022,7 +1045,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
     // Strip _kind before saving, move both dates together
     const { _kind, ...cleanProject } = found;
-    onUpdateProject && onUpdateProject({ ...cleanProject, deadline: iso, sessionDate: iso });
+    onUpdateProject && onUpdateProject({ ...cleanProject, [dragging.kind]: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
 
