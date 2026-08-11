@@ -2004,11 +2004,57 @@ const App = () => {
       .catch(err => console.error('[FRAME] Crear tablero de equipo:', err));
   };
 
-  const handleUpdateProject = (project) => {
-    dispatch({ type: 'update_project', project }); // optimistic: actualiza UI al instante
-    window.db.collection('frame_projects').doc(project.id).set(stampWs(project))
-      .catch(err => console.error('Error al guardar proyecto:', err));
+  // ── Guardado de proyectos: por campos y con debounce ────────
+  // Antes hacía .set(proyectoEntero) en cada cambio. Dos problemas:
+  //
+  //   · .set() REEMPLAZA el documento. Si dos personas editaban la misma
+  //     tarjeta, la última en guardar borraba los cambios de la otra aunque
+  //     hubieran tocado campos distintos.
+  //   · Una escritura por cada cambio: marcar una tarea, mover una fecha,
+  //     reordenar el checklist. Editar una tarjeta generaba decenas.
+  //
+  // Ahora se manda .update() sólo con los campos que cambiaron, agrupando lo
+  // que pase en 700 ms. La UI no espera: el dispatch es inmediato.
+  const saveTimers  = useRef({});   // por proyecto: varios pueden editarse
+  const savePending = useRef({});
+
+  const flushProject = (id) => {
+    const patch = savePending.current[id];
+    delete savePending.current[id];
+    if (saveTimers.current[id]) { clearTimeout(saveTimers.current[id]); delete saveTimers.current[id]; }
+    if (!patch || Object.keys(patch).length === 0) return;
+    window.db.collection('frame_projects').doc(id).update(patch)
+      .catch(err => console.error('[FRAME] Guardar proyecto:', err));
   };
+
+  const handleUpdateProject = (project) => {
+    const prev = state.projects.find(p => p.id === project.id);
+    dispatch({ type: 'update_project', project }); // optimista: la UI ya lo refleja
+
+    // Sólo los campos que realmente cambiaron respecto de lo que había.
+    const patch = {};
+    Object.keys(project).forEach(k => {
+      if (JSON.stringify(project[k]) !== JSON.stringify(prev?.[k])) patch[k] = project[k];
+    });
+    if (!prev) { // alta: no hay con qué comparar, va entero
+      window.db.collection('frame_projects').doc(project.id).set(stampWs(project))
+        .catch(err => console.error('[FRAME] Guardar proyecto:', err));
+      return;
+    }
+    if (Object.keys(patch).length === 0) return;
+
+    savePending.current[project.id] = { ...(savePending.current[project.id] || {}), ...patch };
+    if (saveTimers.current[project.id]) clearTimeout(saveTimers.current[project.id]);
+    saveTimers.current[project.id] = setTimeout(() => flushProject(project.id), 700);
+  };
+
+  // Al desmontar se manda lo que quedó pendiente: cerrar la pestaña o salir
+  // antes de los 700 ms perdía el último cambio.
+  useEffect(() => {
+    const onLeave = () => Object.keys(savePending.current).forEach(flushProject);
+    window.addEventListener('beforeunload', onLeave);
+    return () => { window.removeEventListener('beforeunload', onLeave); onLeave(); };
+  }, []);
 
   const handleCreateProject = (project) => {
     // Optimistic: dispatch first → snapshot replaces array (no duplicate)

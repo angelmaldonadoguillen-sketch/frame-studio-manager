@@ -67,6 +67,20 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
             <div className="flex items-center gap-1.5 mb-1" style={{ color: 'var(--text-muted)' }}>
               <span className="rounded-full flex-shrink-0" style={{ width: 5, height: 5, background: t.color }} />
               <span className="text-[11px] font-medium truncate">{t.label}</span>
+              {/* En el calendario un proyecto aparece en DOS días —el de
+                  sesión y el de entrega— y hasta ahora se veía la misma
+                  tarjeta repetida sin ninguna diferencia. El dato existía
+                  (_kind, se usa para arrastrar) pero no se mostraba, así que
+                  era indistinguible de un duplicado por error. */}
+              {project._kind && (
+                <>
+                  <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>·</span>
+                  <span className="text-[11px] font-medium flex-shrink-0"
+                        style={{ color: project._kind === 'session' ? 'var(--info)' : 'var(--text-dim)' }}>
+                    {project._kind === 'session' ? 'Sesión' : 'Entrega'}
+                  </span>
+                </>
+              )}
               {pf.estado !== false && (
                 <>
                   <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>·</span>

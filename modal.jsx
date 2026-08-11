@@ -594,6 +594,9 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
     return () => document.removeEventListener('keydown', handler);
   }, [onClose, onNavigate, prevId, nextId]);
 
+  // El debounce y el guardado por campos viven en handleUpdateProject
+  // (app.jsx): ahí se sabe cuál era el estado anterior para calcular qué
+  // cambió, y sirve para todas las vistas, no sólo para este modal.
   const upd = (patch) => onUpdate({ ...project, ...patch });
   const updField = (key) => (val) => upd({ [key]: val });
 
@@ -934,6 +937,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 <input
                   type="date"
                   value={project.deadline}
+                  // El navegador impide elegir una fecha anterior al inicio.
+                  // Antes se podía dejar el deadline antes del comienzo, y el
+                  // contador de días mostraba un proyecto ya vencido el mismo
+                  // día que arrancaba.
+                  min={project.startDate || undefined}
                   onChange={(e) => updField('deadline')(e.target.value)}
                   className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
                   style={{ colorScheme: 'dark' }}
@@ -943,13 +951,25 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
             </PropRow>
 
             <PropRow icon="camera" label="Fecha sesión">
-              <input
-                type="date"
-                value={project.sessionDate || ''}
-                onChange={(e) => updField('sessionDate')(e.target.value)}
-                className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
-                style={{ colorScheme: 'dark' }}
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={project.sessionDate || ''}
+                  min={project.startDate || undefined}
+                  onChange={(e) => updField('sessionDate')(e.target.value)}
+                  className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
+                  style={{ colorScheme: 'dark' }}
+                />
+                {/* Cuando las fechas difieren, el proyecto ocupa dos días en
+                    el calendario. Conviene decirlo acá, que es donde se toma
+                    la decisión, y no dejar que se descubra viendo la tarjeta
+                    repetida. */}
+                {project.sessionDate && project.deadline && project.sessionDate !== project.deadline && (
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    aparece en 2 días del calendario
+                  </span>
+                )}
+              </div>
             </PropRow>
 
             <PropRow icon="zap" label="Presupuesto">
@@ -957,8 +977,10 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 <span className="text-[var(--text-muted)]">{project.currency}</span>
                 <InlineEdit
                   value={String(project.budget)}
-                  onChange={(v) => updField('budget')(parseInt(v) || 0)}
-                  className="font-mono"
+                  // Math.max(0, …) porque un presupuesto negativo no significa
+                  // nada y además ensuciaba los totales de Analytics.
+                  onChange={(v) => updField('budget')(Math.max(0, parseInt(v, 10) || 0))}
+                  className="font-mono tnum"
                 />
               </div>
             </PropRow>
