@@ -83,7 +83,11 @@ service cloud.firestore {
     // ── Tableros ─────────────────────────────────────────────────
     match /frame_workspaces/{wsId} {
 
-      allow read: if isMember(wsId);
+      // Se mira resource.data directamente en vez de isMember(), que haría un
+      // get() del mismo documento que se está leyendo. En una consulta de
+      // lista —que es como la app pide los tableros del usuario— Firestore ya
+      // tiene el documento a mano; el get() sobra y hace fallar la consulta.
+      allow read: if approved() && myUid() in resource.data.memberIds;
 
       // Crear: sólo para uno mismo, arrancando como único miembro y dueño.
       // Sin esto, alguien podría crear un tablero poniendo a otro de dueño.
@@ -95,7 +99,10 @@ service cloud.firestore {
       // Actualizar: cualquier miembro puede editar el tablero (nombre, etc.),
       // pero el dueño no se puede cambiar y el límite de 3 es infranqueable.
       // Los tableros personales no admiten un segundo miembro.
-      allow update: if isMember(wsId)
+      // Igual que en read: se usa resource.data en vez de isMember()/isOwner(),
+      // que traerían con get() el mismo documento que la operación ya tiene.
+      allow update: if approved()
+                    && myUid() in resource.data.memberIds
                     && request.resource.data.ownerId == resource.data.ownerId
                     && request.resource.data.kind    == resource.data.kind
                     && request.resource.data.memberIds.size() <=
@@ -103,12 +110,14 @@ service cloud.firestore {
                     // Sólo el dueño toca la lista de miembros; el resto puede
                     // editar todo lo demás pero no invitar ni expulsar.
                     && (request.resource.data.memberIds == resource.data.memberIds
-                        || isOwner(wsId)
+                        || resource.data.ownerId == myUid()
                         // salvo irse por cuenta propia
                         || (request.resource.data.memberIds ==
                             resource.data.memberIds.removeAll([myUid()])));
 
-      allow delete: if isOwner(wsId) && resource.data.kind == 'team';
+      allow delete: if approved()
+                    && resource.data.ownerId == myUid()
+                    && resource.data.kind == 'team';
 
       // ── Config por tablero ──
       // kanban_columns, project_types, display_settings. Antes eran
