@@ -1556,6 +1556,9 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   const editorRef   = useRef(null);
   const fileRef     = useRef(null);
   const imageMenuRef = useRef(null);
+  const descriptionSaveTimerRef = useRef(null);
+  const descriptionDirtyRef = useRef(false);
+  const lastDescriptionHtmlRef = useRef(null);
   const uploadingRef = useRef(false); // evita guardar mientras sube imagen
   const [focused,   setFocused]   = useState(false);
   const [lightbox,  setLightbox]  = useState(null);
@@ -1564,9 +1567,18 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   const [uploading, setUploading] = useState(false);
   const [progress,   setProgress]   = useState(0);
 
-  // Inicializa HTML solo al montar (no en cada re-render para no romper el cursor)
+  // El documento abierto tambiÃ©n recibe los cambios que lleguen desde otra
+  // sesiÃ³n. Si esta persona estÃ¡ escribiendo, no se pisa su borrador local.
   useEffect(() => {
-    if (editorRef.current) editorRef.current.innerHTML = sanitizeDescHTML(blocksToHTML(blocks));
+    const editor = editorRef.current;
+    if (!editor || descriptionDirtyRef.current) return;
+    const incoming = sanitizeDescHTML(blocksToHTML(blocks));
+    if (editor.innerHTML !== incoming) editor.innerHTML = incoming;
+    lastDescriptionHtmlRef.current = incoming;
+  }, [blocks]);
+
+  useEffect(() => () => {
+    if (descriptionSaveTimerRef.current) clearTimeout(descriptionSaveTimerRef.current);
   }, []);
 
   // Guarda al perder foco (solo si no está subiendo imagen)
@@ -1576,7 +1588,20 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     // trae el HTML de origen entero, con scripts y manejadores incluidos.
     const html = sanitizeDescHTML(editorRef.current?.innerHTML || '').trim();
     const empty = html === '' || html === '<br>' || html === '<div><br></div>';
+    const next = empty ? '' : html;
+    if (next === lastDescriptionHtmlRef.current) {
+      descriptionDirtyRef.current = false;
+      return;
+    }
+    lastDescriptionHtmlRef.current = next;
+    descriptionDirtyRef.current = false;
     onChange(empty ? [] : [{ type: 'html', content: html }]);
+  };
+
+  const scheduleSave = () => {
+    descriptionDirtyRef.current = true;
+    if (descriptionSaveTimerRef.current) clearTimeout(descriptionSaveTimerRef.current);
+    descriptionSaveTimerRef.current = setTimeout(save, 500);
   };
 
   // Botones de toolbar: preventDefault para no perder foco del editor
@@ -1630,6 +1655,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
       selection.removeAllRanges();
       selection.addRange(range);
     }
+    scheduleSave();
   };
 
   // Sube imagen a Firebase Storage (igual que cover) y la inserta en el cursor
@@ -1755,6 +1781,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   const updateSelectedImage = (attribute, value) => {
     if (!selectedImage || !editorRef.current?.contains(selectedImage)) return;
     selectedImage.setAttribute(attribute, value);
+    descriptionDirtyRef.current = true;
     save();
   };
 
@@ -1813,7 +1840,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           <span className="ml-auto text-[10px] hidden sm:block" style={{ color: 'var(--text-muted)' }}>Seleccioná una imagen para editarla</span>
         </div>
 
-        {selectedImage && imageMenuPosition && (
+        {selectedImage && imageMenuPosition && ReactDOM.createPortal(
           <div
             ref={imageMenuRef}
             className="fixed z-[10000] flex flex-wrap items-center gap-1.5 rounded-lg border px-3 py-2 shadow-xl anim-fade-in"
@@ -1841,7 +1868,8 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
             <div className="w-px h-3.5 mx-1" style={{ background: 'var(--border-2)' }} />
             <TB onMouseDown={() => setLightbox(selectedImage.src)} title="Abrir imagen a tamaño completo">Abrir</TB>
             <TB onMouseDown={() => { clearImageSelection(); setSelectedImage(null); setImageMenuPosition(null); }} title="Cerrar opciones"><Icon name="x" size={12} /></TB>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* ── Área editable ── */}
@@ -1851,6 +1879,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           suppressContentEditableWarning
           onFocus={() => setFocused(true)}
           onBlur={() => { setFocused(false); save(); }}
+          onInput={scheduleSave}
           onPaste={handlePaste}
           onClick={handleClick}
           data-placeholder="Describí la tarea, el brief y las referencias…"
