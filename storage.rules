@@ -20,6 +20,14 @@ service firebase.storage {
              && request.resource.contentType.matches('image/.*');
     }
 
+    function validDeliverable() {
+      return request.resource.size <= 25 * 1024 * 1024
+             && (request.resource.contentType.matches('image/.*')
+                 || request.resource.contentType.matches('video/.*')
+                 || request.resource.contentType.matches('audio/.*')
+                 || request.resource.contentType == 'application/pdf');
+    }
+
     match /frame-covers/{projectId}/{fileName} {
       allow read: if projectMember(projectId);
       allow create, update: if projectMember(projectId) && validImage();
@@ -29,6 +37,12 @@ service firebase.storage {
     match /frame-descriptions/{projectId}/{fileName} {
       allow read: if projectMember(projectId);
       allow create, update: if projectMember(projectId) && validImage();
+      allow delete: if projectMember(projectId);
+    }
+
+    match /frame-deliverables/{projectId}/{fileName} {
+      allow read: if projectMember(projectId);
+      allow create, update: if projectMember(projectId) && validDeliverable();
       allow delete: if projectMember(projectId);
     }
   }

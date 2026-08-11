@@ -4,6 +4,7 @@
   root.FrameAttachments = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+  const MAX_DELIVERABLE_BYTES = 25 * 1024 * 1024;
   const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
   const validateImageFile = (file) => {
@@ -17,6 +18,17 @@
     if (file.size > MAX_IMAGE_BYTES) {
       return { ok: false, message: 'La imagen supera el límite de 10 MB.' };
     }
+    return { ok: true };
+  };
+
+  const validateDeliverableFile = (file) => {
+    if (!file) return { ok: false, message: 'No se seleccionó ningún archivo.' };
+    const type = String(file.type || '').toLowerCase();
+    const allowed = type === 'application/pdf' || type.startsWith('image/')
+      || type.startsWith('video/') || type.startsWith('audio/');
+    if (!allowed) return { ok: false, message: 'Permitimos imágenes, video, audio o PDF.' };
+    if (!Number.isFinite(file.size) || file.size <= 0) return { ok: false, message: 'El archivo está vacío o no se puede leer.' };
+    if (file.size > MAX_DELIVERABLE_BYTES) return { ok: false, message: 'El archivo supera el límite de 25 MB.' };
     return { ok: true };
   };
 
@@ -125,7 +137,7 @@
   };
 
   return {
-    MAX_IMAGE_BYTES, validateImageFile, validateImageUrl, normalizeRemoteImageUrl,
+    MAX_IMAGE_BYTES, MAX_DELIVERABLE_BYTES, validateImageFile, validateDeliverableFile, validateImageUrl, normalizeRemoteImageUrl,
     extractImageUrlsFromHtml, looksLikeImageUrl, classifyPasteSource, safeFileName, storageErrorMessage, waitForUpload,
   };
 });

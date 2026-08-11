@@ -734,7 +734,14 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
     upd({ deliverables: project.deliverables.map(dv => dv.id === id ? { ...dv, status: dv.status === 'ready' ? 'pending' : 'ready' } : dv) });
   };
   const addDeliverable    = (dv)  => upd({ deliverables: [...project.deliverables, dv] });
-  const removeDeliverable = (id)  => upd({ deliverables: project.deliverables.filter(dv => dv.id !== id) });
+  const removeDeliverable = (id)  => {
+    const item = project.deliverables.find(dv => dv.id === id);
+    if (item?.storagePath && window.storage) {
+      window.storage.ref(item.storagePath).delete()
+        .catch(() => window.frameToast?.('Se eliminó el entregable de la tarea, pero no se pudo borrar su archivo.'));
+    }
+    upd({ deliverables: project.deliverables.filter(dv => dv.id !== id) });
+  };
 
   const addTimelineItem = (item) => upd({ timeline: [...project.timeline, item] });
   const toggleTimeline  = (id)   => upd({ timeline: project.timeline.map(t => t.id === id ? { ...t, status: t.status === 'done' ? 'pending' : 'done' } : t) });
@@ -1135,7 +1142,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                           <div className="p-2.5 space-y-2">
                             {/* Fila 1: nombre + tipo */}
                             <div className="flex items-center gap-2">
-                              <Icon name={editingDvData.kind === 'video' ? 'film' : editingDvData.kind === 'photos' ? 'camera' : 'mic'} size={13} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                              <Icon name={editingDvData.kind === 'video' ? 'film' : editingDvData.kind === 'photos' ? 'camera' : editingDvData.kind === 'file' ? 'paperclip' : 'mic'} size={13} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
                               <input
                                 ref={editDvNameRef}
                                 value={editingDvData.name}
@@ -1177,7 +1184,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                         ) : (
                           /* ── Modo normal ── */
                           <div className="flex items-center gap-3 py-2 px-3">
-                            <Icon name={dv.kind === 'video' ? 'film' : dv.kind === 'photos' ? 'camera' : 'mic'} size={14} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                            <Icon name={dv.kind === 'video' ? 'film' : dv.kind === 'photos' ? 'camera' : dv.kind === 'file' ? 'paperclip' : 'mic'} size={14} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
                             <div className="flex-1 min-w-0">
                               <div
                                 onClick={() => startEditDv(dv)}
@@ -1215,7 +1222,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                         )}
                       </div>
                     ))}
-                    <DeliverableAdd onAdd={addDeliverable} />
+                    <DeliverableAdd onAdd={addDeliverable} projectId={project.id} />
                   </div>
                 </section>
 
@@ -1340,14 +1347,38 @@ const ChecklistAdd = ({ onAdd }) => {
 };
 
 // ── Deliverable add ─────────────────────────────────────────────
-const DeliverableAdd = ({ onAdd }) => {
+const DeliverableAdd = ({ onAdd, projectId }) => {
   const [name, setName] = useState('');
   const [kind, setKind] = useState('video');
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   const submit = () => {
     if (!name.trim()) return;
     onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: name.trim(), kind, status: 'pending' });
     setName('');
+  };
+
+  const uploadFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !projectId) return;
+    const valid = FrameAttachments.validateDeliverableFile(file);
+    if (!valid.ok) { window.frameToast?.(valid.message); return; }
+    if (!window.storage) { window.frameToast?.('Storage todavía no está disponible.'); return; }
+    setUploading(true);
+    try {
+      const storagePath = `frame-deliverables/${projectId}/${Date.now()}_${FrameAttachments.safeFileName(file.name)}`;
+      const task = window.storage.ref(storagePath).put(file, { contentType: file.type });
+      const snapshot = await FrameAttachments.waitForUpload(task, { timeoutMs: 60000 });
+      const url = await snapshot.ref.getDownloadURL();
+      const nextKind = file.type.startsWith('image/') ? 'photos' : file.type.startsWith('audio/') ? 'audio' : file.type.startsWith('video/') ? 'video' : 'file';
+      onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: file.name, kind: nextKind, status: 'pending', url, storagePath, contentType: file.type, size: file.size });
+      window.frameToast?.('Archivo adjuntado al entregable.');
+    } catch (err) {
+      console.error('Deliverable upload:', err);
+      window.frameToast?.(FrameAttachments.storageErrorMessage(err));
+    } finally { setUploading(false); }
   };
 
   return (
@@ -1369,7 +1400,16 @@ const DeliverableAdd = ({ onAdd }) => {
         <option value="video">Video</option>
         <option value="photos">Foto</option>
         <option value="audio">Audio</option>
+        <option value="file">Archivo</option>
       </select>
+      <label
+        title="Adjuntar archivo: imagen, video, audio o PDF"
+        className={`p-1.5 rounded-md cursor-pointer transition ${uploading ? 'opacity-40 pointer-events-none' : ''}`}
+        style={{ background: 'var(--surface-3)', color: 'var(--accent)' }}
+      >
+        <Icon name="paperclip" size={14} />
+        <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,application/pdf" className="hidden" onChange={uploadFile} disabled={uploading} />
+      </label>
       <button aria-label="Agregar entregable"
         onClick={submit}
         disabled={!name.trim()}
