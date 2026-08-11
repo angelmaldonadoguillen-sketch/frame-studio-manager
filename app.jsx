@@ -2098,6 +2098,18 @@ const App = () => {
       .catch(err => notifyWriteError(err, 'la tarea'));
   };
 
+  const activitySummary = (before, after) => {
+    if (before.status !== after.status) return `cambió el estado a ${getStatus(after.status)?.label || after.status}`;
+    if (before.deadline !== after.deadline) return 'cambió la fecha límite';
+    if (before.sessionDate !== after.sessionDate) return 'reprogramó la próxima fecha de trabajo';
+    if (JSON.stringify(before.assignees) !== JSON.stringify(after.assignees)) return 'actualizó los responsables';
+    if (JSON.stringify(before.checklist) !== JSON.stringify(after.checklist)) return 'actualizó el checklist';
+    if (JSON.stringify(before.deliverables) !== JSON.stringify(after.deliverables)) return 'actualizó los entregables';
+    if (JSON.stringify(before.description) !== JSON.stringify(after.description)) return 'actualizó el brief';
+    if (before.cover?.value !== after.cover?.value) return 'actualizó la portada';
+    return null;
+  };
+
   const handleUpdateProject = (project) => {
     const prev = state.projects.find(p => p.id === project.id);
     // A task with a checklist cannot be delivered until it is complete.
@@ -2119,6 +2131,20 @@ const App = () => {
       return;
     }
     if (Object.keys(patch).length === 0) return;
+
+    const summary = activitySummary(prev, project);
+    if (summary) {
+      const actor = state.team.find(m => m.id === state.currentUserId);
+      const event = {
+        id: 'a' + Date.now() + Math.random().toString(36).slice(2, 6),
+        actorId: state.currentUserId,
+        actorName: actor?.name || 'Alguien',
+        summary,
+        at: new Date().toISOString(),
+      };
+      window.db.collection('frame_projects').doc(project.id).collection('activity').doc(event.id).set(event)
+        .catch(err => console.error('Task activity:', err));
+    }
 
     savePending.current[project.id] = { ...(savePending.current[project.id] || {}), ...patch };
     if (saveTimers.current[project.id]) clearTimeout(saveTimers.current[project.id]);

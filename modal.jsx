@@ -543,6 +543,8 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
   const [newComment, setNewComment]           = useState('');
   const [comments, setComments]               = useState(() => project?.comments || []);
   const [commentsLoading, setCommentsLoading] = useState(true);
+  const [activity, setActivity]               = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
   const [editingCheckId, setEditingCheckId]   = useState(null);
   const [editingCheckText, setEditingCheckText] = useState('');
   const editCheckRef = useRef(null);
@@ -582,6 +584,20 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
     });
     return () => unsub();
   }, [project?.id, collaborationEnabled, project?.comments]);
+
+  useEffect(() => {
+    if (!project?.id) return;
+    const col = window.db.collection('frame_projects').doc(project.id).collection('activity');
+    const unsub = col.orderBy('at', 'desc').limit(30).onSnapshot((snap) => {
+      setActivity(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setActivityLoading(false);
+    }, (err) => {
+      console.error('Activity listener error:', err);
+      setActivity([]);
+      setActivityLoading(false);
+    });
+    return () => unsub();
+  }, [project?.id]);
 
   if (!project) return null;
 
@@ -1262,6 +1278,28 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                     ))}
                     <TimelineAdd onAdd={addTimelineItem} />
                   </div>
+                </section>
+
+                <section>
+                  <SectionTitle icon="clock" right={activity.length ? `${activity.length} eventos` : ''}>Actividad</SectionTitle>
+                  {activityLoading ? (
+                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Cargando actividad…</div>
+                  ) : activity.length === 0 ? (
+                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Los cambios importantes aparecerán aquí.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {activity.map(item => (
+                        <div key={item.id} className="flex gap-2 text-[12px]">
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+                          <div>
+                            <span className="font-medium">{item.actorName || 'Alguien'}</span>{' '}
+                            <span style={{ color: 'var(--text-dim)' }}>{item.summary}</span>
+                            <span className="ml-1.5 text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{item.at ? new Date(item.at).toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'short' }) : ''}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </section>
               </div>
             )}

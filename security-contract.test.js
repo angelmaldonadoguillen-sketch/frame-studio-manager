@@ -15,6 +15,8 @@ assert.match(app, /_hasPendingWrites/);
 assert.match(firestore, /match \/config\/\{doc\}/);
 assert.match(firestore, /'daily_routine'/);
 assert.match(firestore, /match \/comments\/\{commentId\}/);
+assert.match(firestore, /match \/activity\/\{activityId\}/);
+assert.match(firestore, /allow update, delete: if false/);
 assert.doesNotMatch(modal, /batch\.set\(col\.doc\(c\.id\), c\)/);
 assert.match(modal, /_legacy:\s*true/);
 assert.match(storage, /match \/frame-covers\/\{projectId\}\/\{fileName\}/);

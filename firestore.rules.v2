@@ -211,6 +211,25 @@ service cloud.firestore {
         allow delete: if isMember(parentProject().workspaceId)
                       && resource.data.userId == myUid();
       }
+
+      match /activity/{activityId} {
+        function parentProject() {
+          return get(/databases/$(database)/documents/frame_projects/$(doc)).data;
+        }
+
+        allow read: if isMember(parentProject().workspaceId);
+        // El historial es inmutable: cada persona sólo puede agregar un evento
+        // propio, nunca modificar o borrar el rastro de otra persona.
+        allow create: if isMember(parentProject().workspaceId)
+                      && request.resource.data.id == activityId
+                      && request.resource.data.actorId == myUid()
+                      && request.resource.data.actorName is string
+                      && request.resource.data.summary is string
+                      && request.resource.data.summary.size() > 0
+                      && request.resource.data.summary.size() <= 300
+                      && request.resource.data.at is string;
+        allow update, delete: if false;
+      }
     }
 
     match /frame_clients/{doc} {
