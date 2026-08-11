@@ -201,6 +201,45 @@ window.pushNotif = (toUserId, data) => {
     .catch(err => console.error('pushNotif error:', err));
 };
 
+// ── Invitaciones recibidas ──────────────────────────────────────
+// Barra sobre el contenido, no una pantalla aparte: una invitación no debe
+// interrumpir lo que la persona estaba haciendo en su propio tablero.
+const InviteBanner = ({ invites, onAccept, onDecline }) => {
+  if (!invites || invites.length === 0) return null;
+  const inv = invites[0];
+  return (
+    <div
+      className="flex items-center gap-3 px-5 py-2.5 border-b anim-fade-in"
+      style={{ background: 'var(--accent-soft)', borderColor: 'var(--border)' }}
+    >
+      <Icon name="users" size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+      <div className="flex-1 min-w-0 text-[13px]">
+        <span style={{ color: 'var(--text-dim)' }}>
+          {inv.invitedByName || 'Alguien'} te invitó a{' '}
+        </span>
+        <strong style={{ color: 'var(--text)' }}>{inv.workspaceName || 'un tablero'}</strong>
+        {invites.length > 1 && (
+          <span style={{ color: 'var(--text-muted)' }}> · y {invites.length - 1} más</span>
+        )}
+      </div>
+      <button
+        onClick={() => onAccept(inv)}
+        className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition-all"
+        style={{ background: 'var(--accent)', color: '#131315' }}
+      >
+        Unirme
+      </button>
+      <button
+        onClick={() => onDecline(inv)}
+        className="px-2.5 py-1.5 rounded-md text-[12px]"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        Ahora no
+      </button>
+    </div>
+  );
+};
+
 // ── Selector de tablero ─────────────────────────────────────────
 // Cambiar de tablero recarga todos los datos: el estado se vacía en el
 // dispatch y los listeners se vuelven a suscribir con el workspaceId nuevo.
@@ -1316,6 +1355,82 @@ const App = () => {
 
   const iAmAdmin = !!state.team.find(m => m.id === state.currentUserId)?.platformAdmin;
 
+  // ── Invitaciones dirigidas a mí ─────────────────────────────
+  // Se filtran por email porque al invitar sólo se conoce el email, no el
+  // uid: la persona puede ni siquiera tener cuenta todavía.
+  const [myInvites, setMyInvites] = useState([]);
+  useEffect(() => {
+    const email = (authUser?.email || '').toLowerCase();
+    if (!email) { setMyInvites([]); return; }
+    const unsub = window.db.collection('frame_invites')
+      .where('email', '==', email)
+      .onSnapshot(
+        (snap) => setMyInvites(snap.docs.map(d => ({ ...d.data(), id: d.id }))),
+        (err) => { console.error('[FRAME] Invitaciones:', err); setMyInvites([]); }
+      );
+    return () => unsub();
+  }, [authUser?.email]);
+
+  const inviteId = (workspaceId, email) => `${workspaceId}__${email.trim().toLowerCase()}`;
+
+  // ── Invitar a un tablero de equipo ──────────────────────────
+  const handleInvite = (email) => {
+    const clean = (email || '').trim().toLowerCase();
+    if (!clean || !activeWs || activeWs.kind !== 'team') return;
+    if ((activeWs.memberIds || []).length >= 3) return;
+
+    const id = inviteId(activeWs.id, clean);
+    return window.db.collection('frame_invites').doc(id).set({
+      id,
+      email:         clean,
+      workspaceId:   activeWs.id,
+      // Copiado a propósito: el invitado no puede leer el tablero todavía.
+      workspaceName: activeWs.name,
+      invitedBy:     authUser.uid,
+      invitedByName: state.team.find(m => m.id === authUser.uid)?.name || '',
+      createdAt:     new Date().toISOString(),
+    }).catch(err => { console.error('[FRAME] Invitar:', err); throw err; });
+  };
+
+  // ── Aceptar una invitación ──────────────────────────────────
+  // Se escribe sin leer el tablero primero: no se puede, todavía no es
+  // miembro. arrayUnion y la ruta con punto permiten actualizar a ciegas.
+  const handleAcceptInvite = async (invite) => {
+    if (!authUser) return;
+    const me = state.team.find(m => m.id === authUser.uid);
+    try {
+      await window.db.collection('frame_workspaces').doc(invite.workspaceId).update({
+        memberIds: firebase.firestore.FieldValue.arrayUnion(authUser.uid),
+        [`members.${authUser.uid}`]: memberCard(me),
+        [`roles.${authUser.uid}`]:   'member',
+      });
+      // La invitación se borra recién después de entrar: si se borrara antes
+      // y la escritura fallara, quedaría afuera y sin forma de reintentar.
+      await window.db.collection('frame_invites').doc(invite.id).delete();
+      dispatch({ type: 'set_active_workspace', id: invite.workspaceId });
+    } catch (err) {
+      console.error('[FRAME] Aceptar invitación:', err);
+    }
+  };
+
+  const handleDeclineInvite = (invite) =>
+    window.db.collection('frame_invites').doc(invite.id).delete()
+      .catch(err => console.error('[FRAME] Rechazar invitación:', err));
+
+  // Invitaciones enviadas desde el tablero abierto, para que el dueño vea a
+  // quién le falta responder y pueda cancelar.
+  const [sentInvites, setSentInvites] = useState([]);
+  useEffect(() => {
+    if (!wsId || activeWs?.kind !== 'team') { setSentInvites([]); return; }
+    const unsub = window.db.collection('frame_invites')
+      .where('workspaceId', '==', wsId)
+      .onSnapshot(
+        (snap) => setSentInvites(snap.docs.map(d => ({ ...d.data(), id: d.id }))),
+        (err) => { console.error('[FRAME] Invitaciones enviadas:', err); setSentInvites([]); }
+      );
+    return () => unsub();
+  }, [wsId, activeWs?.kind]);
+
   useEffect(() => {
     if (!authUser || !wsId) return;
     const col = window.db.collection('frame_projects').where('workspaceId', '==', wsId);
@@ -1915,6 +2030,11 @@ const App = () => {
     <div className="h-screen flex" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
       <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} onCreateTeam={handleCreateTeamWorkspace} />
 
+      {/* El banner va dentro de la columna de contenido y no sobre toda la
+          pantalla: avisa sin tapar ni interrumpir lo que se estaba haciendo. */}
+      <div className="flex-1 flex flex-col min-w-0">
+      <InviteBanner invites={myInvites} onAccept={handleAcceptInvite} onDecline={handleDeclineInvite} />
+
       {state.section === 'clients' ? (
         <ClientsSection
           clients={state.clients}
@@ -1931,6 +2051,10 @@ const App = () => {
           team={wsMembers}
           pending={iAmAdmin ? state.team.filter(m => m.status === 'pending') : []}
           workspaceName={activeWs?.name}
+          canInvite={activeWs?.kind === 'team' && activeWs?.ownerId === authUser?.uid}
+          onInvite={handleInvite}
+          sentInvites={sentInvites}
+          onCancelInvite={handleDeclineInvite}
           projects={state.projects}
           onApproveUser={handleApproveUser}
           onRejectUser={handleRejectUser}
@@ -2005,6 +2129,7 @@ const App = () => {
           </div>
         </main>
       )}
+      </div>
 
       {openProject && (
         <ProjectModal

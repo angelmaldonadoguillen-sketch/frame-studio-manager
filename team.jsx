@@ -736,11 +736,97 @@ const PendingApprovals = ({ pending, onApprove, onReject }) => {
   );
 };
 
+// ── Invitar a un tablero de equipo ───────────────────────────────
+const InviteMember = ({ canInvite, full, count, onInvite, sent = [], onCancel }) => {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy]   = useState(false);
+  const [error, setError] = useState('');
+
+  if (!canInvite) return null;
+
+  const submit = async () => {
+    const clean = email.trim().toLowerCase();
+    if (!clean || busy) return;
+    // Validación mínima: sin arroba no es un email y la invitación quedaría
+    // esperando a alguien que nunca va a existir.
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) { setError('Ese email no parece válido.'); return; }
+    setBusy(true); setError('');
+    try {
+      await onInvite(clean);
+      setEmail('');
+    } catch {
+      setError('No se pudo enviar la invitación.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="px-5 py-4 border-b border-app" style={{ background: 'var(--surface)' }}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>
+          Invitar al tablero
+        </span>
+        <span className="text-[10px] tnum" style={{ color: 'var(--text-muted)' }}>{count}/3</span>
+      </div>
+
+      {full ? (
+        <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          El tablero llegó al máximo de 3 personas. Para sumar a alguien más,
+          primero hay que sacar a otro.
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 max-w-lg">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(''); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+            placeholder="email de la persona"
+            className="flex-1 px-3 py-2 rounded-lg text-[13px]"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+          />
+          <button
+            onClick={submit}
+            disabled={!email.trim() || busy}
+            className="px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-40 transition-all"
+            style={{ background: 'var(--accent)', color: '#131315' }}
+          >
+            {busy ? 'Enviando…' : 'Invitar'}
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="text-[12px] mt-2" style={{ color: 'var(--danger)' }}>{error}</div>
+      )}
+
+      {sent.length > 0 && (
+        <div className="mt-3 space-y-1">
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+            Esperando respuesta
+          </div>
+          {sent.map(i => (
+            <div key={i.id} className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-dim)' }}>
+              <Icon name="clock" size={11} style={{ color: 'var(--text-muted)' }} />
+              <span className="truncate">{i.email}</span>
+              <button onClick={() => onCancel(i)}
+                className="ml-1 text-[11px] hover:underline" style={{ color: 'var(--text-muted)' }}>
+                cancelar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // team    → miembros del TABLERO activo (lo que se ve y se asigna)
 // pending → solicitudes de acceso a la PLATAFORMA (sólo las ve el admin)
 // Son dos listas distintas a propósito: antes ambas salían de la misma y por
 // eso cada usuario veía un "equipo" diferente.
-const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember, currentUserId, onApproveUser, onRejectUser, workspaceName }) => {
+const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember, currentUserId, onApproveUser, onRejectUser, workspaceName, canInvite, onInvite, sentInvites = [], onCancelInvite }) => {
   const [search, setSearch]         = useState('');
   const [filterAvail, setFilterAvail] = useState('all');
 
@@ -818,6 +904,14 @@ const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMem
         </header>
 
         <PendingApprovals pending={pending} onApprove={onApproveUser} onReject={onRejectUser} />
+        <InviteMember
+          canInvite={canInvite}
+          full={team.length >= 3}
+          count={team.length}
+          onInvite={onInvite}
+          sent={sentInvites}
+          onCancel={onCancelInvite}
+        />
 
         {/* Summary bar */}
         <div className="flex items-center gap-5 px-5 py-2 border-b border-app text-[12px]" style={{ background: 'var(--surface)' }}>

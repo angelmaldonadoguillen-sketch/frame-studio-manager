@@ -99,21 +99,41 @@ service cloud.firestore {
       // Actualizar: cualquier miembro puede editar el tablero (nombre, etc.),
       // pero el dueño no se puede cambiar y el límite de 3 es infranqueable.
       // Los tableros personales no admiten un segundo miembro.
-      // Igual que en read: se usa resource.data en vez de isMember()/isOwner(),
-      // que traerían con get() el mismo documento que la operación ya tiene.
-      allow update: if approved()
-                    && myUid() in resource.data.memberIds
-                    && request.resource.data.ownerId == resource.data.ownerId
-                    && request.resource.data.kind    == resource.data.kind
-                    && request.resource.data.memberIds.size() <=
-                       (resource.data.kind == 'personal' ? 1 : 3)
-                    // Sólo el dueño toca la lista de miembros; el resto puede
-                    // editar todo lo demás pero no invitar ni expulsar.
-                    && (request.resource.data.memberIds == resource.data.memberIds
-                        || resource.data.ownerId == myUid()
-                        // salvo irse por cuenta propia
-                        || (request.resource.data.memberIds ==
-                            resource.data.memberIds.removeAll([myUid()])));
+      // Dos caminos distintos, y por eso el OR:
+      //
+      //   1. Un miembro editando su tablero.
+      //   2. Un invitado entrando. Este NO es miembro todavía, así que no
+      //      puede pasar por el primero — pero sólo se le permite agregarse
+      //      a sí mismo, y únicamente si existe una invitación para su email.
+      //
+      // Igual que en read, se usa resource.data en vez de isMember()/isOwner():
+      // traerían con get() el mismo documento que la operación ya tiene.
+      allow update: if approved() && (
+
+        ( myUid() in resource.data.memberIds
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.kind    == resource.data.kind
+          && request.resource.data.memberIds.size() <=
+             (resource.data.kind == 'personal' ? 1 : 3)
+          // Sólo el dueño toca la lista de miembros; el resto puede editar
+          // todo lo demás pero no invitar ni expulsar.
+          && (request.resource.data.memberIds == resource.data.memberIds
+              || resource.data.ownerId == myUid()
+              // salvo irse por cuenta propia
+              || (request.resource.data.memberIds ==
+                  resource.data.memberIds.removeAll([myUid()]))) )
+
+        ||
+
+        ( !(myUid() in resource.data.memberIds)
+          && resource.data.kind == 'team'
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.kind    == resource.data.kind
+          // Exactamente él mismo, ni uno más.
+          && request.resource.data.memberIds == resource.data.memberIds.concat([myUid()])
+          && request.resource.data.memberIds.size() <= 3
+          && exists(/databases/$(database)/documents/frame_invites/$(wsId + '__' + request.auth.token.email)) )
+      );
 
       allow delete: if approved()
                     && resource.data.ownerId == myUid()
@@ -127,13 +147,37 @@ service cloud.firestore {
         allow read, write: if isMember(wsId);
       }
 
-      // ── Invitaciones ──
-      // El id del documento es el email invitado, así el invitado puede
-      // leer la suya sin poder listar las de nadie más.
-      match /invites/{email} {
-        allow read:   if isMember(wsId) || (signedIn() && request.auth.token.email == email);
-        allow create, delete: if isOwner(wsId);
-      }
+    }
+
+    // ── Invitaciones ─────────────────────────────────────────────
+    // Va en la raíz y no dentro del tablero a propósito: el invitado todavía
+    // no es miembro, así que no puede leer nada de adentro. Acá puede
+    // consultar las suyas filtrando por su email.
+    //
+    // El id es workspaceId + '__' + email, para que la regla de alta del
+    // tablero pueda comprobar que existe sin tener que buscarla.
+    //
+    // La invitación lleva copiado el nombre del tablero: sin eso el invitado
+    // vería una invitación sin poder saber a qué lo invitan.
+    match /frame_invites/{inviteId} {
+
+      allow read: if signedIn() && (
+        resource.data.email == request.auth.token.email
+        || myUid() in ws(resource.data.workspaceId).memberIds
+      );
+
+      allow create: if approved()
+                    && ws(request.resource.data.workspaceId).ownerId == myUid()
+                    && ws(request.resource.data.workspaceId).kind == 'team'
+                    && inviteId == request.resource.data.workspaceId + '__' + request.resource.data.email;
+
+      // La borra quien invitó (se arrepintió) o el invitado (al aceptar o
+      // rechazar). Que el invitado pueda borrarla es lo que evita que una
+      // invitación usada quede sirviendo para volver a entrar.
+      allow delete: if signedIn() && (
+        resource.data.email == request.auth.token.email
+        || ws(resource.data.workspaceId).ownerId == myUid()
+      );
     }
 
     // ── Datos del tablero ────────────────────────────────────────
