@@ -456,6 +456,30 @@ const progressOf = (project) => {
   return Math.round((project.checklist.filter(c => c.done).length / project.checklist.length) * 100);
 };
 
+// ── Datos de presentación de un miembro ──────────────────────────
+// Se guarda una copia dentro del tablero, no una referencia al perfil.
+// Motivo: las reglas no permiten leer perfiles ajenos —y está bien que no lo
+// permitan— así que sin esta copia el tablero no podría mostrar quién lo
+// integra ni resolver los avatares de los responsables de un proyecto.
+// Es sólo lo necesario para dibujar; lo demás vive en frame_users.
+const memberCard = (m) => ({
+  id:       m?.id       || '',
+  name:     m?.name     || '',
+  initials: m?.initials || (m?.name || '?').slice(0, 2).toUpperCase(),
+  color:    m?.color    || '#9A9AA3',
+  role:     m?.role     || 'Colaborador',
+  email:    m?.email    || '',
+});
+
+// Miembros del tablero, listos para pintar. El orden pone primero al dueño.
+const workspaceMembers = (ws) => {
+  if (!ws) return [];
+  const map = ws.members || {};
+  return (ws.memberIds || [])
+    .map(uid => ({ ...memberCard(map[uid]), id: uid, isOwner: ws.ownerId === uid }))
+    .sort((a, b) => (b.isOwner ? 1 : 0) - (a.isOwner ? 1 : 0));
+};
+
 // ── Urgencia ─────────────────────────────────────────────────────
 // Un solo lugar donde se define qué es "urgente". Estaba repetido en cinco
 // puntos con dos criterios distintos: la sidebar y los filtros usaban
@@ -529,4 +553,5 @@ Object.assign(window, {
   fmtMoney, fmtDate, fmtDateLong, daysUntil, relativeTime, progressOf,
   localISO, normalizeProject, normalizeClient, normalizeMember,
   URGENT_DAYS, isClosed, isUrgent, isOverdue,
+  memberCard, workspaceMembers,
 });

@@ -736,17 +736,17 @@ const PendingApprovals = ({ pending, onApprove, onReject }) => {
   );
 };
 
-const TeamSection = ({ team, projects, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember, currentUserId, isPlatformAdmin, onApproveUser, onRejectUser }) => {
+// team    → miembros del TABLERO activo (lo que se ve y se asigna)
+// pending → solicitudes de acceso a la PLATAFORMA (sólo las ve el admin)
+// Son dos listas distintas a propósito: antes ambas salían de la misma y por
+// eso cada usuario veía un "equipo" diferente.
+const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMember, openMemberId, onOpenMember, onCloseMember, currentUserId, onApproveUser, onRejectUser, workspaceName }) => {
   const [search, setSearch]         = useState('');
   const [filterAvail, setFilterAvail] = useState('all');
 
   const openMember = openMemberId ? team.find(m => m.id === openMemberId) : null;
 
-  // Los pendientes se listan aparte, no mezclados con el equipo activo.
-  const pending = isPlatformAdmin ? team.filter(m => m.status === 'pending') : [];
-  const active  = team.filter(m => m.status !== 'pending' && m.status !== 'rejected');
-
-  const filtered = active.filter(m => {
+  const filtered = team.filter(m => {
     if (filterAvail !== 'all' && m.availability !== filterAvail) return false;
     if (!search) return true;
     const q = search.toLowerCase();
@@ -769,6 +769,7 @@ const TeamSection = ({ team, projects, onUpdateMember, onDeleteMember, openMembe
           <div className="flex items-center gap-2">
             <Icon name="users" size={15} className="text-[var(--text-muted)]" />
             <span className="font-display font-bold text-[15px]" style={{ letterSpacing: '-0.02em' }}>Equipo</span>
+            {workspaceName && <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>· {workspaceName}</span>}
             <span
               className="text-[10px] font-mono px-1.5 py-0.5 rounded"
               style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}

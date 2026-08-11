@@ -352,6 +352,9 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
   const iAmAdmin    = !!state.team.find(m => m.id === state.currentUserId)?.platformAdmin;
   const pendingCount = iAmAdmin ? state.team.filter(m => m.status === 'pending').length : 0;
 
+  // Quiénes integran el tablero abierto (no la plataforma entera).
+  const wsPeople = workspaceMembers(state.workspaces.find(w => w.id === state.activeWorkspaceId));
+
   return (
     <aside className="w-[240px] flex-shrink-0 border-r border-app flex flex-col" style={{ background: 'var(--surface)' }}>
       {/* Logo — click va a inicio */}
@@ -440,13 +443,13 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam }) => {
       <div className="border-t border-app p-3">
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1 select-none">Equipo en línea</div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {(state.team || []).slice(0, 5).map(u => (
+          {wsPeople.slice(0, 5).map(u => (
             <div key={u.id} className="relative" title={u.name}>
               <Avatar user={u} size={26} />
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-2 ring-[var(--surface)]" style={{ background: '#7DD3C0' }}></span>
             </div>
           ))}
-          {(state.team || []).length === 0 && (
+          {wsPeople.length === 0 && (
             <span className="text-[10px] text-[var(--text-muted)]">Sin integrantes</span>
           )}
         </div>
@@ -720,7 +723,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
         <FilterDropdown label="Estado"    icon="dot"       filterKey="status"   options={state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES}    state={state} dispatch={dispatch} />
         <FilterDropdown label="Tipo"      icon="film"      filterKey="type"     options={state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES}    state={state} dispatch={dispatch} />
         <FilterDropdown label="Prioridad" icon="flag"      filterKey="priority" options={PRIORITIES}                                                              state={state} dispatch={dispatch} />
-        <FilterDropdown label="Equipo"    icon="users"     filterKey="assignee" options={(state.team || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
+        <FilterDropdown label="Equipo"    icon="users"     filterKey="assignee" options={(wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
         <FilterDropdown label="Cliente"   icon="briefcase" filterKey="client"   options={[...new Map((state.projects || []).filter(p => p.client).map(p => { const cl = (state.clients || []).find(c => c.name === p.client); return [p.client, { id: p.client, label: p.client, color: cl?.color || '#9A9AA3' }]; })).values()]} state={state} dispatch={dispatch} />
 
         <div className="flex-1"></div>
@@ -1288,6 +1291,7 @@ const App = () => {
       ownerId:   authUser.uid,
       memberIds: [authUser.uid],
       roles:     { [authUser.uid]: 'owner' },
+      members:   { [authUser.uid]: memberCard(me) },
       createdAt: new Date().toISOString(),
     }).catch(err => {
       creatingWsRef.current = false;
@@ -1296,6 +1300,21 @@ const App = () => {
   }, [authUser?.uid, state.workspacesLoading, state.workspaces.length, state.team.length]);
 
   const wsId = state.activeWorkspaceId;
+
+  // ── Miembros del tablero activo ─────────────────────────────
+  // state.team es la lista de PLATAFORMA: para el admin son todos los
+  // registrados de todos los tableros, y para el resto es sólo él mismo.
+  // Usarla como "equipo" mostraba cosas distintas según quién mirara, y
+  // dejaba asignar proyectos a gente que ni estaba en el tablero.
+  // Lo que se ve y se asigna sale de acá: los miembros del tablero abierto.
+  const activeWs = state.workspaces.find(w => w.id === wsId) || null;
+  const wsMembers = useMemo(() => workspaceMembers(activeWs), [activeWs]);
+
+  // getUser() y AvatarStack lo leen para resolver los avatares de los
+  // responsables de cada proyecto.
+  useEffect(() => { window.__liveTeam = wsMembers; }, [wsMembers]);
+
+  const iAmAdmin = !!state.team.find(m => m.id === state.currentUserId)?.platformAdmin;
 
   useEffect(() => {
     if (!authUser || !wsId) return;
@@ -1336,7 +1355,6 @@ const App = () => {
       if (me?.platformAdmin && !unsubAll) {
         unsubAll = window.db.collection('frame_users').onSnapshot((snap) => {
           const team = snap.docs.map(d => normalizeMember({ ...d.data(), id: d.id }));
-          window.__liveTeam = team;
           dispatch({ type: 'set_team', team });
         }, (err) => console.error('[FRAME] Equipo (admin):', err));
       }
@@ -1346,7 +1364,6 @@ const App = () => {
       // lo integra — así no hace falta abrir la lectura de perfiles ajenos.
       if (!me?.platformAdmin) {
         const team = me ? [me] : [];
-        window.__liveTeam = team;
         dispatch({ type: 'set_team', team });
       }
     }, (err) => {
@@ -1729,6 +1746,7 @@ const App = () => {
   // que no se puede fabricar un tablero metiendo gente adentro de una.
   const handleCreateTeamWorkspace = (name) => {
     if (!authUser || !name?.trim()) return;
+    const me = state.team.find(m => m.id === authUser.uid);
     const id = 'ws' + Date.now() + Math.random().toString(36).slice(2, 5);
     const workspace = {
       id,
@@ -1737,6 +1755,7 @@ const App = () => {
       ownerId:   authUser.uid,
       memberIds: [authUser.uid],
       roles:     { [authUser.uid]: 'owner' },
+      members:   { [authUser.uid]: memberCard(me) },
       createdAt: new Date().toISOString(),
     };
     window.db.collection('frame_workspaces').doc(id).set(workspace)
@@ -1909,9 +1928,10 @@ const App = () => {
         />
       ) : state.section === 'team' ? (
         <TeamSection
-          team={state.team}
+          team={wsMembers}
+          pending={iAmAdmin ? state.team.filter(m => m.status === 'pending') : []}
+          workspaceName={activeWs?.name}
           projects={state.projects}
-          isPlatformAdmin={!!state.team.find(m => m.id === state.currentUserId)?.platformAdmin}
           onApproveUser={handleApproveUser}
           onRejectUser={handleRejectUser}
           onUpdateMember={handleUpdateMember}
@@ -1993,7 +2013,7 @@ const App = () => {
           projects={filtered}
           onNavigate={(id) => dispatch({ type: 'open_project', id })}
           currentUserId={state.currentUserId}
-          team={state.team}
+          team={workspaceMembers(state.workspaces.find(w => w.id === state.activeWorkspaceId))}
           clients={state.clients}
           onCreateClient={handleCreateClient}
           onClose={() => dispatch({ type: 'close_project' })}
