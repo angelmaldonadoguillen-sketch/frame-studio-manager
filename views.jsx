@@ -258,7 +258,7 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
             <button
               key={c}
               onClick={() => onUpdate({ ...col, color: c })}
-              className="w-8 h-8 rounded-md transition-all hover:scale-110"
+              className="w-8 h-8 rounded-md transition hover:scale-110"
               style={{
                 background: c,
                 boxShadow: col.color === c ? `0 0 0 2px var(--surface-2), 0 0 0 3.5px ${c}` : 'none',
@@ -289,7 +289,7 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
 
   return (
     <>
-      <button
+      <button aria-label="Opciones de la columna"
         ref={btnRef}
         onClick={openMenu}
         className={`p-1 rounded transition-colors ${open ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-2)]'}`}
@@ -467,7 +467,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
           return (
             <div
               key={s.id}
-              className="flex flex-col w-[280px] flex-shrink-0 rounded-xl border transition-all"
+              className="flex flex-col w-[280px] flex-shrink-0 rounded-xl border transition"
               style={{
                 background: 'var(--surface)',
                 borderColor: isColOver ? 'var(--accent)' : isCardOver ? s.color + '88' : 'var(--border)',
@@ -745,13 +745,13 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
             {monthLabel}
           </h2>
           <div className="flex items-center gap-0.5 ml-2">
-            <button onClick={goPrev} className="p-1.5 rounded hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+            <button aria-label="Anterior" onClick={goPrev} className="p-1.5 rounded hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
               <Icon name="chevronLeft" size={14} />
             </button>
             <button onClick={goToday} className="px-2.5 py-1 rounded text-[11px] font-medium hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
               Hoy
             </button>
-            <button onClick={goNext} className="p-1.5 rounded hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+            <button aria-label="Siguiente" onClick={goNext} className="p-1.5 rounded hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
               <Icon name="chevronRight" size={14} />
             </button>
           </div>
@@ -891,7 +891,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
                 {onToggleFavorite && (
                   <button
                     onClick={() => onToggleFavorite(project.id)}
-                    className={`p-1 rounded transition-all ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                    className={`p-1 rounded transition ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                     style={{ color: project.favorite ? 'var(--warn)' : 'var(--text-muted)' }}
                     title={project.favorite ? 'Quitar favorito' : 'Favorito'}
                   >
@@ -901,7 +901,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
                 {onDuplicate && (
                   <button
                     onClick={() => onDuplicate(project.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition"
                     title="Duplicar"
                   >
                     <Icon name="copy" size={11} />
@@ -910,7 +910,7 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
                 {onDelete && (
                   <button
                     onClick={() => setConfirmDel(true)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] transition"
                     title="Eliminar"
                   >
                     <Icon name="trash" size={11} />
@@ -1245,7 +1245,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
             {onToggleFavorite && !confirmDel && (
               <button
                 onClick={(e) => { e.stopPropagation(); onToggleFavorite(project.id); }}
-                className={`p-1.5 rounded-md transition-all ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                className={`p-1.5 rounded-md transition ${project.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                 style={{ background: 'rgba(0,0,0,0.55)', color: project.favorite ? 'var(--warn)' : 'white', backdropFilter: 'blur(4px)' }}
                 title={project.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               >
@@ -1254,7 +1254,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
             )}
             {!confirmDel && onDuplicate && (
               <button onClick={(e) => { e.stopPropagation(); onDuplicate(project.id); }}
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all"
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition"
                 style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)' }}
                 title="Duplicar">
                 <Icon name="copy" size={12} />
@@ -1262,7 +1262,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
             )}
             {onDelete && !confirmDel && (
               <button onClick={(e) => { e.stopPropagation(); setConfirmDel(true); }}
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all"
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition"
                 style={{ background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)' }}
                 title="Eliminar">
                 <Icon name="trash" size={12} />
@@ -1315,7 +1315,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
         {pf.progreso !== false && (
           <div className="flex items-center gap-2">
             <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-              <div className="h-full transition-all duration-500" style={{ width: progress + '%', background: t.color }}></div>
+              <div className="h-full transition duration-500" style={{ width: progress + '%', background: t.color }}></div>
             </div>
             <div className="text-[10px] font-mono" style={{ color: t.color }}>{progress}%</div>
           </div>
@@ -1376,7 +1376,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
       {/* Acciones */}
       <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
         {!confirmDel && (
-          <div className="opacity-0 group-hover:opacity-100 flex items-center justify-end gap-1 transition-all">
+          <div className="opacity-0 group-hover:opacity-100 flex items-center justify-end gap-1 transition">
             {onToggleFavorite && (
               <button
                 onClick={() => onToggleFavorite(p.id)}
@@ -1534,7 +1534,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
               return (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all"
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl border transition"
                   style={{
                     background: 'var(--surface)',
                     borderColor: purgeSoon ? 'var(--danger-soft-2)' : 'var(--border)',
@@ -1577,7 +1577,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                     {/* Progress bar for time remaining */}
                     <div className="mt-1 h-0.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)', width: 64 }}>
                       <div
-                        className="h-full rounded-full transition-all"
+                        className="h-full rounded-full transition"
                         style={{
                           width: `${(dl / 5) * 100}%`,
                           background: purgeSoon ? 'var(--danger)' : 'var(--text-muted)',

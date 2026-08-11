@@ -98,7 +98,7 @@ const WorkloadBar = ({ count, max = 6, color }) => {
       </div>
       <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
         <div
-          className="h-full rounded-full transition-all duration-500"
+          className="h-full rounded-full transition duration-500"
           style={{ width: pct + '%', background: barColor }}
         ></div>
       </div>
@@ -284,7 +284,7 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
             <span>›</span>
             <span className="text-[var(--text-dim)]">{member.name}</span>
           </div>
-          <button onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+          <button aria-label="Cerrar" onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             <Icon name="x" size={16} />
           </button>
         </div>
@@ -604,7 +604,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
             <div className="font-display text-lg font-semibold" style={{ letterSpacing: '-0.01em' }}>Nuevo integrante</div>
             <div className="text-[11px] text-[var(--text-muted)]">Sumá a alguien al equipo del estudio</div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+          <button aria-label="Cerrar" onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             <Icon name="x" size={15} />
           </button>
         </div>
@@ -613,7 +613,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
           {/* Avatar preview + color */}
           <div className="flex items-center gap-3">
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-lg flex-shrink-0 transition-all"
+              className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-lg flex-shrink-0 transition"
               style={{ background: color + '1a', color, border: `2px solid ${color}55`, letterSpacing: '-0.02em' }}
             >
               {initials}
@@ -623,7 +623,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
                 <button
                   key={c}
                   onClick={() => setColor(c)}
-                  className="w-5 h-5 rounded-full border-2 transition-all hover:scale-110"
+                  className="w-5 h-5 rounded-full border-2 transition hover:scale-110"
                   style={{ background: c, borderColor: color === c ? 'white' : 'transparent' }}
                 />
               ))}
@@ -671,7 +671,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
           <button
             onClick={submit}
             disabled={!name.trim()}
-            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition-all hover:brightness-110"
+            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition hover:brightness-110"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             Agregar al equipo
@@ -717,7 +717,7 @@ const PendingApprovals = ({ pending, onApprove, onReject }) => {
             </div>
             <button
               onClick={() => onApprove(u.id)}
-              className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition-all"
+              className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition"
               style={{ background: 'var(--accent)', color: '#131315' }}
             >
               Aprobar
@@ -789,7 +789,7 @@ const InviteMember = ({ canInvite, full, count, onInvite, sent = [], onCancel })
           <button
             onClick={submit}
             disabled={!email.trim() || busy}
-            className="px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-40 transition-all"
+            className="px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-40 transition"
             style={{ background: 'var(--accent)', color: '#131315' }}
           >
             {busy ? 'Enviando…' : 'Invitar'}
@@ -886,7 +886,7 @@ const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMem
               <button
                 key={a.id}
                 onClick={() => setFilterAvail(a.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] font-medium transition-all ${filterAvail === a.id ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-dim)] hover:text-white'}`}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] font-medium transition ${filterAvail === a.id ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-dim)] hover:text-white'}`}
               >
                 {a.color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: a.color }}></span>}
                 {a.label}

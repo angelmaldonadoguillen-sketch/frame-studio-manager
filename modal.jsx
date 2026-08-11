@@ -107,7 +107,7 @@ const TypeForm = ({ initial = {}, onSubmit, onCancel, submitLabel = 'Crear' }) =
         <div className="grid grid-cols-6 gap-1">
           {TYPE_PICKER_ICONS.map(ic => (
             <button key={ic} onClick={() => setIcon(ic)}
-              className="flex items-center justify-center rounded-md transition-all"
+              className="flex items-center justify-center rounded-md transition"
               style={{ width: 32, height: 32, background: icon === ic ? 'var(--accent-soft)' : 'var(--surface-3)', color: icon === ic ? 'var(--accent)' : 'var(--text-dim)', outline: icon === ic ? '1.5px solid var(--accent)' : 'none' }}
             >
               <Icon name={ic} size={14} />
@@ -119,7 +119,7 @@ const TypeForm = ({ initial = {}, onSubmit, onCancel, submitLabel = 'Crear' }) =
         <div className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Color</div>
         <div className="flex flex-wrap gap-1.5">
           {TYPE_PICKER_COLORS.map(c => (
-            <button key={c} onClick={() => setColor(c)} className="rounded-full transition-all"
+            <button key={c} onClick={() => setColor(c)} className="rounded-full transition"
               style={{ width: 20, height: 20, background: c, outline: color === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }}
             />
           ))}
@@ -445,7 +445,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
           <button
             key={c}
             onClick={() => { onChange({ type: 'color', value: c }); setOpen(false); }}
-            className="aspect-square rounded-lg border-2 transition-all hover:scale-105"
+            className="aspect-square rounded-lg border-2 transition hover:scale-105"
             style={{
               background: c,
               borderColor: cover.type === 'color' && cover.value === c ? 'var(--accent)' : 'var(--border)',
@@ -460,7 +460,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
       {uploading ? (
         <div className="space-y-1.5 mb-3">
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-            <div className="h-full transition-all duration-200" style={{ width: `${progress}%`, background: 'var(--accent)' }}></div>
+            <div className="h-full transition duration-200" style={{ width: `${progress}%`, background: 'var(--accent)' }}></div>
           </div>
           <div className="text-[11px] text-center font-mono" style={{ color: 'var(--accent)' }}>{progress}% — subiendo…</div>
         </div>
@@ -798,7 +798,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 </button>
               )
             )}
-            <button className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]" onClick={onClose}>
+            <button aria-label="Cerrar" className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]" onClick={onClose}>
               <Icon name="x" size={16} />
             </button>
           </div>
@@ -1006,7 +1006,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 <div className="text-xs font-mono" style={{ color: 'var(--accent)' }}>{progress}%</div>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                <div className="h-full transition-all duration-500" style={{ width: progress + '%', background: 'var(--accent)' }}></div>
+                <div className="h-full transition duration-500" style={{ width: progress + '%', background: 'var(--accent)' }}></div>
               </div>
               <div className="text-[11px] text-[var(--text-muted)] mt-2">
                 {project.checklist.filter(c => c.done).length} de {project.checklist.length} tareas completadas
@@ -1052,7 +1052,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                         key={c.id}
                         onDragOver={(e) => { if (dragCheckId) { e.preventDefault(); setDragOverCheckId(c.id); } }}
                         onDrop={(e) => { e.preventDefault(); reorderCheck(dragCheckId, c.id); setDragCheckId(null); setDragOverCheckId(null); }}
-                        className={`group flex items-center gap-1.5 py-1 px-2 -mx-2 rounded hover:bg-[var(--surface-2)] transition-all ${isDragging ? 'opacity-40' : ''}`}
+                        className={`group flex items-center gap-1.5 py-1 px-2 -mx-2 rounded hover:bg-[var(--surface-2)] transition ${isDragging ? 'opacity-40' : ''}`}
                         style={isDragOver ? { boxShadow: 'inset 0 2px 0 var(--accent)' } : undefined}
                       >
                         {/* Handle de arrastre */}
@@ -1342,10 +1342,10 @@ const DeliverableAdd = ({ onAdd }) => {
         <option value="photos">Foto</option>
         <option value="audio">Audio</option>
       </select>
-      <button
+      <button aria-label="Agregar entregable"
         onClick={submit}
         disabled={!name.trim()}
-        className="p-1.5 rounded-md disabled:opacity-40 transition-all"
+        className="p-1.5 rounded-md disabled:opacity-40 transition"
         style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
       >
         <Icon name="plus" size={14} strokeWidth={2.5} />
@@ -1386,10 +1386,10 @@ const TimelineAdd = ({ onAdd }) => {
         className="px-2 py-1.5 rounded-md text-[12px] border cursor-pointer"
         style={{ background: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)', colorScheme: 'dark' }}
       />
-      <button
+      <button aria-label="Agregar hito"
         onClick={submit}
         disabled={!label.trim()}
-        className="p-1.5 rounded-md disabled:opacity-40 transition-all"
+        className="p-1.5 rounded-md disabled:opacity-40 transition"
         style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
       >
         <Icon name="plus" size={14} strokeWidth={2.5} />
@@ -1536,7 +1536,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   return (
     <>
       <div
-        className="rounded-lg border overflow-hidden transition-all"
+        className="rounded-lg border overflow-hidden transition"
         style={{ borderColor: focused ? 'rgba(212,255,79,0.4)' : 'var(--border-2)' }}
       >
         {/* ── Toolbar ── */}
@@ -1651,7 +1651,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                   {isOwn && onDeleteComment && (
                     <button
                       onClick={() => onDeleteComment(c.id)}
-                      className="ml-auto opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] transition-all"
+                      className="ml-auto opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] transition"
                       title="Eliminar comentario"
                     >
                       <Icon name="trash" size={11} />
@@ -1706,7 +1706,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
               <button
                 onClick={onSend}
                 disabled={!newComment.trim()}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[12px] font-semibold transition-all disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[12px] font-semibold transition disabled:opacity-40"
                 style={{ background: 'var(--accent)', color: '#0a0a0b' }}
               >
                 Enviar
@@ -1721,9 +1721,13 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
   );
 };
 
-const FormatBtn = ({ icon, onClick }) => (
-  <button onClick={onClick} className="p-1.5 rounded text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]">
-    <Icon name={icon} size={13} />
+// Sin uso: el editor de descripción trae su propia barra de formato (TB).
+// Se deja porque el nombre accesible tiene que venir de quien lo usa — un
+// icono dinámico no puede describirse a sí mismo.
+const FormatBtn = ({ icon, onClick, label }) => (
+  <button onClick={onClick} aria-label={label}
+          className="p-1.5 rounded text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]">
+    <Icon name={icon} size={13} aria-hidden="true" />
   </button>
 );
 

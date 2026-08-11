@@ -179,7 +179,7 @@ const LoginScreen = () => {
               <button
                 key={t.id}
                 onClick={() => switchMode(t.id)}
-                className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition ${
                   mode === t.id
                     ? 'bg-[var(--surface)] text-white'
                     : 'text-[var(--text-dim)] hover:text-white'
@@ -257,7 +257,7 @@ const LoginScreen = () => {
             <button
               onClick={submit}
               disabled={loading || !canSubmit}
-              className="w-full py-2.5 rounded-lg text-[13px] font-bold disabled:opacity-40 transition-all hover:brightness-110 flex items-center justify-center gap-2 mt-1"
+              className="w-full py-2.5 rounded-lg text-[13px] font-bold disabled:opacity-40 transition hover:brightness-110 flex items-center justify-center gap-2 mt-1"
               style={{ background: 'var(--accent)', color: '#0a0a0b' }}
             >
               {loading ? (

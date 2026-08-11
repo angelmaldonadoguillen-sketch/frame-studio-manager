@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galería Coverflow — Código Shopify</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0d0d0d;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      background: #161616;
+      border-bottom: 1px solid #2a2a2a;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dot-red   { width:12px;height:12px;border-radius:50%;background:#ff5f57; }
+    .dot-yellow{ width:12px;height:12px;border-radius:50%;background:#febc2e; }
+    .dot-green { width:12px;height:12px;border-radius:50%;background:#28c840; }
+
+    .file-name {
+      font-size: 13px;
+      color: #888;
+      margin-left: 8px;
+      font-weight: 500;
+    }
+
+    .file-name span { color: #ddd; }
+
+    .btn-copy {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 18px;
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn-copy:hover  { background: #e8e8e8; }
+    .btn-copy:active { transform: scale(0.97); }
+
+    .btn-copy.copied {
+      background: #22c55e;
+      color: #fff;
+    }
+
+    .btn-copy svg { width: 14px; height: 14px; }
+
+    /* ── Line numbers + code ── */
+    .code-wrap {
+      flex: 1;
+      display: flex;
+      overflow: auto;
+    }
+
+    .line-numbers {
+      padding: 20px 0;
+      background: #111;
+      border-right: 1px solid #222;
+      text-align: right;
+      user-select: none;
+      min-width: 52px;
+      flex-shrink: 0;
+    }
+
+    .line-numbers span {
+      display: block;
+      padding: 0 14px 0 8px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #444;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    pre {
+      flex: 1;
+      padding: 20px 24px;
+      margin: 0;
+      background: #111;
+      overflow: visible;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 12.5px;
+      line-height: 20px;
+      white-space: pre;
+      display: block;
+    }
+
+    /* ── Syntax colors ── */
+    .t-tag    { color: #7dd3fc; }   /* liquid tags {% %} */
+    .t-var    { color: #86efac; }   /* {{ variables }} */
+    .t-attr   { color: #fda4af; }   /* HTML attributes */
+    .t-str    { color: #fcd34d; }   /* strings */
+    .t-key    { color: #c084fc; }   /* JSON keys */
+    .t-num    { color: #fb923c; }   /* numbers */
+    .t-com    { color: #4b5563; font-style: italic; } /* comments */
+    .t-sel    { color: #7dd3fc; }   /* CSS selectors */
+    .t-prop   { color: #fda4af; }   /* CSS properties */
+    .t-val    { color: #86efac; }   /* CSS values */
+
+    /* ── Footer ── */
+    .footer {
+      padding: 10px 20px;
+      background: #161616;
+      border-top: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #555;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #1e1e1e;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 11px;
+      color: #888;
+    }
+
+    .badge-dot { width:6px;height:6px;border-radius:50%;background:#22c55e; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="dot-red"></div>
+      <div class="dot-yellow"></div>
+      <div class="dot-green"></div>
+      <div class="file-name">sections / <span>galeria-coverflow.liquid</span></div>
+    </div>
+    <button class="btn-copy" id="btnCopy" onclick="copiarCodigo()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+      Copiar código
+    </button>
+  </div>
+
+  <div class="code-wrap">
+    <div class="line-numbers" id="lineNumbers"></div>
+    <pre><code id="codeBlock"></code></pre>
+  </div>
+
+  <div class="footer">
+    <div class="badge"><div class="badge-dot"></div> Liquid · Shopify Block</div>
+    <span id="lineCount"></span>
+  </div>
+
+  <script>
+    const CODE = `{% doc %}
+  @prompt
+    Galería coverflow: slide central grande y destacado, laterales más pequeños.
+    Clic en slide lateral → lo centra. Botón "Ver producto" por imagen.
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-coverflow-{{ ai_gen_id }} {
+    display: block;
+    width: {{ block.settings.desktop_width_percent }}%;
+    max-width: 100%;
+  }
+
+  .ai-coverflow__outer-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background-color: {{ block.settings.background_color }};
+    border-radius: {{ block.settings.border_radius }}px;
+    padding: {{ block.settings.padding_v }}px 0 {{ block.settings.padding_b }}px;
+  }
+
+  .ai-coverflow__viewport-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+    height: {{ block.settings.carousel_height }}px;
+  }
+
+  .ai-coverflow__slide-{{ ai_gen_id }} {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: {{ block.settings.slide_width }}%;
+    transform-origin: center center;
+    transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity  0.45s ease;
+    will-change: transform, opacity;
+    cursor: pointer;
+  }
+
+  .ai-coverflow__card-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+    border-radius: {{ block.settings.image_border_radius }}px;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+  }
+
+  .ai-coverflow__image-{{ ai_gen_id }} {
+    width: 100%;
+    aspect-ratio: {{ block.settings.image_aspect_ratio }};
+    object-fit: cover;
+    display: block;
+  }
+
+  .ai-coverflow__overlay-{{ ai_gen_id }} {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0,0,0,0.88) 0%,
+      rgba(0,0,0,0.2)  48%,
+      transparent      100%
+    );
+    display: flex;
+    align-items: flex-end;
+    padding: {{ block.settings.overlay_padding }}px;
+    box-sizing: border-box;
+  }
+
+  .ai-coverflow__info-{{ ai_gen_id }} {
+    width: 100%;
+    text-align: center;
+  }
+
+  .ai-coverflow__title-{{ ai_gen_id }} {
+    display: block;
+    color: #fff;
+    font-size: {{ block.settings.title_font_size }}px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.55);
+  }
+
+  .ai-coverflow__btn-{{ ai_gen_id }} {
+    display: inline-block;
+    padding: 10px 28px;
+    background: transparent;
+    border: 1.5px solid rgba(255,255,255,0.85);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 2px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .ai-coverflow__btn-{{ ai_gen_id }}:hover {
+    background: #fff;
+    color: #000;
+  }
+
+  .ai-coverflow__btn-{{ ai_gen_id }}.hidden { display: none; }
+
+  .ai-coverflow__arrow-{{ ai_gen_id }} {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 50;
+    width: {{ block.settings.button_size }}px;
+    height: {{ block.settings.button_size }}px;
+    border-radius: 50%;
+    background: {{ block.settings.button_color }};
+    color: {{ block.settings.button_icon_color }};
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.25s;
+    backdrop-filter: blur(4px);
+  }
+
+  .ai-coverflow__arrow-{{ ai_gen_id }}:hover {
+    background: {{ block.settings.button_hover_color }};
+  }
+
+  .ai-coverflow__arrow-{{ ai_gen_id }} svg {
+    width: calc({{ block.settings.button_size }}px * 0.45);
+    height: calc({{ block.settings.button_size }}px * 0.45);
+  }
+
+  .ai-coverflow__arrow-prev-{{ ai_gen_id }} { left: 16px; }
+  .ai-coverflow__arrow-next-{{ ai_gen_id }} { right: 16px; }
+
+  .ai-coverflow__bottom-{{ ai_gen_id }} {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: {{ block.settings.controls_spacing }}px;
+  }
+
+  .ai-coverflow__indicators-{{ ai_gen_id }} {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ai-coverflow__dot-{{ ai_gen_id }} {
+    width: {{ block.settings.indicator_size }}px;
+    height: {{ block.settings.indicator_size }}px;
+    border-radius: 50%;
+    background: {{ block.settings.indicator_color }};
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.3s, transform 0.3s;
+  }
+
+  .ai-coverflow__dot-{{ ai_gen_id }}.active {
+    background: {{ block.settings.indicator_active_color }};
+    transform: scale(1.3);
+  }
+
+  .ai-coverflow__counter-{{ ai_gen_id }} {
+    font-size: {{ block.settings.counter_font_size }}px;
+    color: {{ block.settings.counter_color }};
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-coverflow__slide-{{ ai_gen_id }} {
+      width: {{ block.settings.slide_width_mobile }}%;
+    }
+    .ai-coverflow__viewport-{{ ai_gen_id }} {
+      height: {{ block.settings.carousel_height_mobile }}px;
+    }
+    .ai-coverflow__arrow-{{ ai_gen_id }} {
+      width: calc({{ block.settings.button_size }}px * 0.8);
+      height: calc({{ block.settings.button_size }}px * 0.8);
+    }
+  }
+{% endstyle %}
+
+<photo-coverflow-{{ ai_gen_id }}
+  class="ai-coverflow-{{ ai_gen_id }}"
+  data-autoplay="{{ block.settings.autoplay }}"
+  data-autoplay-speed="{{ block.settings.autoplay_speed }}"
+  data-spread="{{ block.settings.slide_spread }}"
+  {{ block.shopify_attributes }}
+>
+  <div class="ai-coverflow__outer-{{ ai_gen_id }}">
+
+    <button class="ai-coverflow__arrow-{{ ai_gen_id }} ai-coverflow__arrow-prev-{{ ai_gen_id }}" aria-label="Anterior">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </button>
+    <button class="ai-coverflow__arrow-{{ ai_gen_id }} ai-coverflow__arrow-next-{{ ai_gen_id }}" aria-label="Siguiente">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+
+    <div class="ai-coverflow__viewport-{{ ai_gen_id }}">
+      {% liquid
+        assign has_images = false
+        for i in (1..8)
+          assign image_key = 'image_' | append: i
+          if block.settings[image_key] != blank
+            assign has_images = true
+            break
+          endif
+        endfor
+      %}
+
+      {% if has_images %}
+        {% for i in (1..8) %}
+          {% liquid
+            assign image_key = 'image_' | append: i
+            assign image = block.settings[image_key]
+            assign title_key = 'image_title_' | append: i
+            assign image_title = block.settings[title_key]
+            assign url_key = 'product_url_' | append: i
+            assign product_url = block.settings[url_key]
+          %}
+          {% if image != blank %}
+            <div class="ai-coverflow__slide-{{ ai_gen_id }}">
+              <div class="ai-coverflow__card-{{ ai_gen_id }}">
+                <img
+                  src="{{ image | image_url: width: 1200 }}"
+                  alt="{{ image.alt | escape }}"
+                  loading="lazy"
+                  class="ai-coverflow__image-{{ ai_gen_id }}"
+                >
+                <div class="ai-coverflow__overlay-{{ ai_gen_id }}">
+                  <div class="ai-coverflow__info-{{ ai_gen_id }}">
+                    {% if image_title != blank %}
+                      <span class="ai-coverflow__title-{{ ai_gen_id }}">{{ image_title }}</span>
+                    {% endif %}
+                    {% if product_url != blank %}
+                      <a class="ai-coverflow__btn-{{ ai_gen_id }}" href="{{ product_url }}" target="_blank">
+                        {{ block.settings.btn_text }}
+                      </a>
+                    {% else %}
+                      <a class="ai-coverflow__btn-{{ ai_gen_id }} hidden" href="#">
+                        {{ block.settings.btn_text }}
+                      </a>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        {% for i in (1..5) %}
+          <div class="ai-coverflow__slide-{{ ai_gen_id }}">
+            <div class="ai-coverflow__card-{{ ai_gen_id }}">
+              <div style="width:100%;aspect-ratio:{{ block.settings.image_aspect_ratio }};background:#1a1a1a;display:flex;align-items:center;justify-content:center;">
+                {{ 'image' | placeholder_svg_tag }}
+              </div>
+              <div class="ai-coverflow__overlay-{{ ai_gen_id }}">
+                <div class="ai-coverflow__info-{{ ai_gen_id }}">
+                  {% if i == 3 %}
+                    <span class="ai-coverflow__title-{{ ai_gen_id }}">Nombre del producto</span>
+                    <a class="ai-coverflow__btn-{{ ai_gen_id }}" href="#">{{ block.settings.btn_text }}</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+  </div>
+
+  <div class="ai-coverflow__bottom-{{ ai_gen_id }}">
+    {% if block.settings.show_indicators %}
+      <div class="ai-coverflow__indicators-{{ ai_gen_id }}"></div>
+    {% endif %}
+    {% if block.settings.show_counter %}
+      <div class="ai-coverflow__counter-{{ ai_gen_id }}">
+        <span class="ai-coverflow__counter-cur-{{ ai_gen_id }}">1</span>
+        /
+        <span class="ai-coverflow__counter-tot-{{ ai_gen_id }}"></span>
+      </div>
+    {% endif %}
+  </div>
+</photo-coverflow-{{ ai_gen_id }}>
+
+<script>
+(function () {
+  class PhotoCoverflow{{ ai_gen_id }} extends HTMLElement {
+    constructor() {
+      super();
+      this.current = 0;
+      this.autoplayInterval = null;
+    }
+
+    connectedCallback() {
+      this.slides     = this.querySelectorAll('.ai-coverflow__slide-{{ ai_gen_id }}');
+      this.btnPrev    = this.querySelector('.ai-coverflow__arrow-prev-{{ ai_gen_id }}');
+      this.btnNext    = this.querySelector('.ai-coverflow__arrow-next-{{ ai_gen_id }}');
+      this.indWrap    = this.querySelector('.ai-coverflow__indicators-{{ ai_gen_id }}');
+      this.counterCur = this.querySelector('.ai-coverflow__counter-cur-{{ ai_gen_id }}');
+      this.counterTot = this.querySelector('.ai-coverflow__counter-tot-{{ ai_gen_id }}');
+      this.total      = this.slides.length;
+
+      if (this.total === 0) return;
+
+      this.buildDots();
+      this.setupArrows();
+      this.setupSlideClicks();
+      this.setupTouch();
+      this.applyTransforms();
+      this.updateUI();
+
+      if (this.dataset.autoplay === 'true') this.startAutoplay();
+      window.addEventListener('resize', () => this.applyTransforms());
+    }
+
+    spread() {
+      const factor = parseFloat(this.dataset.spread) / 100 || 0.65;
+      return this.slides[0].offsetWidth * factor;
+    }
+
+    applyTransforms() {
+      const sp = this.spread();
+      this.slides.forEach((slide, i) => {
+        const d   = i - this.current;
+        const abs = Math.abs(d);
+        const scale   = Math.max(0.50, 1 - abs * 0.16);
+        const tx      = d * sp;
+        const opacity = abs > 3 ? 0 : Math.max(0.28, 1 - abs * 0.18);
+        const zi      = 30 - abs * 3;
+
+        slide.style.transform  = 'translate(calc(-50% + ' + tx + 'px), -50%) scale(' + scale + ')';
+        slide.style.zIndex     = zi;
+        slide.style.opacity    = opacity;
+        slide.style.pointerEvents = opacity > 0.1 ? 'auto' : 'none';
+        slide.style.cursor     = abs === 0 ? 'default' : 'pointer';
+      });
+    }
+
+    goTo(index) {
+      this.current = Math.max(0, Math.min(index, this.total - 1));
+      this.applyTransforms();
+      this.updateUI();
+    }
+
+    next() { this.goTo(this.current < this.total - 1 ? this.current + 1 : 0); }
+    prev() { this.goTo(this.current > 0 ? this.current - 1 : this.total - 1); }
+
+    buildDots() {
+      if (!this.indWrap) return;
+      this.indWrap.innerHTML = '';
+      for (let i = 0; i < this.total; i++) {
+        const d = document.createElement('button');
+        d.classList.add('ai-coverflow__dot-{{ ai_gen_id }}');
+        d.setAttribute('aria-label', 'Ir a imagen ' + (i + 1));
+        if (i === 0) d.classList.add('active');
+        d.addEventListener('click', () => { this.goTo(i); this.resetAutoplay(); });
+        this.indWrap.appendChild(d);
+      }
+    }
+
+    updateUI() {
+      if (this.indWrap) {
+        this.indWrap.querySelectorAll('.ai-coverflow__dot-{{ ai_gen_id }}').forEach((d, i) => {
+          d.classList.toggle('active', i === this.current);
+        });
+      }
+      if (this.counterCur) this.counterCur.textContent = this.current + 1;
+      if (this.counterTot) this.counterTot.textContent = this.total;
+    }
+
+    setupArrows() {
+      if (this.btnPrev) this.btnPrev.addEventListener('click', () => { this.prev(); this.resetAutoplay(); });
+      if (this.btnNext) this.btnNext.addEventListener('click', () => { this.next(); this.resetAutoplay(); });
+    }
+
+    setupSlideClicks() {
+      this.slides.forEach((slide, i) => {
+        slide.addEventListener('click', (e) => {
+          if (i !== this.current) {
+            e.preventDefault();
+            this.goTo(i);
+            this.resetAutoplay();
+          }
+        });
+        const btn = slide.querySelector('.ai-coverflow__btn-{{ ai_gen_id }}');
+        if (btn) btn.addEventListener('click', (e) => e.stopPropagation());
+      });
+    }
+
+    setupTouch() {
+      let startX = 0;
+      const vp = this.querySelector('.ai-coverflow__viewport-{{ ai_gen_id }}');
+      if (!vp) return;
+      vp.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; });
+      vp.addEventListener('touchend', (e) => {
+        const diff = startX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) {
+          diff > 0 ? this.next() : this.prev();
+          this.resetAutoplay();
+        }
+      });
+    }
+
+    startAutoplay() {
+      const speed = parseInt(this.dataset.autoplaySpeed) || 3500;
+      this.autoplayInterval = setInterval(() => this.next(), speed);
+    }
+
+    resetAutoplay() {
+      if (this.dataset.autoplay === 'true') {
+        clearInterval(this.autoplayInterval);
+        this.startAutoplay();
+      }
+    }
+
+    disconnectedCallback() { clearInterval(this.autoplayInterval); }
+  }
+
+  customElements.define('photo-coverflow-{{ ai_gen_id }}', PhotoCoverflow{{ ai_gen_id }});
+})();
+<\/script>
+
+{% schema %}
+{
+  "name": "Galería coverflow",
+  "settings": [
+    { "type": "header", "content": "Imágenes, títulos y enlaces" },
+    { "type": "image_picker", "id": "image_1", "label": "Imagen 1" },
+    { "type": "text", "id": "image_title_1", "label": "Título 1", "placeholder": "Ej: Colección Verano" },
+    { "type": "url", "id": "product_url_1", "label": "Enlace de producto 1" },
+    { "type": "image_picker", "id": "image_2", "label": "Imagen 2" },
+    { "type": "text", "id": "image_title_2", "label": "Título 2" },
+    { "type": "url", "id": "product_url_2", "label": "Enlace de producto 2" },
+    { "type": "image_picker", "id": "image_3", "label": "Imagen 3" },
+    { "type": "text", "id": "image_title_3", "label": "Título 3" },
+    { "type": "url", "id": "product_url_3", "label": "Enlace de producto 3" },
+    { "type": "image_picker", "id": "image_4", "label": "Imagen 4" },
+    { "type": "text", "id": "image_title_4", "label": "Título 4" },
+    { "type": "url", "id": "product_url_4", "label": "Enlace de producto 4" },
+    { "type": "image_picker", "id": "image_5", "label": "Imagen 5" },
+    { "type": "text", "id": "image_title_5", "label": "Título 5" },
+    { "type": "url", "id": "product_url_5", "label": "Enlace de producto 5" },
+    { "type": "image_picker", "id": "image_6", "label": "Imagen 6" },
+    { "type": "text", "id": "image_title_6", "label": "Título 6" },
+    { "type": "url", "id": "product_url_6", "label": "Enlace de producto 6" },
+    { "type": "image_picker", "id": "image_7", "label": "Imagen 7" },
+    { "type": "text", "id": "image_title_7", "label": "Título 7" },
+    { "type": "url", "id": "product_url_7", "label": "Enlace de producto 7" },
+    { "type": "image_picker", "id": "image_8", "label": "Imagen 8" },
+    { "type": "text", "id": "image_title_8", "label": "Título 8" },
+    { "type": "url", "id": "product_url_8", "label": "Enlace de producto 8" },
+    { "type": "header", "content": "Botón" },
+    { "type": "text", "id": "btn_text", "label": "Texto del botón", "default": "Ver producto" },
+    { "type": "header", "content": "Tamaño del carrusel" },
+    { "type": "range", "id": "desktop_width_percent", "label": "Ancho en escritorio", "min": 50, "max": 100, "step": 5, "unit": "%", "default": 100 },
+    { "type": "range", "id": "carousel_height", "label": "Altura carrusel escritorio", "min": 300, "max": 700, "step": 20, "unit": "px", "default": 480 },
+    { "type": "range", "id": "carousel_height_mobile", "label": "Altura carrusel móvil", "min": 220, "max": 500, "step": 20, "unit": "px", "default": 320 },
+    { "type": "range", "id": "slide_width", "label": "Ancho del slide escritorio %", "min": 18, "max": 50, "step": 2, "unit": "%", "default": 32 },
+    { "type": "range", "id": "slide_width_mobile", "label": "Ancho del slide móvil %", "min": 50, "max": 90, "step": 5, "unit": "%", "default": 70 },
+    { "type": "range", "id": "slide_spread", "label": "Separación entre slides", "info": "40 = más juntos · 90 = más separados", "min": 40, "max": 90, "step": 5, "default": 65 },
+    { "type": "header", "content": "Diseño" },
+    { "type": "select", "id": "image_aspect_ratio", "label": "Proporción de imagen", "options": [
+        { "value": "3/4", "label": "Vertical (3:4)" },
+        { "value": "1/1", "label": "Cuadrada (1:1)" },
+        { "value": "4/3", "label": "Horizontal (4:3)" },
+        { "value": "16/9", "label": "Panorámica (16:9)" }
+      ], "default": "3/4" },
+    { "type": "range", "id": "image_border_radius", "label": "Radio de borde imagen", "min": 0, "max": 24, "step": 2, "unit": "px", "default": 10 },
+    { "type": "range", "id": "border_radius", "label": "Radio de borde del bloque", "min": 0, "max": 32, "step": 4, "unit": "px", "default": 0 },
+    { "type": "color", "id": "background_color", "label": "Color de fondo", "default": "#111111" },
+    { "type": "range", "id": "padding_v", "label": "Relleno superior", "min": 0, "max": 80, "step": 8, "unit": "px", "default": 32 },
+    { "type": "range", "id": "padding_b", "label": "Relleno inferior", "min": 0, "max": 80, "step": 8, "unit": "px", "default": 40 },
+    { "type": "range", "id": "overlay_padding", "label": "Relleno overlay texto", "min": 8, "max": 40, "step": 4, "unit": "px", "default": 20 },
+    { "type": "range", "id": "title_font_size", "label": "Tamaño del título", "min": 12, "max": 28, "step": 2, "unit": "px", "default": 17 },
+    { "type": "header", "content": "Flechas de navegación" },
+    { "type": "range", "id": "button_size", "label": "Tamaño de flecha", "min": 32, "max": 64, "step": 4, "unit": "px", "default": 48 },
+    { "type": "color", "id": "button_color", "label": "Color de flecha", "default": "#ffffff26" },
+    { "type": "color", "id": "button_hover_color", "label": "Color al pasar", "default": "#ffffff44" },
+    { "type": "color", "id": "button_icon_color", "label": "Color del icono", "default": "#ffffff" },
+    { "type": "header", "content": "Indicadores" },
+    { "type": "checkbox", "id": "show_indicators", "label": "Mostrar puntos", "default": true },
+    { "type": "range", "id": "indicator_size", "label": "Tamaño de punto", "min": 6, "max": 14, "step": 2, "unit": "px", "default": 8 },
+    { "type": "color", "id": "indicator_color", "label": "Color inactivo", "default": "#444444" },
+    { "type": "color", "id": "indicator_active_color", "label": "Color activo", "default": "#ffffff" },
+    { "type": "range", "id": "controls_spacing", "label": "Espacio sobre indicadores", "min": 8, "max": 40, "step": 4, "unit": "px", "default": 20 },
+    { "type": "header", "content": "Contador" },
+    { "type": "checkbox", "id": "show_counter", "label": "Mostrar contador", "default": true },
+    { "type": "range", "id": "counter_font_size", "label": "Tamaño de fuente contador", "min": 10, "max": 20, "step": 2, "unit": "px", "default": 12 },
+    { "type": "color", "id": "counter_color", "label": "Color del contador", "default": "#666666" },
+    { "type": "header", "content": "Reproducción automática" },
+    { "type": "checkbox", "id": "autoplay", "label": "Reproducción automática", "default": false },
+    { "type": "range", "id": "autoplay_speed", "label": "Velocidad", "min": 2000, "max": 8000, "step": 500, "unit": "ms", "default": 3500 }
+  ],
+  "presets": [{ "name": "Galería coverflow" }]
+}
+{% endschema %}`;
+
+    // Render code and line numbers
+    const lines = CODE.split('\n');
+    document.getElementById('lineCount').textContent = lines.length + ' líneas';
+
+    const ln = document.getElementById('lineNumbers');
+    ln.innerHTML = lines.map((_, i) => `<span>${i + 1}</span>`).join('');
+
+    // Simple syntax highlight
+    function highlight(code) {
+      return code
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        // Liquid tags
+        .replace(/(\{%-?\s*)(doc|enddoc|assign|liquid|for|endfor|if|endif|else|elsif|unless|endunless|break|continue|style|endstyle|schema|endschema|capture|endcapture)(\b[^%}]*)(-?%\})/g,
+          '<span class="t-tag">$1$2$3$4</span>')
+        .replace(/(\{%-?[^%}]*-?%\})/g, '<span class="t-tag">$1</span>')
+        // Liquid variables
+        .replace(/(\{\{[^}]*\}\})/g, '<span class="t-var">$1</span>')
+        // JSON keys
+        .replace(/"(type|id|label|content|min|max|step|unit|default|info|options|value|placeholder|presets|name|settings)"\s*:/g,
+          '<span class="t-key">"$1"</span>:')
+        // Strings in JSON
+        .replace(/:\s*"([^"]*)"/g, ': <span class="t-str">"$1"</span>')
+        // Comments
+        .replace(/(\/\/[^\n]*)/g, '<span class="t-com">$1</span>');
+    }
+
+    document.getElementById('codeBlock').innerHTML = highlight(CODE);
+  </script>
+
+  <script>
+    function copiarCodigo() {
+      navigator.clipboard.writeText(CODE).then(() => {
+        const btn = document.getElementById('btnCopy');
+        btn.classList.add('copied');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ¡Copiado!`;
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar código`;
+        }, 2500);
+      });
+    }
+  </script>
+
+</body>
+</html>

@@ -2,7 +2,13 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<!-- color-scheme le avisa al navegador que la app es oscura. Sin esto los
+     controles nativos —los selectores de fecha, las barras de scroll, los
+     desplegables— se dibujan en claro sobre fondo oscuro. Estaba parcheado
+     input por input con style={{colorScheme:'dark'}}; acá se resuelve una vez. -->
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#131315" />
 <title>FRAME — Studio Manager</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23d4ff4f'/><text x='16' y='24' font-family='system-ui,sans-serif' font-weight='900' font-size='22' text-anchor='middle' fill='%230a0a0b'>F</text></svg>" />
 
@@ -108,7 +114,30 @@
     /* La curva de resorte de iOS. Todo se mueve con el mismo carácter. */
     --ease: cubic-bezier(.32, .72, 0, 1);
   }
+  html { color-scheme: dark; }
   html, body, #root { height: 100%; }
+
+  /* ── Movimiento reducido ──────────────────────────────────────
+     Quien lo activa en su sistema suele hacerlo porque el movimiento le
+     produce mareo o le dificulta seguir la pantalla. Se anula todo, no se
+     "suaviza": dejarlo a la mitad no sirve para el motivo por el que se
+     activa. Se conservan los cambios de estado, sólo desaparece la
+     transición entre ellos. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Sin retardo de 300 ms al tocar en móvil. */
+  button, a, [role="button"], input, select, textarea { touch-action: manipulation; }
+
+  /* El scroll dentro de un modal no arrastra la página de atrás al llegar
+     al final. */
+  .modal-scroll, .overflow-y-auto { overscroll-behavior: contain; }
   body {
     background: var(--bg);
     color: var(--text);

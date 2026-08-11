@@ -167,7 +167,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                       </div>
                     </div>
                     <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: s.color }} />
+                      <div className="h-full rounded-full transition duration-700" style={{ width: `${pct}%`, background: s.color }} />
                     </div>
                   </div>
                 );
@@ -196,7 +196,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                         <span className="font-mono font-semibold text-[12px]">{t.count}</span>
                       </div>
                       <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: t.color }} />
+                        <div className="h-full rounded-full transition duration-700" style={{ width: `${pct}%`, background: t.color }} />
                       </div>
                     </div>
                   );
@@ -231,7 +231,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                         {m.count > 0 ? `${m.count} proy.` : '–'}
                       </div>
                       <div
-                        className="w-full rounded-t-md transition-all duration-700"
+                        className="w-full rounded-t-md transition duration-700"
                         style={{
                           height:    `${Math.max(pct, 3)}%`,
                           minHeight: 4,
@@ -274,7 +274,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                         </div>
                         <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
                           <div
-                            className="h-full rounded-full transition-all duration-700"
+                            className="h-full rounded-full transition duration-700"
                             style={{ width: `${pct}%`, background: m.color || 'var(--accent)' }}
                           />
                         </div>

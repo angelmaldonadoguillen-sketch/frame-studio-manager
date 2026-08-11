@@ -576,7 +576,7 @@ const RoutineWidget = () => {
             {editMode ? (
               <button
                 onClick={() => { setEditMode(false); setNewText(''); setEditingId(null); }}
-                className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all"
+                className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg transition"
                 style={{ background: 'var(--accent)', color: '#0a0a0b' }}
               >
                 <Icon name="check" size={12} strokeWidth={2.5} />
@@ -607,7 +607,7 @@ const RoutineWidget = () => {
       {/* ─── Floating button ─── */}
       <button
         onClick={() => setOpen(v => !v)}
-        className={`routine-btn flex items-center gap-2 px-4 rounded-2xl font-semibold transition-all select-none ${allDone ? 'routine-done' : 'routine-pending'}`}
+        className={`routine-btn flex items-center gap-2 px-4 rounded-2xl font-semibold transition select-none ${allDone ? 'routine-done' : 'routine-pending'}`}
         style={{
           height: 46,
           fontSize: 13,

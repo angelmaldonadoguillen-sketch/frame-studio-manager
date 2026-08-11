@@ -285,7 +285,7 @@ const InviteBanner = ({ invites, onAccept, onDecline }) => {
       </div>
       <button
         onClick={() => onAccept(inv)}
-        className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition-all"
+        className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition"
         style={{ background: 'var(--accent)', color: '#131315' }}
       >
         Unirme
@@ -715,7 +715,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
                             <div className="flex gap-1.5 mt-2.5">
                               <button
                                 onClick={() => { onApproveUser && onApproveUser(n.userId, n.id); }}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-bold transition-all hover:brightness-110"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-bold transition hover:brightness-110"
                                 style={{ background: 'var(--accent)', color: '#0a0a0b' }}
                               >
                                 <Icon name="check" size={11} strokeWidth={2.5} />
@@ -723,7 +723,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
                               </button>
                               <button
                                 onClick={() => { onRejectUser && onRejectUser(n.userId, n.id); }}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-medium transition-all hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-medium transition hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
                                 style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}
                               >
                                 Rechazar
@@ -812,7 +812,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
                 {/* Botón de vista */}
                 <button
                   onClick={() => dispatch({ type: 'set_view', view: v.id })}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] font-medium transition-all select-none ${state.view === v.id ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-dim)] hover:text-white'}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[12px] font-medium transition select-none ${state.view === v.id ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-dim)] hover:text-white'}`}
                 >
                   <Icon name={v.icon} size={13} />
                   <span>{v.label}</span>
@@ -824,7 +824,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
                 {/* Pin button — aparece al hover, siempre visible si está fijada */}
                 <button
                   onClick={(e) => { e.stopPropagation(); onPinView && onPinView(v.id); }}
-                  className={`absolute -top-1.5 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center transition-all ${isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  className={`absolute -top-1.5 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center transition ${isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                   style={{
                     background: isPinned ? 'var(--accent)' : 'var(--surface-3)',
                     color:      isPinned ? '#0a0a0b'       : 'var(--text-muted)',
@@ -878,7 +878,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
 
         <button
           onClick={() => dispatch({ type: 'show_new' })}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold transition-all hover:brightness-110"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold transition hover:brightness-110"
           style={{ background: 'var(--accent)', color: '#0a0a0b' }}
         >
           <Icon name="plus" size={13} strokeWidth={2.4} />
@@ -1046,7 +1046,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
             <div className="font-display text-lg font-semibold" style={{ letterSpacing: '-0.01em' }}>Nuevo proyecto</div>
             <div className="text-[11px] text-[var(--text-muted)]">Creá un proyecto en blanco — completá los detalles después</div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+          <button aria-label="Cerrar" onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             <Icon name="x" size={15} />
           </button>
         </div>
@@ -1114,7 +1114,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
           <button
             onClick={submit}
             disabled={!title.trim() || !client.trim()}
-            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition-all"
+            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             Crear proyecto
@@ -1257,14 +1257,14 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
   const ToggleRow = ({ active, onClick, icon, label, description }) => (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all text-left w-full"
+      className="flex items-center gap-3 px-3 py-2.5 rounded-lg border transition text-left w-full"
       style={{
         background:  active ? 'var(--accent-soft)'    : 'var(--surface-2)',
         borderColor: active ? 'rgba(212,255,79,0.3)'  : 'var(--border)',
       }}
     >
       <div
-        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
+        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition"
         style={{
           background: active ? 'var(--accent)'    : 'var(--surface-3)',
           border:     active ? 'none'              : '1.5px solid var(--border-2)',
@@ -1318,7 +1318,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
                     <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{u.email} · {u.role}</div>
                   </div>
                   <button onClick={() => onApproveUser(u.id)}
-                    className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition-all"
+                    className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition"
                     style={{ background: 'var(--accent)', color: '#131315' }}>Aprobar</button>
                   <button onClick={() => onRejectUser(u.id)}
                     className="px-3 py-1.5 rounded-md text-[12px] font-medium"

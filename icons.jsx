@@ -1,10 +1,17 @@
 // Inline SVG icons (lucide-style). Globally available via window.Icon.
+// Los iconos de FRAME son siempre decorativos: acompañan a un texto o van
+// dentro de un botón que ya lleva su propia etiqueta. Se marcan aria-hidden
+// por defecto para que los lectores de pantalla no anuncien "imagen" antes
+// de cada elemento de la interfaz. Si alguno tuviera que ser leído, alcanza
+// con pasarle aria-hidden={false} y un aria-label.
 const Icon = ({ name, size = 16, className = '', strokeWidth = 1.6, ...rest }) => {
   const paths = ICONS[name];
   if (!paths) return null;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
       width={size}
       height={size}
       viewBox="0 0 24 24"

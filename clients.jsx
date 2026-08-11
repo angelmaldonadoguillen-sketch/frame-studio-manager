@@ -206,7 +206,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
             <span>›</span>
             <span className="text-[var(--text-dim)]">{client.name}</span>
           </div>
-          <button onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+          <button aria-label="Cerrar" onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             <Icon name="x" size={16} />
           </button>
         </div>
@@ -469,7 +469,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
             <div className="font-display text-lg font-semibold" style={{ letterSpacing: '-0.01em' }}>Nuevo cliente</div>
             <div className="text-[11px] text-[var(--text-muted)]">Agregá un cliente al directorio del estudio</div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
+          <button aria-label="Cerrar" onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             <Icon name="x" size={15} />
           </button>
         </div>
@@ -478,7 +478,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
           {/* Avatar preview + color picker */}
           <div className="flex items-center gap-3">
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-lg flex-shrink-0 transition-all"
+              className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-lg flex-shrink-0 transition"
               style={{ background: color + '1a', color, border: `2px solid ${color}55`, letterSpacing: '-0.02em' }}
             >
               {initials}
@@ -488,7 +488,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
                 <button
                   key={c}
                   onClick={() => setColor(c)}
-                  className="w-5 h-5 rounded-full border-2 transition-all hover:scale-110"
+                  className="w-5 h-5 rounded-full border-2 transition hover:scale-110"
                   style={{ background: c, borderColor: color === c ? 'white' : 'transparent' }}
                 />
               ))}
@@ -549,7 +549,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
           <button
             onClick={submit}
             disabled={!name.trim()}
-            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition-all hover:brightness-110"
+            className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition hover:brightness-110"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             Crear cliente
@@ -757,7 +757,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
 
           <button
             onClick={() => setShowNew(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold hover:brightness-110 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold hover:brightness-110 transition"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
             <Icon name="plus" size={13} strokeWidth={2.4} />
@@ -783,7 +783,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
               {!search && (
                 <button
                   onClick={() => setShowNew(true)}
-                  className="text-[13px] font-semibold px-4 py-2 rounded-lg transition-all hover:brightness-110"
+                  className="text-[13px] font-semibold px-4 py-2 rounded-lg transition hover:brightness-110"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
                   + Agregar cliente
