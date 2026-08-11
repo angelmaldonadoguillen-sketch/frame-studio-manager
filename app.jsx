@@ -196,13 +196,15 @@ function reducer(state, action) {
 // ── Helper global para crear notificaciones ──────────────────────────────
 window.pushNotif = (toUserId, data) => {
   if (!toUserId) return;
+  const senderId = firebase.auth().currentUser?.uid;
+  if (!senderId || !data?.workspaceId) return;
   const id = 'n' + Date.now() + Math.random().toString(36).slice(2, 6);
   return window.db
     .collection('frame_notifications')
     .doc(String(toUserId))
     .collection('items')
     .doc(id)
-    .set({ id, ...data, read: false, createdAt: new Date().toISOString() })
+    .set({ id, ...data, senderId, read: false, createdAt: new Date().toISOString() })
     .catch(err => console.error('pushNotif error:', err));
 };
 
@@ -534,10 +536,10 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
         <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 select-none">Espacios</div>
-        <NavItem icon="layers"  label="Todos los proyectos" count={counts.all}                    active={sf === 'all'}       onClick={() => setFilter('all')} />
+        <NavItem icon="layers"  label="Todas las tareas"    count={counts.all}                    active={sf === 'all'}       onClick={() => setFilter('all')} />
         <NavItem icon="star"    label="Favoritos"           count={counts.favorites || undefined} active={sf === 'favorites'} onClick={() => setFilter('favorites')} />
         <NavItem icon="users"   label="Asignados a mí"     count={counts.mine}                   active={sf === 'mine'}      onClick={() => setFilter('mine')} />
-        <NavItem icon="alert"   label="Deadlines urgentes" count={counts.urgent}                 active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
+        <NavItem icon="alert"   label="Fechas límite urgentes" count={counts.urgent}              active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
         <NavItem icon="check"   label="Entregados"         count={counts.delivered}              active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
         <NavItem icon="trash"   label="Papelera"           count={counts.trash || undefined}     active={sf === 'trash'}     onClick={() => setFilter('trash')} />
 
@@ -847,7 +849,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
           <input
             value={state.search}
             onChange={(e) => dispatch({ type: 'set_search', value: e.target.value })}
-            placeholder="Buscar proyectos, clientes…"
+            placeholder="Buscar tareas, clientes…"
             className="flex-1 text-[13px]"
           />
           {state.search && (
@@ -882,7 +884,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
           style={{ background: 'var(--accent)', color: '#0a0a0b' }}
         >
           <Icon name="plus" size={13} strokeWidth={2.4} />
-          Nuevo proyecto
+          Nueva tarea
         </button>
       </div>
 
@@ -1026,7 +1028,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
       currency: 'USD',
       tags: [],
       cover: { type: 'color', value: '#1a1a1f' },
-      description: [{ type: 'p', text: 'Briefing inicial — añadí el contexto del proyecto acá.' }],
+      description: [{ type: 'p', text: 'Briefing inicial — añadí el contexto de la tarea acá.' }],
       checklist: [],
       deliverables: [],
       timeline: [],
@@ -1043,8 +1045,8 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-app">
           <div>
-            <div className="font-display text-lg font-semibold" style={{ letterSpacing: '-0.01em' }}>Nuevo proyecto</div>
-            <div className="text-[11px] text-[var(--text-muted)]">Creá un proyecto en blanco — completá los detalles después</div>
+            <div className="font-display text-lg font-semibold" style={{ letterSpacing: '-0.01em' }}>Nueva tarea</div>
+            <div className="text-[11px] text-[var(--text-muted)]">Creá una tarea en blanco — completá los detalles después</div>
           </div>
           <button aria-label="Cerrar" onClick={onClose} className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)]">
             <Icon name="x" size={15} />
@@ -1052,7 +1054,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
         </div>
         <div className="p-5 space-y-4">
           <div>
-            <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Título del proyecto</label>
+            <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Título de la tarea</label>
             <input
               autoFocus
               value={title}
@@ -1097,7 +1099,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
             </div>
           </div>
           <div>
-            <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Deadline</label>
+            <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Fecha límite</label>
             <input
               type="date"
               value={deadline}
@@ -1117,7 +1119,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
             className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition"
             style={{ background: 'var(--accent)', color: '#0a0a0b' }}
           >
-            Crear proyecto
+            Crear tarea
           </button>
         </div>
       </div>
@@ -1223,35 +1225,39 @@ const PREVIEW_FIELD_LABELS = [
   { key: 'estado',       label: 'Estado',         icon: 'dot'      },
   { key: 'prioridad',    label: 'Prioridad',      icon: 'flag'     },
   { key: 'responsables', label: 'Responsables',   icon: 'users'    },
-  { key: 'deadline',     label: 'Deadline',       icon: 'calendar' },
+  { key: 'deadline',     label: 'Fecha límite',   icon: 'calendar' },
   { key: 'presupuesto',  label: 'Presupuesto',    icon: 'zap'      },
   { key: 'tags',         label: 'Tags',           icon: 'hash'     },
   { key: 'progreso',     label: 'Progreso',       icon: 'layers'   },
 ];
 
-const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleCarryOverProjects, pendingUsers = [], onApproveUser, onRejectUser }) => {
+const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleCarryOverProjects, pendingUsers = [], onApproveUser, onRejectUser, workspaceId }) => {
   const [carryOver, setCarryOver] = useState(false);
 
   useEffect(() => {
-    const ref = window.db.collection('frame_config').doc('daily_routine');
+    if (!workspaceId) return;
+    setCarryOver(false);
+    const ref = window.db.collection('frame_workspaces').doc(workspaceId).collection('config').doc('daily_routine');
     const unsub = ref.onSnapshot(snap => {
-      if (snap.exists) setCarryOver(snap.data()?.config?.carryOver || false);
-    }, () => {});
+      setCarryOver(snap.exists ? (snap.data()?.config?.carryOver || false) : false);
+    }, (err) => {
+      console.error('[FRAME] CarryOver load:', err);
+      window.frameToast?.('No se pudo cargar la configuración de arrastre de esta rutina.');
+    });
     return () => unsub();
-  }, []);
+  }, [workspaceId]);
 
   const toggleCarryOver = () => {
     const next = !carryOver;
     setCarryOver(next);
-    window.db.collection('frame_config').doc('daily_routine')
-      .update({ 'config.carryOver': next })
-      .catch(err => console.error('[FRAME] CarryOver toggle:', err));
-    // Al desactivar, limpiar deuda acumulada
-    if (!next) {
-      window.db.collection('frame_config').doc('daily_routine')
-        .update({ 'today.debt': {} })
-        .catch(() => {});
-    }
+    const patch = { config: { carryOver: next } };
+    if (!next) patch.today = { debt: {} };
+    window.db.collection('frame_workspaces').doc(workspaceId).collection('config').doc('daily_routine')
+      .set(patch, { merge: true })
+      .catch(err => {
+        setCarryOver(!next);
+        notifyWriteError(err, 'el arrastre de la rutina');
+      });
   };
 
   const ToggleRow = ({ active, onClick, icon, label, description }) => (
@@ -1367,8 +1373,8 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
             active={carryOver}
             onClick={toggleCarryOver}
             icon="alert"
-            label="Arrastrar tareas pendientes al día siguiente"
-            description="Las tareas sin completar acumulan días (+1d, +2d…) y se marcan como urgentes hasta que las hagás"
+            label="Mantener pendientes de rutina para mañana"
+            description="Los ítems de la rutina que no completés hoy seguirán pendientes mañana (+1d, +2d…)"
           />
         </div>
 
@@ -1376,17 +1382,17 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
         <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2 mb-1">
             <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
-            <h2 className="font-display font-semibold text-[17px]">Proyectos</h2>
+            <h2 className="font-display font-semibold text-[17px]">Tareas</h2>
           </div>
           <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
-            Automatizaciones sobre las tarjetas de proyecto al iniciar cada día.
+            Automatizaciones de fechas para las tareas de este tablero.
           </p>
           <ToggleRow
             active={carryOverProjects}
             onClick={onToggleCarryOverProjects}
             icon="alert"
-            label="Mover proyectos con checklist pendiente al día siguiente"
-            description="Al abrir la app, los proyectos con checklist incompleta y fecha de sesión pasada se replazan a hoy automáticamente"
+            label="Arrastrar tareas incompletas al siguiente día"
+            description="Mueve la próxima fecha de trabajo de las tareas con checklist pendiente; la fecha límite no cambia"
           />
         </div>
 
@@ -1756,7 +1762,7 @@ const App = () => {
     if (!state.carryOverProjects || state.loading || state.projects.length === 0) return;
 
     const today = localISO(new Date());
-    const storageKey = 'frame_carryover_' + today;
+    const storageKey = `frame_carryover_${wsId}_${today}`;
     if (localStorage.getItem(storageKey)) return; // Ya corrió hoy
     localStorage.setItem(storageKey, '1');
 
@@ -1774,15 +1780,15 @@ const App = () => {
 
     const batch = window.db.batch();
     toUpdate.forEach(p => {
-      // Actualizar deadline Y sessionDate juntos → proyecto no aparece en dos días del calendario
-      const updated = { ...p, sessionDate: today, deadline: today };
+      // La fecha límite es un compromiso; sólo se mueve la próxima fecha de trabajo.
+      const updated = { ...p, sessionDate: today };
       dispatch({ type: 'update_project', project: updated });
-      batch.update(window.db.collection('frame_projects').doc(p.id), { sessionDate: today, deadline: today });
+      batch.update(window.db.collection('frame_projects').doc(p.id), { sessionDate: today });
     });
     batch.commit()
       .then(() => console.log(`[FRAME] CarryOver: ${toUpdate.length} proyecto(s) movido(s) a hoy`))
       .catch(err => console.error('[FRAME] CarryOver batch error:', err));
-  }, [state.carryOverProjects, state.loading, state.projects.length]);
+  }, [state.carryOverProjects, state.loading, state.projects.length, wsId]);
 
   // ── Firestore: columnas Kanban ─────────────────────────────
   useEffect(() => {
@@ -2029,13 +2035,17 @@ const App = () => {
     };
     dispatch({ type: 'duplicate_project', project: copy });
     window.db.collection('frame_projects').doc(newId).set(stampWs(copy))
-      .catch(err => notifyWriteError(err, 'la copia del proyecto'));
+      .catch(err => notifyWriteError(err, 'la copia de la tarea'));
   };
 
   // Todo lo que se crea nace sellado con el tablero activo. Sin esto el
   // documento no aparece en ninguna consulta (todas filtran por workspaceId)
   // y las reglas lo rechazan.
-  const stampWs = (obj) => ({ ...obj, workspaceId: obj.workspaceId || wsId });
+  const stampWs = (obj) => ({
+    ...obj,
+    startDate: obj.startDate || localISO(new Date(TODAY)),
+    workspaceId: obj.workspaceId || wsId,
+  });
 
   // ── Crear tablero de equipo ─────────────────────────────────
   // Nace con el creador como único miembro; el resto entra por invitación.
@@ -2080,7 +2090,7 @@ const App = () => {
     if (saveTimers.current[id]) { clearTimeout(saveTimers.current[id]); delete saveTimers.current[id]; }
     if (!patch || Object.keys(patch).length === 0) return;
     window.db.collection('frame_projects').doc(id).update(patch)
-      .catch(err => notifyWriteError(err, 'el proyecto'));
+      .catch(err => notifyWriteError(err, 'la tarea'));
   };
 
   const handleUpdateProject = (project) => {
@@ -2094,7 +2104,7 @@ const App = () => {
     });
     if (!prev) { // alta: no hay con qué comparar, va entero
       window.db.collection('frame_projects').doc(project.id).set(stampWs(project))
-        .catch(err => notifyWriteError(err, 'el proyecto'));
+        .catch(err => notifyWriteError(err, 'la tarea'));
       return;
     }
     if (Object.keys(patch).length === 0) return;
@@ -2131,7 +2141,7 @@ const App = () => {
     const dl = deadline || defDeadline;
     const project = {
       id,
-      title:      (title && title.trim()) || 'Nuevo proyecto',
+      title:      (title && title.trim()) || 'Nueva tarea',
       client:     '',
       type:       type   || 'reel',
       status:     status || (state.kanbanColumns[0] && state.kanbanColumns[0].id) || 'briefing',
@@ -2309,6 +2319,7 @@ const App = () => {
           onToggle={handleTogglePreviewField}
           carryOverProjects={state.carryOverProjects}
           onToggleCarryOverProjects={handleToggleCarryOverProjects}
+          workspaceId={wsId}
         />
       ) : state.section === 'trash' ? (
         <TrashSection
@@ -2379,6 +2390,7 @@ const App = () => {
           onCreateCustomType={handleCreateCustomType}
           onUpdateCustomType={handleUpdateCustomType}
           onDeleteCustomType={handleDeleteCustomType}
+          workspaceKind={activeWs?.kind || 'personal'}
         />
       )}
 
@@ -2393,7 +2405,7 @@ const App = () => {
       )}
 
       {/* Widget flotante de rutina diaria */}
-      <RoutineWidget />
+      <RoutineWidget workspaceId={wsId} />
     </div>
   );
 };

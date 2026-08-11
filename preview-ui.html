@@ -119,6 +119,7 @@
        sección de equipo usa Avatar/AVAILABILITY. Sin ellos el modal crashea
        al abrirse — que es exactamente lo que este banco existe para detectar
        antes de subir nada. -->
+  <script src="attachment-utils.js"></script>
   <script type="text/babel" src="icons.jsx"></script>
   <script type="text/babel" src="data.jsx"></script>
   <script type="text/babel" src="modal.jsx"></script>
@@ -185,7 +186,7 @@
         </div>
 
         <div className="harness-sec">
-          <div className="harness-h">ProjectCardMini — los cuatro estados de entrega</div>
+          <div className="harness-h">Tarjeta de tarea — los cuatro estados de entrega</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(268px,1fr))', gap:10 }}>
             {PROJECTS.map(p => (
               <ProjectCardMini key={p.id} project={p} previewFields={PF}
@@ -206,7 +207,7 @@
         </div>
 
         <div className="harness-sec">
-          <div className="harness-h">ProjectModal — abrir para revisar el detalle</div>
+          <div className="harness-h">Modal de tarea — abrir para revisar el detalle</div>
           <button
             onClick={() => setOpenId(PROJECTS[0].id)}
             className="px-3 py-2 rounded-lg text-[13px] font-semibold"

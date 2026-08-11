@@ -394,32 +394,39 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 
   const applyUrl = () => {
     if (!urlVal.trim()) return;
+    if (!FrameAttachments.validateImageUrl(urlVal)) {
+      window.frameToast?.('Ingresá una URL http o https válida.');
+      return;
+    }
     onChange({ type: 'image', value: urlVal.trim() });
     setUrlVal('');
     setOpen(false);
   };
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) return;
+    e.target.value = '';
+    const validation = FrameAttachments.validateImageFile(file);
+    if (!validation.ok) { window.frameToast?.(validation.message); return; }
+    if (!window.storage) { window.frameToast?.('Storage todavía no está disponible.'); return; }
     setUploading(true);
     setProgress(0);
-    const path  = `frame-covers/${projectId || 'general'}/${Date.now()}_${file.name}`;
-    const stRef = window.storage.ref(path);
-    const task  = stRef.put(file);
-    task.on('state_changed',
-      (snap) => setProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-      (err)  => { console.error('Storage upload error:', err); setUploading(false); },
-      async () => {
-        const url = await task.snapshot.ref.getDownloadURL();
-        onChange({ type: 'image', value: url });
-        setUploading(false);
-        setProgress(0);
-        setOpen(false);
-      }
-    );
-    e.target.value = '';
+    try {
+      const name = FrameAttachments.safeFileName(file.name);
+      const path = `frame-covers/${projectId || 'general'}/${Date.now()}_${name}`;
+      const task = window.storage.ref(path).put(file, { contentType: file.type });
+      const snapshot = await FrameAttachments.waitForUpload(task, { onProgress: setProgress });
+      const url = await snapshot.ref.getDownloadURL();
+      onChange({ type: 'image', value: url });
+      setOpen(false);
+    } catch (err) {
+      console.error('[FRAME] Subir portada:', err);
+      window.frameToast?.(FrameAttachments.storageErrorMessage(err));
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
   };
 
   // Panel rendered via portal → escapes overflow:hidden of the modal
@@ -525,7 +532,8 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType }) => {
+const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal' }) => {
+  const collaborationEnabled = workspaceKind === 'team';
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
   // Cuando Firestore ya cargó los tipos (customTypes.length > 0) los usa directamente;
@@ -547,6 +555,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
 
   // ── Listener de comentarios en tiempo real ────────────────────
   useEffect(() => {
+    if (!collaborationEnabled) {
+      setComments(project?.comments || []);
+      setCommentsLoading(false);
+      return;
+    }
     if (!project?.id) return;
     const col = window.db
       .collection('frame_projects')
@@ -569,7 +582,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
       setCommentsLoading(false);
     });
     return () => unsub();
-  }, [project?.id]);
+  }, [project?.id, collaborationEnabled]);
 
   if (!project) return null;
 
@@ -670,6 +683,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
         body: `${sender?.name || 'Alguien'} te mencionó: "${preview}"`,
         projectId: project.id,
         projectTitle: project.title,
+        workspaceId: project.workspaceId,
       }));
     }
     setNewComment('');
@@ -737,7 +751,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
             <Icon name="folder" size={13} />
             <span>{project.client}</span>
             <span>›</span>
-            <span className="text-[var(--text-dim)]">Proyecto</span>
+            <span className="text-[var(--text-dim)]">Tarea</span>
             {/* Navegación posicional */}
             {navLabel && onNavigate && (
               <div className="flex items-center gap-0.5 ml-2">
@@ -745,7 +759,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   onClick={() => prevId && onNavigate(prevId)}
                   disabled={!prevId}
                   className="p-1 rounded hover:bg-[var(--surface-2)] disabled:opacity-25 transition-colors"
-                  title="Proyecto anterior (←)"
+                  title="Tarea anterior (←)"
                 >
                   <Icon name="chevronLeft" size={13} />
                 </button>
@@ -754,7 +768,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   onClick={() => nextId && onNavigate(nextId)}
                   disabled={!nextId}
                   className="p-1 rounded hover:bg-[var(--surface-2)] disabled:opacity-25 transition-colors"
-                  title="Proyecto siguiente (→)"
+                  title="Tarea siguiente (→)"
                 >
                   <Icon name="chevronRight" size={13} />
                 </button>
@@ -791,7 +805,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
               ) : (
                 <button
                   className="p-2 rounded-md hover:bg-[var(--danger-soft)] text-[var(--text-dim)] hover:text-[var(--danger)] transition-colors"
-                  title="Eliminar proyecto"
+                  title="Eliminar tarea"
                   onClick={() => setConfirmDel(true)}
                 >
                   <Icon name="trash" size={15} />
@@ -857,7 +871,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
               <Dropdown trigger={<button className="text-left -mx-2 px-2 py-1 rounded hover:bg-[var(--surface-2)] w-full"><StatusPill status={project.status} /></button>}>
                 {(close) => STATUSES.map(s => (
                   <MenuItem key={s.id} onClick={() => {
-                    if (s.id !== project.status && window.pushNotif) {
+                    if (collaborationEnabled && s.id !== project.status && window.pushNotif) {
                       const changer = resolveUser(currentUserId);
                       const newSt   = getStatus(s.id);
                       project.assignees.forEach(uid => {
@@ -867,6 +881,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                             body: `${changer?.name || 'Alguien'} cambió "${project.title}" → ${newSt?.label || s.id}`,
                             projectId: project.id,
                             projectTitle: project.title,
+                            workspaceId: project.workspaceId,
                           });
                         }
                       });
@@ -892,7 +907,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
               </Dropdown>
             </PropRow>
 
-            <PropRow icon="users" label="Responsables">
+            {collaborationEnabled && <PropRow icon="users" label="Responsables">
               <Dropdown trigger={
                 <button className="-mx-2 px-2 py-1 rounded hover:bg-[var(--surface-2)] w-full text-left">
                   {project.assignees.length > 0 ? (
@@ -920,7 +935,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   </MenuItem>
                 ))}
               </Dropdown>
-            </PropRow>
+            </PropRow>}
 
             <PropRow icon="calendar" label="Inicio">
               <input
@@ -932,7 +947,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
               />
             </PropRow>
 
-            <PropRow icon="calendar" label="Deadline">
+            <PropRow icon="calendar" label="Fecha límite">
               <div className="flex items-center gap-2">
                 <input
                   type="date"
@@ -950,7 +965,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
               </div>
             </PropRow>
 
-            <PropRow icon="camera" label="Fecha sesión">
+            {collaborationEnabled && <PropRow icon="camera" label="Próxima fecha de trabajo">
               <div className="flex items-center gap-2">
                 <input
                   type="date"
@@ -970,9 +985,9 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   </span>
                 )}
               </div>
-            </PropRow>
+            </PropRow>}
 
-            <PropRow icon="zap" label="Presupuesto">
+            {collaborationEnabled && <PropRow icon="zap" label="Presupuesto">
               <div className="flex items-center gap-1 text-sm">
                 <span className="text-[var(--text-muted)]">{project.currency}</span>
                 <InlineEdit
@@ -983,7 +998,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   className="font-mono tnum"
                 />
               </div>
-            </PropRow>
+            </PropRow>}
 
             <PropRow icon="hash" label="Tags">
               <div className="flex flex-wrap gap-1.5 -mx-1">
@@ -1018,7 +1033,10 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
           <div className="overflow-y-auto">
             {/* Tabs */}
             <div className="sticky top-0 z-10 surface border-b border-app px-6 flex items-center gap-1" style={{ background: 'var(--surface)' }}>
-              {[{id:'overview',label:'Visión general',icon:'list'}, {id:'comments',label:`Comentarios · ${comments.length}`,icon:'message'}].map(t => (
+              {[
+                {id:'overview',label:'Visión general',icon:'list'},
+                ...(collaborationEnabled ? [{id:'comments',label:`Comentarios · ${comments.length}`,icon:'message'}] : []),
+              ].map(t => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
@@ -1235,7 +1253,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
               </div>
             )}
 
-            {tab === 'comments' && (
+            {collaborationEnabled && tab === 'comments' && (
               <CommentsTab
                 comments={comments}
                 commentsLoading={commentsLoading}
@@ -1457,6 +1475,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   const [focused,   setFocused]   = useState(false);
   const [lightbox,  setLightbox]  = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [progress,   setProgress]   = useState(0);
 
   // Inicializa HTML solo al montar (no en cada re-render para no romper el cursor)
   useEffect(() => {
@@ -1488,6 +1507,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     }
     uploadingRef.current = true;
     setUploading(true);
+    setProgress(0);
     try {
       const path  = `frame-descriptions/${projectId || 'general'}/${Date.now()}.jpg`;
       const stRef = window.storage.ref(path);
@@ -1496,34 +1516,17 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
       // Timeout obligatorio: si el bucket de Storage no está creado, la tarea
       // no falla — se queda esperando. Sin esto el editor mostraba "subiendo…"
       // para siempre y no había forma de saber que pasaba.
-      await new Promise((resolve, reject) => {
-        const t = setTimeout(
-          () => reject(Object.assign(new Error('timeout'), { code: 'storage/timeout' })),
-          25000
-        );
-        task.on('state_changed', null,
-          (e) => { clearTimeout(t); reject(e); },
-          ()  => { clearTimeout(t); resolve(); });
-      });
-
-      const src = await task.snapshot.ref.getDownloadURL();
+      const snapshot = await FrameAttachments.waitForUpload(task, { onProgress: setProgress });
+      const src = await snapshot.ref.getDownloadURL();
       editorRef.current?.focus();
       document.execCommand('insertHTML', false, `<img src="${src}" /><br>`);
     } catch (err) {
       console.error('[FRAME] Subir imagen:', err);
-      const code = err?.code || '';
-      const msg =
-        code === 'storage/timeout' || code === 'storage/unknown' || code === 'storage/retry-limit-exceeded'
-          ? 'No se pudo subir la imagen. Falta habilitar Storage en Firebase (requiere plan Blaze).'
-        : code === 'storage/unauthorized'
-          ? 'No tenés permiso para subir imágenes. Revisá las reglas de Storage.'
-        : code === 'storage/quota-exceeded'
-          ? 'Se agotó el espacio de Storage.'
-          : 'No se pudo subir la imagen. Probá de nuevo.';
-      window.frameToast?.(msg);
+      window.frameToast?.(FrameAttachments.storageErrorMessage(err));
     } finally {
       uploadingRef.current = false;
       setUploading(false);
+      setProgress(0);
     }
   };
 
@@ -1533,7 +1536,11 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     const imgItem = items.find(i => i.type.startsWith('image/'));
     if (!imgItem) return; // texto normal → comportamiento por defecto
     e.preventDefault();
-    const compressed = await compressImg(imgItem.getAsFile());
+    const file = imgItem.getAsFile();
+    const validation = FrameAttachments.validateImageFile(file);
+    if (!validation.ok) { window.frameToast?.(validation.message); return; }
+    const compressed = await compressImg(file);
+    if (!compressed) { window.frameToast?.('No se pudo procesar la imagen.'); return; }
     await uploadAndInsert(compressed);
   };
 
@@ -1541,9 +1548,12 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   const handleFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const compressed = await compressImg(file);
-    await uploadAndInsert(compressed);
     e.target.value = '';
+    const validation = FrameAttachments.validateImageFile(file);
+    if (!validation.ok) { window.frameToast?.(validation.message); return; }
+    const compressed = await compressImg(file);
+    if (!compressed) { window.frameToast?.('No se pudo procesar la imagen.'); return; }
+    await uploadAndInsert(compressed);
   };
 
   // Click en imagen → lightbox
@@ -1586,7 +1596,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
             className={`px-2 py-1 rounded text-[12px] select-none cursor-pointer flex items-center gap-1 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]'}`}
           >
             <Icon name="camera" size={12} />
-            {uploading && <span className="text-[10px] font-mono animate-pulse">subiendo…</span>}
+            {uploading && <span className="text-[10px] font-mono animate-pulse">{progress}%</span>}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
           <span className="ml-auto text-[10px] font-mono hidden sm:block" style={{ color: 'var(--text-muted)' }}>Ctrl+V para pegar imagen</span>
@@ -1601,7 +1611,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           onBlur={() => { setFocused(false); save(); }}
           onPaste={handlePaste}
           onClick={handleClick}
-          data-placeholder="Describí el proyecto, briefing, referencias…"
+          data-placeholder="Describí la tarea, el brief y las referencias…"
           className="desc-editor p-3 text-[15px] leading-relaxed"
           style={{ minHeight: 100, background: 'var(--surface-2)', color: 'var(--text)' }}
         />
@@ -1662,7 +1672,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
               <Icon name="message" size={18} />
             </div>
             <div className="text-sm">Aún no hay comentarios</div>
-            <div className="text-[12px] mt-1">Sé el primero en dejar un comentario en este proyecto</div>
+            <div className="text-[12px] mt-1">Sé el primero en comentar esta tarea</div>
           </div>
         )}
         {comments.map(c => {

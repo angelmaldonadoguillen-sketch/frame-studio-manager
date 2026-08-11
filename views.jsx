@@ -77,7 +77,7 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
                   <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>·</span>
                   <span className="text-[11px] font-medium flex-shrink-0"
                         style={{ color: project._kind === 'session' ? 'var(--info)' : 'var(--text-dim)' }}>
-                    {project._kind === 'session' ? 'Sesión' : 'Entrega'}
+                    {project._kind === 'session' ? 'Trabajo' : 'Fecha límite'}
                   </span>
                 </>
               )}
@@ -273,13 +273,13 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
         <button
           onClick={() => { if (projectCount === 0) { onDelete(col.id); setOpen(false); } }}
           disabled={projectCount > 0}
-          title={projectCount > 0 ? `Mové los ${projectCount} proyectos antes de eliminar` : ''}
+          title={projectCount > 0 ? `Mové las ${projectCount} tareas antes de eliminar` : ''}
           className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] transition-colors disabled:opacity-35 hover:bg-[var(--danger-soft)]"
           style={{ color: 'var(--danger)' }}
         >
           <Icon name="trash" size={13} />
           {projectCount > 0
-            ? `${projectCount} proyecto${projectCount > 1 ? 's' : ''} — no se puede eliminar`
+            ? `${projectCount} tarea${projectCount > 1 ? 's' : ''} — no se puede eliminar`
             : 'Eliminar columna'}
         </button>
       </div>
@@ -334,7 +334,7 @@ const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agreg
             if (e.key === 'Escape') { setActive(false); setTitle(''); }
           }}
           onBlur={() => { if (!title.trim()) { setActive(false); setTitle(''); } }}
-          placeholder="Título del proyecto…"
+          placeholder="Título de la tarea…"
           className="w-full bg-transparent outline-none text-[13px]"
           style={{ color: 'var(--text)' }}
         />
@@ -540,7 +540,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
 
                 {items.length === 0 && (
                   <div className="text-center py-10 px-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-2)' }}>
-                    <div className="text-[var(--text-muted)] text-[11px]">Sin proyectos en {s.label.toLowerCase()}</div>
+                    <div className="text-[var(--text-muted)] text-[11px]">Sin tareas en {s.label.toLowerCase()}</div>
                     <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Arrastrá una tarjeta acá</div>
                   </div>
                 )}
@@ -1120,7 +1120,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
       <div className="space-y-3">
         {items.length === 0 && (
           <div className="text-center py-20 border border-dashed rounded-xl" style={{ borderColor: 'var(--border-2)' }}>
-            <div className="text-[var(--text-muted)] text-sm">Día libre — no hay proyectos programados</div>
+            <div className="text-[var(--text-muted)] text-sm">Día libre — no hay tareas programadas</div>
           </div>
         )}
         {items.map(p => (
@@ -1188,7 +1188,7 @@ const GalleryAddCard = ({ onCreate }) => {
               if (e.key === 'Escape') { setActive(false); setTitle(''); }
             }}
             onBlur={() => { if (!title.trim()) { setActive(false); setTitle(''); } }}
-            placeholder="Título del proyecto…"
+            placeholder="Título de la tarea…"
             className="w-full bg-transparent outline-none text-center text-[15px] border-b pb-1.5"
             style={{ color: 'var(--text)', borderColor: 'var(--accent)' }}
           />
@@ -1209,7 +1209,7 @@ const GalleryAddCard = ({ onCreate }) => {
           <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
             <Icon name="plus" size={18} />
           </div>
-          <span className="text-[12px] font-medium">Agregar proyecto</span>
+          <span className="text-[12px] font-medium">Agregar tarea</span>
         </div>
       )}
     </div>
@@ -1434,12 +1434,12 @@ const ListView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject
       <table className="w-full text-[13px]">
         <thead className="sticky top-0 z-10 surface" style={{ background: 'var(--surface)' }}>
           <tr className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)]">
-            <th className="text-left px-5 py-3 font-semibold border-b border-app w-[34%]">Proyecto</th>
+            <th className="text-left px-5 py-3 font-semibold border-b border-app w-[34%]">Tarea</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Cliente</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Tipo</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Estado</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Equipo</th>
-            <th className="text-left px-3 py-3 font-semibold border-b border-app">Deadline</th>
+            <th className="text-left px-3 py-3 font-semibold border-b border-app">Fecha límite</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Prio</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app w-[110px]">Progreso</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app w-[80px]"></th>
@@ -1456,7 +1456,7 @@ const ListView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject
 };
 
 // ── EMPTY STATE ─────────────────────────────────────────────────
-const EmptyState = ({ message = 'No hay proyectos que coincidan con tus filtros' }) => (
+const EmptyState = ({ message = 'No hay tareas que coincidan con tus filtros' }) => (
   <div className="h-full flex items-center justify-center p-10">
     <div className="text-center max-w-sm">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style={{ background: 'var(--surface-2)' }}>
@@ -1500,12 +1500,12 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
         <div>
           <h2 className="font-display font-bold text-[17px]" style={{ letterSpacing: '-0.01em' }}>Papelera de reciclaje</h2>
           <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Los proyectos se eliminan permanentemente a los <strong className="text-[var(--text-dim)]">5 días</strong>
+            Las tareas se eliminan permanentemente a los <strong className="text-[var(--text-dim)]">5 días</strong>
           </p>
         </div>
         {trash.length > 0 && (
           <span className="ml-auto text-[11px] font-mono px-2 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
-            {trash.length} {trash.length === 1 ? 'proyecto' : 'proyectos'}
+            {trash.length} {trash.length === 1 ? 'tarea' : 'tareas'}
           </span>
         )}
       </div>
@@ -1519,7 +1519,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
             </div>
             <div className="text-center">
               <p className="font-semibold text-[15px] mb-1">Papelera vacía</p>
-              <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Los proyectos eliminados aparecerán aquí</p>
+              <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Las tareas eliminadas aparecerán aquí</p>
             </div>
           </div>
         ) : (
@@ -1612,7 +1612,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                           onClick={() => onRestore(item)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors hover:opacity-90"
                           style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                          title="Restaurar proyecto"
+                          title="Restaurar tarea"
                         >
                           <Icon name="arrowUpRight" size={12} />
                           Restaurar

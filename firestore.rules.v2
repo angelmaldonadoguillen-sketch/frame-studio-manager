@@ -234,16 +234,42 @@ service cloud.firestore {
       allow update, delete: if isPlatformAdmin();
     }
 
+    // ── Configuración global retirada ───────────────────────────
+    // La app v2 no lee ni escribe acá: cada tablero, personal o de equipo,
+    // mantiene su propia configuración bajo frame_workspaces/{wsId}/config.
+    // El documento remoto heredado se elimina sólo como operación manual y
+    // confirmada después de publicar código + reglas; hasta entonces queda
+    // inaccesible para todos los clientes.
+    match /frame_config/{doc} {
+      allow read, create, update, delete: if false;
+    }
+
     // ── Notificaciones ───────────────────────────────────────────
     match /frame_notifications/{uid} {
-      allow read, write: if signedIn() && myUid() == uid;
+      allow read: if signedIn() && myUid() == uid;
+      allow create, update, delete: if false;
 
       match /items/{item} {
         allow read, update, delete: if signedIn() && myUid() == uid;
-        // Cualquiera con sesión puede dejar una notificación en la bandeja
-        // de otro: es lo que hace el alta al pedir aprobación, y en ese
-        // momento el solicitante todavía no está aprobado.
-        allow create: if signedIn();
+        // Los únicos avisos creados por el cliente son menciones y cambios de
+        // estado de un proyecto compartido. Emisor y receptor deben ser
+        // miembros del mismo tablero, y el proyecto debe pertenecer a él.
+        // El límite de tres miembros del tablero acota además los receptores.
+        allow create: if approved()
+                      && uid != myUid()
+                      && request.resource.data.senderId == myUid()
+                      && request.resource.data.id == item
+                      && request.resource.data.read == false
+                      && request.resource.data.type in ['mention', 'status']
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() <= 500
+                      && request.resource.data.workspaceId is string
+                      && request.resource.data.projectId is string
+                      && isMember(request.resource.data.workspaceId)
+                      && uid in ws(request.resource.data.workspaceId).memberIds
+                      && exists(/databases/$(database)/documents/frame_projects/$(request.resource.data.projectId))
+                      && get(/databases/$(database)/documents/frame_projects/$(request.resource.data.projectId)).data.workspaceId
+                         == request.resource.data.workspaceId;
       }
     }
 

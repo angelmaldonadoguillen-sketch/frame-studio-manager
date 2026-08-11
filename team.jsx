@@ -475,14 +475,14 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
             {/* Projects */}
             <section>
               <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">
-                Proyectos asignados ({all.length})
+                Tareas asignadas ({all.length})
               </div>
               {all.length === 0 ? (
                 <div
                   className="text-center py-8 rounded-lg text-[12px] text-[var(--text-muted)]"
                   style={{ background: 'var(--surface-2)' }}
                 >
-                  Sin proyectos asignados
+                  Sin tareas asignadas
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -531,7 +531,7 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] mb-3">
                       {active.length > 0
-                        ? `Tiene ${active.length} proyecto${active.length > 1 ? 's' : ''} activo${active.length > 1 ? 's' : ''}. Se eliminará el perfil pero los proyectos conservarán su asignación.`
+                        ? `Tiene ${active.length} tarea${active.length > 1 ? 's' : ''} activa${active.length > 1 ? 's' : ''}. Se eliminará el perfil, pero las tareas conservarán su asignación.`
                         : 'Se eliminará el perfil del directorio.'}
                     </div>
                     <div className="flex gap-2">
@@ -926,7 +926,7 @@ const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMem
           })}
           <div className="ml-auto flex items-center gap-1.5 text-[var(--text-muted)]">
             <Icon name="zap" size={11} />
-            <span>{totalActive} proyecto{totalActive !== 1 ? 's' : ''} activo{totalActive !== 1 ? 's' : ''} en total</span>
+            <span>{totalActive} tarea{totalActive !== 1 ? 's' : ''} activa{totalActive !== 1 ? 's' : ''} en total</span>
           </div>
         </div>
 
