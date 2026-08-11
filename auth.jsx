@@ -78,10 +78,6 @@ const LoginScreen = () => {
 
       const col = window.db.collection('frame_users');
 
-      // Se usa para avisarle al equipo que hay una solicitud nueva.
-      const allUsersSnap = await col.get();
-      const isFirstUser  = allUsersSnap.empty;
-
       const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
       const colors   = typeof TEAM_COLORS !== 'undefined'
         ? TEAM_COLORS
@@ -107,43 +103,24 @@ const LoginScreen = () => {
         status:       'pending',
       };
 
-      // ¿Ya existe un perfil con este email? (vinculación)
-      const existing = await col.where('email', '==', email.trim().toLowerCase()).get();
-      if (existing.empty) {
-        await col.doc(cred.user.uid).set(newProfile);
-      } else {
-        const old = existing.docs[0];
-        if (old.id !== cred.user.uid) {
-          await col.doc(cred.user.uid).set({ ...old.data(), ...newProfile, id: cred.user.uid });
-          await col.doc(old.id).delete();
-        }
-        // Si ya existe con el mismo UID no sobreescribimos el status que ya tenga
-      }
+      // El documento se identifica con el uid, así que crear el propio perfil
+      // es todo lo que hace falta.
+      //
+      // Antes había dos consultas más que hoy las reglas rechazan, y por eso
+      // el registro se cortaba a la mitad: la cuenta quedaba creada en
+      // Authentication pero el perfil en Firestore no llegaba a escribirse.
+      //   · col.get() sobre toda la colección, para saber si era el primer
+      //     usuario. Ya no hace falta: el alta siempre es 'pending'.
+      //   · col.where('email', ...) para vincular un perfil previo. Era de
+      //     cuando los documentos no se identificaban por uid.
+      // Las dos son consultas de lista, y Firestore las evalúa contra la
+      // regla entera: como sólo se permite leer el perfil propio, rechaza la
+      // consulta completa en vez de filtrar.
+      await col.doc(cred.user.uid).set(newProfile);
 
-      // Notificar a todos los usuarios existentes cuando hay un nuevo pendiente
-      if (!isFirstUser) {
-        const batch = window.db.batch();
-        allUsersSnap.docs.forEach(userDoc => {
-          if (userDoc.id === cred.user.uid) return; // no auto-notificarse
-          const notifRef = window.db
-            .collection('frame_notifications')
-            .doc(userDoc.id)
-            .collection('items')
-            .doc();
-          batch.set(notifRef, {
-            type:         'approval_request',
-            userId:       cred.user.uid,
-            userName:     name.trim(),
-            userEmail:    email.trim().toLowerCase(),
-            userInitials: initials,
-            body:         `${name.trim()} solicita acceso al estudio`,
-            createdAt:    new Date().toISOString(),
-            read:         false,
-            resolved:     false,
-          });
-        });
-        await batch.commit();
-      }
+      // El aviso al equipo tampoco se puede hacer desde acá: exigía recorrer
+      // todos los usuarios para escribirles en su bandeja. El admin ve las
+      // solicitudes pendientes en su pantalla de aprobación.
 
     } catch (err) {
       if (err.code === 'auth/operation-not-allowed') setShowSetup(true);
