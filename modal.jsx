@@ -1800,11 +1800,11 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   };
 
   // Botón de toolbar reutilizable
-  const TB = ({ onMouseDown, title, children }) => (
+  const TB = ({ onMouseDown, title, children, className = '' }) => (
     <button
       onMouseDown={(e) => { e.preventDefault(); onMouseDown(); }}
       title={title}
-      className="px-2 py-1 rounded text-[12px] font-medium select-none text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)] transition-colors"
+      className={`px-2 py-1 rounded text-[12px] font-medium select-none text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)] transition-colors ${className}`}
     >
       {children}
     </button>
@@ -1855,19 +1855,18 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
               boxShadow: '0 12px 32px rgba(0,0,0,0.28)',
             }}
           >
-            <span className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Imagen seleccionada</span>
             <div className="flex flex-col items-stretch rounded-md border p-0.5" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-3)' }}>
-              <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'sm')} title="Ancho pequeño">Pequeña</TB>
-              <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'md')} title="Ancho mediano">Mediana</TB>
-              <TB onMouseDown={() => updateSelectedImage('data-frame-size', 'lg')} title="Ancho completo">Completa</TB>
+              <TB className="w-full text-left" onMouseDown={() => updateSelectedImage('data-frame-size', 'sm')} title="Ancho pequeño">Pequeña</TB>
+              <TB className="w-full text-left" onMouseDown={() => updateSelectedImage('data-frame-size', 'md')} title="Ancho mediano">Mediana</TB>
+              <TB className="w-full text-left" onMouseDown={() => updateSelectedImage('data-frame-size', 'lg')} title="Ancho completo">Completa</TB>
             </div>
             <div className="h-px my-1" style={{ background: 'var(--border-2)' }} />
-            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'left')} title="Alinear a la izquierda">Alinear a la izquierda</TB>
-            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'center')} title="Centrar">Centrar</TB>
-            <TB onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Alinear a la derecha">Alinear a la derecha</TB>
+            <TB className="w-full text-left" onMouseDown={() => updateSelectedImage('data-frame-align', 'left')} title="Alinear a la izquierda">Alinear a la izquierda</TB>
+            <TB className="w-full text-left" onMouseDown={() => updateSelectedImage('data-frame-align', 'center')} title="Centrar">Centrar</TB>
+            <TB className="w-full text-left" onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Alinear a la derecha">Alinear a la derecha</TB>
             <div className="h-px my-1" style={{ background: 'var(--border-2)' }} />
-            <TB onMouseDown={() => setLightbox(selectedImage.src)} title="Abrir imagen a tamaño completo">Abrir imagen</TB>
-            <TB onMouseDown={() => { clearImageSelection(); setSelectedImage(null); setImageMenuPosition(null); }} title="Cerrar opciones">Cerrar</TB>
+            <TB className="w-full text-left" onMouseDown={() => setLightbox(selectedImage.src)} title="Abrir imagen a tamaño completo">Abrir imagen</TB>
+            <TB className="w-full text-left" onMouseDown={() => { clearImageSelection(); setSelectedImage(null); setImageMenuPosition(null); }} title="Cerrar opciones">Cerrar</TB>
           </div>,
           document.body
         )}
