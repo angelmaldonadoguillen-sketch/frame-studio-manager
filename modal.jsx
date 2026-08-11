@@ -565,24 +565,23 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
       .collection('frame_projects')
       .doc(project.id)
       .collection('comments');
-    const unsub = col.orderBy('at', 'asc').onSnapshot(async (snap) => {
-      if (snap.empty && (project.comments || []).length > 0) {
-        // Primera vez: migrar array de comentarios a subcollection
-        const batch = window.db.batch();
-        (project.comments || []).forEach(c => batch.set(col.doc(c.id), c));
-        await batch.commit();
-        // El listener disparará de nuevo con los datos migrados
-      } else {
-        setComments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        setCommentsLoading(false);
-      }
+    const unsub = col.orderBy('at', 'asc').onSnapshot((snap) => {
+      // Compatibilidad no destructiva: los comentarios antiguos permanecen
+      // en el array del documento y se combinan en memoria. No se copian a la
+      // subcolección porque el cliente no puede acreditar la autoría ajena.
+      const legacy = (project.comments || []).map(c => ({ ...c, _legacy: true }));
+      const remote = snap.docs.map(d => ({ id: d.id, ...d.data(), _legacy: false }));
+      const byId = new Map(legacy.map(c => [c.id, c]));
+      remote.forEach(c => byId.set(c.id, c));
+      setComments([...byId.values()].sort((a, b) => String(a.at || '').localeCompare(String(b.at || ''))));
+      setCommentsLoading(false);
     }, (err) => {
       console.error('Comments listener error:', err);
       setComments(project.comments || []);
       setCommentsLoading(false);
     });
     return () => unsub();
-  }, [project?.id, collaborationEnabled]);
+  }, [project?.id, collaborationEnabled, project?.comments]);
 
   if (!project) return null;
 
@@ -696,7 +695,14 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
   };
 
   const deleteComment = (commentId) => {
+    const comment = comments.find(c => c.id === commentId);
     setComments(prev => prev.filter(c => c.id !== commentId));
+    if (comment?._legacy) {
+      if (comment.userId === currentUserId) {
+        upd({ comments: (project.comments || []).filter(c => c.id !== commentId) });
+      }
+      return;
+    }
     window.db.collection('frame_projects').doc(project.id)
       .collection('comments').doc(commentId).delete()
       .catch(err => console.error('Error al eliminar comentario:', err));
