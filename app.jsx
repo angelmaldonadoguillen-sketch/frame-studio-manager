@@ -686,6 +686,9 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
 
 // ── Header ──────────────────────────────────────────────────────
 const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject, onApproveUser, onRejectUser, onPinView }) => {
+  // Se calcula acá y no se recibe de App: el filtro por responsable tiene que
+  // ofrecer a los miembros del tablero abierto, no a los de la plataforma.
+  const wsMembers = workspaceMembers(state.workspaces.find(w => w.id === state.activeWorkspaceId));
   const me = getUser(state.currentUserId);
   const activeFilters = [
     ...state.filters.status.map(v => ({ key: 'status', value: v, label: getStatus(v).label, color: getStatus(v).color })),
