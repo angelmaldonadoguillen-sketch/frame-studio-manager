@@ -29,7 +29,10 @@ const initialState = {
   // ── Proyectos ──
   projects: [],
   loading: true,
-  currentUserId: 'u1',
+  // Arranca en null: antes traía 'u1' hardcodeado de los datos de prueba, así
+  // que el listener de notificaciones se suscribía a la bandeja de un usuario
+  // inexistente antes de que hubiera sesión — y fallaba con permission-denied.
+  currentUserId: null,
   view: _pinnedView || _savedNav.view || 'kanban', // fija > historial > default
   pinnedView: _pinnedView,          // null | 'kanban' | 'calendar' | 'gallery' | 'list'
   search: '',
@@ -1173,17 +1176,44 @@ const App = () => {
   // ── Firestore: equipo ───────────────────────────────────────
   useEffect(() => {
     if (!authUser) return;
-    const col = window.db.collection('frame_users');
-    const unsub = col.onSnapshot((snap) => {
-      // No seeding — only real registered users
-      const team = snap.docs.map(doc => normalizeMember({ ...doc.data(), id: doc.id }));
-      window.__liveTeam = team; // registro global para getUser / AvatarStack
-      dispatch({ type: 'set_team', team });
+
+    // Las reglas permiten leer el propio perfil, y la colección completa sólo
+    // al admin de plataforma. Firestore evalúa las consultas de lista contra
+    // la regla ENTERA: no filtra los documentos que sí podrías ver, rechaza
+    // la consulta completa. Por eso una consulta a toda la colección le
+    // fallaría a cualquiera que no sea admin y lo dejaría sin poder saber
+    // siquiera su propio estado de aprobación.
+    //
+    // Se escucha siempre el documento propio, que es lo que decide el gate,
+    // y la colección completa sólo si el perfil dice platformAdmin.
+    const own = window.db.collection('frame_users').doc(authUser.uid);
+    let unsubAll = null;
+
+    const unsubOwn = own.onSnapshot((doc) => {
+      const me = doc.exists ? normalizeMember({ ...doc.data(), id: doc.id }) : null;
+
+      if (me?.platformAdmin && !unsubAll) {
+        unsubAll = window.db.collection('frame_users').onSnapshot((snap) => {
+          const team = snap.docs.map(d => normalizeMember({ ...d.data(), id: d.id }));
+          window.__liveTeam = team;
+          dispatch({ type: 'set_team', team });
+        }, (err) => console.error('[FRAME] Equipo (admin):', err));
+      }
+
+      // Sin ser admin, el "equipo" es por ahora uno mismo. Los compañeros de
+      // tablero saldrán del propio documento del tablero, que ya guarda quién
+      // lo integra — así no hace falta abrir la lectura de perfiles ajenos.
+      if (!me?.platformAdmin) {
+        const team = me ? [me] : [];
+        window.__liveTeam = team;
+        dispatch({ type: 'set_team', team });
+      }
     }, (err) => {
       console.error('Firestore team error:', err);
       dispatch({ type: 'set_team', team: [] });
     });
-    return () => unsub();
+
+    return () => { unsubOwn(); if (unsubAll) unsubAll(); };
   }, [authUser?.uid]);
 
   // ── Firestore: clientes ─────────────────────────────────────
@@ -1209,15 +1239,15 @@ const App = () => {
     return () => unsub();
   }, []);
 
-  // ── Sync email autenticado → currentUserId del equipo ───────
+  // ── currentUserId = uid de la sesión ────────────────────────
+  // El id del documento en frame_users ES el uid de Firebase Auth, así que
+  // sale directo de la sesión. Antes se buscaba al miembro por email dentro
+  // del equipo ya cargado, lo que ataba la identidad a que la lista hubiera
+  // llegado y fallaba si el email difería en mayúsculas o espacios.
   useEffect(() => {
-    if (!authUser || state.team.length === 0) return;
-    const email  = (authUser.email || '').toLowerCase();
-    const member = state.team.find(m => (m.email || '').toLowerCase() === email);
-    if (member && member.id !== state.currentUserId) {
-      dispatch({ type: 'set_user', id: member.id });
-    }
-  }, [authUser, state.team.length]);
+    const uid = authUser?.uid || null;
+    if (uid !== state.currentUserId) dispatch({ type: 'set_user', id: uid });
+  }, [authUser?.uid]);
 
   // ── Firestore: display settings (vista previa + carry-over) ───
   useEffect(() => {
@@ -1679,15 +1709,30 @@ const App = () => {
   // activa, así que teamLoading/loading siguen en true mientras no haya login.
   // Hay que descartar el caso "sin sesión" ANTES de mirar los flags de carga,
   // o la pantalla de login nunca llegaría a renderizarse.
+  // El orden de estos chequeos es la lógica de arranque de la app. Cada uno
+  // descarta un estado antes de que el siguiente pueda asumir nada.
   if (!authChecked) return <LoadingScreen />;
   if (!authUser)    return <LoginScreen />;
   if (state.teamLoading) return <LoadingScreen />;
 
-  // Verificar estado de aprobación del usuario autenticado
-  const _authEmail  = (authUser.email || '').toLowerCase();
-  const _authMember = state.team.find(m => (m.email || '').toLowerCase() === _authEmail);
-  if (_authMember?.status === 'pending')  return <PendingApprovalScreen member={_authMember} onSignOut={() => firebase.auth().signOut()} />;
-  if (_authMember?.status === 'rejected') return <RejectedScreen        member={_authMember} onSignOut={() => firebase.auth().signOut()} />;
+  // El documento de perfil se busca por uid, que es el id del documento.
+  // Antes se buscaba por email dentro del equipo cargado: si esa lista venía
+  // vacía —por ejemplo porque las reglas rechazaron la consulta— el usuario
+  // no aparecía como pendiente ni como rechazado, se colaba hasta el chequeo
+  // de carga y quedaba en la pantalla de "Conectando con Firebase" para
+  // siempre. Un perfil ausente ahora se trata explícitamente como pendiente.
+  const _me = state.team.find(m => m.id === authUser.uid);
+  if (!_me || _me.status === 'pending') {
+    return <PendingApprovalScreen member={_me || { name: authUser.displayName || authUser.email }} onSignOut={() => firebase.auth().signOut()} />;
+  }
+  if (_me.status === 'rejected') {
+    return <RejectedScreen member={_me} onSignOut={() => firebase.auth().signOut()} />;
+  }
+
+  // Aprobado pero todavía sin tablero: el alta del tablero personal está en
+  // curso. Es un instante, pero sin este chequeo la app llegaría a las vistas
+  // con activeWorkspaceId en null y no cargaría nada.
+  if (state.workspacesLoading || !state.activeWorkspaceId) return <LoadingScreen />;
 
   if (state.loading) return <LoadingScreen />;
 
