@@ -1242,16 +1242,22 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
   const pf = previewFields;
   const t = getType(project.type);
   const progress = progressOf(project);
-  const days = daysUntil(project.deadline);
-  const urgent = isUrgent(project);
+  const counter  = deliveryCounter(project);
   const [confirmDel, setConfirmDel] = React.useState(false);
-  const hasTags = pf.tags && project.tags && project.tags.length > 0;
+
+  const done  = (project.checklist || []).filter(c => c.done).length;
+  const total = (project.checklist || []).length;
+
+  // Misma línea de metadatos que la tarjeta del tablero.
+  const meta = [];
+  if (pf.presupuesto && project.budget > 0) {
+    meta.push(`${project.currency || 'USD'} ${project.budget.toLocaleString()}`);
+  }
 
   return (
     <div
       onClick={onClick}
-      className="group lift cursor-pointer rounded-xl overflow-hidden border surface-2 select-none"
-      style={{ borderColor: 'var(--border)' }}
+      className="group lift surf surf-hover cursor-pointer overflow-hidden select-none"
     >
       <div className="relative aspect-[4/3] overflow-hidden" style={{ background: project.cover.type === 'color' ? project.cover.value : 'var(--surface-3)' }}>
         {project.cover.type === 'image' && (
@@ -1261,9 +1267,9 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
           {pf.tipo !== false && <TypePill type={project.type} />}
           <div className="flex items-center gap-1.5 ml-auto">
-            {pf.prioridad !== false && urgent && (
-              <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URGENTE</span>
-            )}
+            {/* Sin badge URGENTE: el contador de entrega, abajo, ya dice
+                cuánto falta y con cuánta urgencia. Dos avisos del mismo hecho
+                compiten entre sí y pueden desincronizarse. */}
             {onToggleFavorite && !confirmDel && (
               <button
                 onClick={(e) => { e.stopPropagation(); onToggleFavorite(project.id); }}
@@ -1305,41 +1311,55 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
           </div>
         )}
       </div>
+      {/* Cuerpo con el mismo lenguaje que la tarjeta del tablero: metadatos en
+          una línea, contador de entrega a la derecha, progreso apagado. Antes
+          apilaba cliente, monto, tags, avatares y fecha en cinco renglones. */}
       <div className="p-3.5">
-        {pf.cliente !== false && (
-          <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-1">{project.client}</div>
-        )}
-        <h3 className="font-display font-semibold text-[15px] leading-tight mb-2 balance" style={{ letterSpacing: '-0.01em' }}>
-          {project.title}
-        </h3>
-        {pf.presupuesto && project.budget > 0 && (
-          <div className="text-[11px] font-mono mb-2" style={{ color: 'var(--text-dim)' }}>
-            {project.currency || 'USD'} {project.budget.toLocaleString()}
-          </div>
-        )}
-        {hasTags && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {project.tags.slice(0, 3).map(tag => (
-              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>#{tag}</span>
-            ))}
-          </div>
-        )}
-        {(pf.responsables !== false || pf.deadline !== false) && (
-          <div className="flex items-center justify-between mb-2">
-            {pf.responsables !== false ? <AvatarStack ids={project.assignees} size={20} /> : <span />}
-            {pf.deadline !== false && (
-              <div className="text-[10px] text-[var(--text-muted)] font-mono">
-                <Icon name="calendar" size={10} className="inline mr-1" />{fmtDate(project.deadline)}
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            {pf.cliente !== false && project.client && (
+              <div className="text-[11px] uppercase tracking-wider mb-1 truncate" style={{ color: 'var(--text-muted)' }}>
+                {project.client}
+              </div>
+            )}
+            <h3 className="font-semibold text-[15px] leading-snug balance" style={{ letterSpacing: '-0.012em' }}>
+              {project.title}
+            </h3>
+
+            {(meta.length > 0 || (pf.responsables !== false && project.assignees?.length > 0)) && (
+              <div className="flex items-center gap-1.5 mt-1.5 text-[12px] min-w-0" style={{ color: 'var(--text-muted)' }}>
+                {meta.map((m, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && <span style={{ color: 'var(--text-faint)' }}>·</span>}
+                    <span className="truncate tnum">{m}</span>
+                  </React.Fragment>
+                ))}
+                {pf.responsables !== false && project.assignees?.length > 0 && (
+                  <>
+                    {meta.length > 0 && <span style={{ color: 'var(--text-faint)' }}>·</span>}
+                    <AvatarStack ids={project.assignees} size={16} max={3} />
+                  </>
+                )}
               </div>
             )}
           </div>
-        )}
-        {pf.progreso !== false && (
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-              <div className="h-full transition duration-500" style={{ width: progress + '%', background: t.color }}></div>
+
+          {pf.deadline !== false && (
+            <div className="text-right flex-shrink-0 tnum" style={{ lineHeight: 1 }}>
+              <div className="text-[15px] font-semibold" style={{ color: counter.color, letterSpacing: '-0.02em' }}>
+                {counter.value}
+              </div>
+              <div className="text-[10px] mt-1" style={{ color: 'var(--text-faint)' }}>{counter.label}</div>
             </div>
-            <div className="text-[10px] font-mono" style={{ color: t.color }}>{progress}%</div>
+          )}
+        </div>
+
+        {pf.progreso !== false && total > 0 && (
+          <div className="flex items-center gap-2 mt-2.5">
+            <div className="rounded-full overflow-hidden flex-shrink-0" style={{ width: 54, height: 3, background: 'rgba(255,255,255,.09)' }}>
+              <div className="h-full rounded-full" style={{ width: progress + '%', background: progress >= 100 ? 'var(--accent)' : 'var(--text-faint)' }} />
+            </div>
+            <span className="text-[10px] tnum" style={{ color: 'var(--text-faint)' }}>{done}/{total}</span>
           </div>
         )}
       </div>
@@ -1350,11 +1370,12 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
 // ── LIST VIEW ───────────────────────────────────────────────────
 const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite }) => {
   const t = getType(p.type);
-  const days = daysUntil(p.deadline);
-  const urgent = isUrgent(p);
-  const overdue = isOverdue(p);
   const progress = progressOf(p);
+  const counter  = deliveryCounter(p);
   const [confirmDel, setConfirmDel] = React.useState(false);
+
+  const done  = (p.checklist || []).filter(c => c.done).length;
+  const total = (p.checklist || []).length;
 
   return (
     <tr
@@ -1377,22 +1398,22 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
       <td className="px-3 py-3"><TypePill type={p.type} /></td>
       <td className="px-3 py-3"><StatusPill status={p.status} /></td>
       <td className="px-3 py-3"><AvatarStack ids={p.assignees} size={20} max={3} /></td>
-      <td className="px-3 py-3 font-mono text-[12px]">
-        <div className="flex items-center gap-2">
-          <span className={overdue ? 'text-[var(--danger)]' : 'text-[var(--text-dim)]'}>
-            {fmtDate(p.deadline)}
-          </span>
-          {urgent && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URG</span>}
-          {overdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>VENC</span>}
-        </div>
+      {/* La fecha con dos badges al lado (URG / VENC) decía tres veces lo
+          mismo. Queda el contador solo, con el mismo formato que las tarjetas:
+          una columna de números alineados que se lee de un vistazo. */}
+      <td className="px-3 py-3 text-[13px] tnum whitespace-nowrap">
+        <span className="font-semibold" style={{ color: counter.color, letterSpacing: '-0.02em' }}>
+          {counter.value}
+        </span>
+        <span className="text-[11px] ml-1.5" style={{ color: 'var(--text-faint)' }}>{counter.label}</span>
       </td>
       <td className="px-3 py-3"><PriorityBadge priority={p.priority} /></td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-            <div className="h-full" style={{ width: progress + '%', background: t.color }}></div>
+          <div className="rounded-full overflow-hidden flex-shrink-0" style={{ width: 54, height: 3, background: 'rgba(255,255,255,.09)' }}>
+            <div className="h-full rounded-full" style={{ width: progress + '%', background: progress >= 100 ? 'var(--accent)' : 'var(--text-faint)' }}></div>
           </div>
-          <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-muted)' }}>{progress}%</span>
+          <span className="text-[10px] tnum w-9 text-right" style={{ color: 'var(--text-faint)' }}>{done}/{total}</span>
         </div>
       </td>
       {/* Acciones */}
@@ -1461,7 +1482,7 @@ const ListView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Tipo</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Estado</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Equipo</th>
-            <th className="text-left px-3 py-3 font-semibold border-b border-app">Fecha límite</th>
+            <th className="text-left px-3 py-3 font-semibold border-b border-app">Entrega</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app">Prio</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app w-[110px]">Progreso</th>
             <th className="text-left px-3 py-3 font-semibold border-b border-app w-[80px]"></th>

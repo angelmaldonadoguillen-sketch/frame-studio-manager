@@ -203,6 +203,19 @@
           />
         )}
 
+        <div className="harness-sec" style={{ maxWidth: 'none' }}>
+          <div className="harness-h">ListView — la vista de tabla</div>
+          <div style={{ height: 260, position: 'relative' }}>
+            <ListView
+              projects={PROJECTS}
+              onOpenProject={setOpenId}
+              onDeleteProject={()=>{}}
+              onDuplicateProject={()=>{}}
+              onToggleFavorite={()=>{}}
+            />
+          </div>
+        </div>
+
         <div className="harness-sec">
           <div className="harness-h">GalleryCard</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))', gap:12 }}>
