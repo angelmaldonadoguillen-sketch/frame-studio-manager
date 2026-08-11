@@ -451,7 +451,7 @@ const RoutineWidget = ({ workspaceId }) => {
                         </button>
                         {assignPickerId === task.id && (
                           <div
-                            className="absolute right-0 top-full mt-1 rounded-xl border shadow-2xl anim-scale-in overflow-hidden"
+                            className="absolute right-0 top-full mt-1 surf-float anim-scale-in overflow-hidden"
                             style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', minWidth: 180, maxHeight: 220, overflowY: 'auto', zIndex: 9999, transformOrigin: 'top right' }}
                             onClick={(e) => e.stopPropagation()}
                           >

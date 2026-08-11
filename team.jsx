@@ -136,10 +136,9 @@ const MemberCard = ({ member, projects, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="group lift cursor-pointer rounded-xl border overflow-hidden"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="group surf surf-hover lift cursor-pointer overflow-hidden"
     >
-      <div className="h-1" style={{ background: member.color }}></div>
+      {/* Sin franja de color: el color de la persona ya vive en su avatar. */}
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3 mb-3">

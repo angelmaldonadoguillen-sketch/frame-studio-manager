@@ -607,7 +607,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
         {onAddColumn && (
           <div className="flex-shrink-0 w-[220px] pt-0.5">
             {addingCol ? (
-              <div className="rounded-xl border p-3 space-y-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="surf-panel p-3 space-y-2">
                 <input
                   autoFocus
                   value={newColLabel}

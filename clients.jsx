@@ -114,12 +114,11 @@ const ClientCard = ({ client, projects, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="group lift cursor-pointer rounded-xl border overflow-hidden"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="group surf surf-hover lift cursor-pointer overflow-hidden"
     >
-      {/* Color accent strip */}
-      <div className="h-1" style={{ background: client.color }}></div>
-
+      {/* La barra de color a todo el ancho se fue: el color del cliente ya
+          está en su avatar, y repetirlo en una franja lo convertía en
+          decoración. El color identifica, no adorna. */}
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3 mb-3">

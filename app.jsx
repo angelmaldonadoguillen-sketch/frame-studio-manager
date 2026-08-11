@@ -665,7 +665,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-80 rounded-xl border shadow-2xl overflow-hidden anim-scale-in z-50"
+          className="absolute right-0 top-full mt-2 w-80 surf-float overflow-hidden anim-scale-in z-50"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           {/* Panel header */}
@@ -1145,7 +1145,7 @@ const PendingApprovalScreen = ({ member, onSignOut }) => (
       </p>
     </div>
     {member && (
-      <div className="rounded-xl border px-5 py-3 flex items-center gap-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="surf-panel px-5 py-3 flex items-center gap-3">
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] flex-shrink-0"
           style={{ background: member.color + '1a', color: member.color, border: `1.5px solid ${member.color}44` }}
@@ -1336,7 +1336,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
         )}
 
         {/* Vista previa de tarjetas */}
-        <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="surf-panel p-5">
           <div className="flex items-center gap-2 mb-1">
             <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
             <h2 className="font-display font-semibold text-[17px]">Vista previa de tarjetas</h2>
@@ -1361,7 +1361,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
         </div>
 
         {/* Rutina diaria */}
-        <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="surf-panel p-5">
           <div className="flex items-center gap-2 mb-1">
             <Icon name="sun" size={15} style={{ color: 'var(--accent)' }} />
             <h2 className="font-display font-semibold text-[17px]">Rutina diaria</h2>
@@ -1379,7 +1379,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
         </div>
 
         {/* Proyectos */}
-        <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="surf-panel p-5">
           <div className="flex items-center gap-2 mb-1">
             <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
             <h2 className="font-display font-semibold text-[17px]">Tareas</h2>
