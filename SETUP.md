@@ -2,7 +2,9 @@
 
 ## Lo que necesitás
 
-Solo un proyecto Firebase gratuito (plan Spark, sin tarjeta de crédito).
+Un proyecto Firebase con Authentication, Firestore y Storage. La consola puede
+pedir facturación para crear o usar el bucket de Storage según la región y las
+condiciones vigentes de Firebase.
 
 ---
 
@@ -26,34 +28,19 @@ Dentro de tu proyecto Firebase:
 ### Firestore Database
 - Menú lateral → **Build → Firestore Database** → **Crear base de datos**
 - Elegí **Modo de producción** → seleccioná la región más cercana → **Listo**
-- Cuando te pida las **reglas**, copiá esto:
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
+- Publicá el contenido de `firestore.rules.v2`. No uses una regla comodín para
+  usuarios autenticados: el registro es abierto y eso expondría todos los tableros.
 
 ### Storage
 - Menú lateral → **Build → Storage** → **Comenzar**
 - Elegí la misma región → **Listo**
-- En **Reglas**, copiá esto:
-
-```
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
+- Confirmá que `storageBucket` en `firebase.config.js` sea exactamente el bucket
+  creado para este mismo proyecto.
+- Publicá el contenido de `storage.rules`. Sólo admite imágenes de hasta 10 MB
+  bajo `frame-covers/{taskId}/` y `frame-descriptions/{taskId}/`, y exige que el
+  usuario esté activo y pertenezca al workspace de la tarea.
+- `firebase.json` ya referencia ambos archivos. Si usás Firebase CLI, verificá
+  primero el proyecto seleccionado y publicá reglas antes que la nueva interfaz.
 
 ---
 

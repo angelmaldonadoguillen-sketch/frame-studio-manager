@@ -149,7 +149,8 @@ service cloud.firestore {
       // singletons globales en frame_config: con varios tableros, las
       // columnas de uno se le aplicaban a todos.
       match /config/{doc} {
-        allow read, write: if isMember(wsId);
+        allow read, write: if isMember(wsId)
+                           && doc in ['kanban_columns', 'project_types', 'display_settings', 'daily_routine'];
       }
 
     }
@@ -192,6 +193,24 @@ service cloud.firestore {
       // En update se exigen ambos: impide mover un documento a un tablero
       // ajeno cambiándole el workspaceId.
       allow update:       if memberOfExisting() && memberOfIncoming();
+
+      match /comments/{commentId} {
+        function parentProject() {
+          return get(/databases/$(database)/documents/frame_projects/$(doc)).data;
+        }
+
+        allow read: if isMember(parentProject().workspaceId);
+        allow create: if isMember(parentProject().workspaceId)
+                      && request.resource.data.id == commentId
+                      && request.resource.data.userId == myUid()
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 5000
+                      && request.resource.data.at is string;
+        allow update: if false;
+        allow delete: if isMember(parentProject().workspaceId)
+                      && resource.data.userId == myUid();
+      }
     }
 
     match /frame_clients/{doc} {
@@ -250,7 +269,10 @@ service cloud.firestore {
       allow create, update, delete: if false;
 
       match /items/{item} {
-        allow read, update, delete: if signedIn() && myUid() == uid;
+        allow read, delete: if signedIn() && myUid() == uid;
+        allow update: if signedIn() && myUid() == uid
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['read', 'resolved', 'resolvedAction']);
         // Los únicos avisos creados por el cliente son menciones y cambios de
         // estado de un proyecto compartido. Emisor y receptor deben ser
         // miembros del mismo tablero, y el proyecto debe pertenecer a él.

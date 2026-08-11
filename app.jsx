@@ -1433,8 +1433,12 @@ const App = () => {
     if (!authUser) return;
     const unsub = window.db.collection('frame_workspaces')
       .where('memberIds', 'array-contains', authUser.uid)
-      .onSnapshot((snap) => {
-        const workspaces = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      .onSnapshot({ includeMetadataChanges: true }, (snap) => {
+        const workspaces = snap.docs.map(d => ({
+          ...d.data(),
+          id: d.id,
+          _hasPendingWrites: d.metadata.hasPendingWrites,
+        }));
         dispatch({ type: 'set_workspaces', workspaces });
       }, (err) => {
         console.error('[FRAME] Workspaces:', err);
@@ -1495,6 +1499,7 @@ const App = () => {
   // dejaba asignar proyectos a gente que ni estaba en el tablero.
   // Lo que se ve y se asigna sale de acá: los miembros del tablero abierto.
   const activeWs = state.workspaces.find(w => w.id === wsId) || null;
+  const activeWsReady = !!activeWs && !activeWs._hasPendingWrites;
   const wsMembers = useMemo(() => workspaceMembers(activeWs), [activeWs]);
 
   // getUser() y AvatarStack lo leen para resolver los avatares de los
@@ -2319,7 +2324,7 @@ const App = () => {
           onToggle={handleTogglePreviewField}
           carryOverProjects={state.carryOverProjects}
           onToggleCarryOverProjects={handleToggleCarryOverProjects}
-          workspaceId={wsId}
+          workspaceId={activeWsReady ? wsId : null}
         />
       ) : state.section === 'trash' ? (
         <TrashSection
@@ -2405,7 +2410,7 @@ const App = () => {
       )}
 
       {/* Widget flotante de rutina diaria */}
-      <RoutineWidget workspaceId={wsId} />
+      <RoutineWidget workspaceId={activeWsReady ? wsId : null} />
     </div>
   );
 };
