@@ -23,13 +23,17 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script>
+  // FRAME vive en su propio proyecto Firebase, separado de TOONED-OS.
+  // Antes compartían proyecto y eso significaba compartir reglas: una regla
+  // mal escrita en FRAME dejaba expuesto el sistema de ventas. Con usuarios
+  // externos registrándose, ese riesgo dejaba de ser aceptable.
   firebase.initializeApp({
-    apiKey:            "AIzaSyDjuOtF5CUQmZ9nsLDPUeTPFG6sLJZTTkE",
-    authDomain:        "tooned-os.firebaseapp.com",
-    projectId:         "tooned-os",
-    storageBucket:     "tooned-os.firebasestorage.app",
-    messagingSenderId: "193761852127",
-    appId:             "1:193761852127:web:ba8d049866d581920e076a"
+    apiKey:            "AIzaSyBh2zicshrrr1XOgmyBkMgO5od01sIFAJ4",
+    authDomain:        "frame-studio-3a18f.firebaseapp.com",
+    projectId:         "frame-studio-3a18f",
+    storageBucket:     "frame-studio-3a18f.firebasestorage.app",
+    messagingSenderId: "336293390648",
+    appId:             "1:336293390648:web:b2feefaf19b11ceee679cd"
   });
   window.db      = firebase.firestore();
   window.storage = firebase.storage();

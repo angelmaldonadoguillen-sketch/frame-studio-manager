@@ -189,14 +189,12 @@ service cloud.firestore {
       }
     }
 
-    // ── TOONED-OS ────────────────────────────────────────────────
-    // Sistema de ventas. Sigue con su propia puerta: aprobado en la
-    // plataforma, sin depender de tableros.
-    // Si FRAME se muda a su propio proyecto Firebase, estas dos líneas se
-    // van con TOONED-OS y este archivo deja de mencionarlo.
-    match /data/{doc}   { allow read, write: if approved(); }
-    match /thumbs/{doc} { allow read, write: if approved(); }
-
     // Sin comodín: lo que ninguna regla concede queda denegado.
+    // Cualquier colección nueva nace cerrada y hay que habilitarla acá a
+    // propósito.
+    //
+    // TOONED-OS ya no aparece: vive en su propio proyecto Firebase
+    // (tooned-os) con sus propias reglas. Esa separación es la que hace que
+    // una regla mal escrita acá no pueda tocar el sistema de ventas.
   }
 }
