@@ -967,13 +967,18 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
             </PropRow>}
 
             <PropRow icon="calendar" label="Inicio">
-              <input
-                type="date"
-                value={project.startDate}
-                onChange={(e) => updField('startDate')(e.target.value)}
-                className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
-                style={{ colorScheme: 'dark' }}
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={project.startDate}
+                  onChange={(e) => updField('startDate')(e.target.value)}
+                  className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
+                  style={{ colorScheme: 'dark' }}
+                />
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  es el día que ocupa en el calendario
+                </span>
+              </div>
             </PropRow>
 
             <PropRow icon="calendar" label="Fecha límite">
@@ -994,25 +999,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
               </div>
             </PropRow>
 
-            {/* Este es el campo que ubica la tarea en el calendario, así que
-                no puede estar detrás de collaborationEnabled: en un tablero
-                personal quedaba oculto y no había forma de fijar el día salvo
-                arrastrando la tarjeta. */}
-            <PropRow icon="camera" label="Día de trabajo">
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={project.sessionDate || ''}
-                  min={project.startDate || undefined}
-                  onChange={(e) => updField('sessionDate')(e.target.value)}
-                  className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
-                  style={{ colorScheme: 'dark' }}
-                />
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                  es el día que ocupa en el calendario
-                </span>
-              </div>
-            </PropRow>
+            {/* Se quitó "Día de trabajo" (sessionDate). Con el calendario
+                ubicando por fecha de inicio, era un tercer campo de fecha que
+                no posicionaba nada y competía con Inicio por el mismo
+                significado. El dato sigue existiendo — lo usa el carry-over
+                automático — pero deja de pedirse en la interfaz. */}
 
             {collaborationEnabled && <PropRow icon="zap" label="Presupuesto">
               <div className="flex items-center gap-1 text-sm">

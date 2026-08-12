@@ -666,19 +666,19 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     return cells;
   }, [year, month]);
 
-  // Una tarea, un día — y ese día es el de SESIÓN: cuándo se trabaja.
+  // Una tarea, un día — y ese día es el de INICIO.
   //
-  // La fecha límite no ubica nada en el calendario; es un dato de la tarea,
-  // como el cliente o el presupuesto. El calendario responde "qué hago hoy",
-  // no "qué vence hoy" — para eso está el contador de entrega en la tarjeta.
+  // La fecha límite no ubica nada: es un dato de la tarea, como el cliente o
+  // el presupuesto, y alimenta el contador de entrega. El calendario responde
+  // "qué arranca hoy", no "qué vence hoy".
   //
-  // Antes se mapeaba a las dos fechas, así que una tarea con fechas distintas
-  // aparecía dos veces, y arrastrarla movía sólo una: la tarjeta se partía en
-  // dos, una en cada día.
+  // Antes se mapeaba a dos fechas a la vez, así que una tarea con fechas
+  // distintas aparecía dos veces, y arrastrarla movía sólo una: la tarjeta se
+  // partía en dos, una en cada día.
   const projectsByDate = useMemo(() => {
     const map = {};
     projects.forEach(p => {
-      const date = p.sessionDate || p.deadline;
+      const date = p.startDate || p.sessionDate || p.deadline;
       if (!date) return;
       if (!map[date]) map[date] = [];
       if (!map[date].some(x => x.id === p.id)) map[date].push(p);
@@ -746,12 +746,11 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     if (!dragging) return;
     const project = projects.find(p => p.id === dragging.id);
     if (!project) return;
-    const currentDate = project.sessionDate;
+    const currentDate = project.startDate;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
-    // Arrastrar reagenda el trabajo: mueve la fecha de sesión y deja la
-    // fecha límite intacta, que es un compromiso con el cliente y no algo
-    // que deba cambiar por reordenar la semana.
-    onUpdateProject && onUpdateProject({ ...project, sessionDate: iso });
+    // Arrastrar reagenda el arranque y deja la fecha límite intacta: es un
+    // compromiso con el cliente, no algo que cambie por reordenar la semana.
+    onUpdateProject && onUpdateProject({ ...project, startDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
 
@@ -843,7 +842,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
                     {onQuickCreate && (
                       <QuickAddCard
                         onCreate={onQuickCreate}
-                        context={{ sessionDate: iso, deadline: iso }}
+                        context={{ startDate: iso }}
                         variant="mini"
                         label="Agregar tarjeta este día"
                       />
@@ -1035,11 +1034,11 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
       if (match) found = match;
     });
     if (!found) return;
-    const currentDate = found.sessionDate;
+    const currentDate = found.startDate;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
-    // Sólo la fecha de sesión: la límite es un dato, no una posición.
+    // Sólo la fecha de inicio: la límite es un dato, no una posición.
     const cleanProject = found;
-    onUpdateProject && onUpdateProject({ ...cleanProject, sessionDate: iso });
+    onUpdateProject && onUpdateProject({ ...cleanProject, startDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
   return (
@@ -1108,7 +1107,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                 {onQuickCreate && (
                   <QuickAddCard
                     onCreate={onQuickCreate}
-                    context={{ sessionDate: iso, deadline: iso }}
+                    context={{ startDate: iso }}
                     variant="mini"
                     label="Agregar tarjeta este día"
                   />
@@ -1146,7 +1145,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
         {onQuickCreate && (
           <QuickAddCard
             onCreate={onQuickCreate}
-            context={{ sessionDate: iso, deadline: iso }}
+            context={{ startDate: iso }}
             label="Agregar tarjeta este día"
           />
         )}
