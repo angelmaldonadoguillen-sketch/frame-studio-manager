@@ -1830,7 +1830,6 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
             {uploading && <span className="text-[10px] font-mono animate-pulse">{progress}%</span>}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
-          <span className="ml-auto text-[10px] hidden sm:block" style={{ color: 'var(--text-muted)' }}>Seleccioná una imagen para editarla</span>
         </div>
 
         {selectedImage && imageMenuPosition && ReactDOM.createPortal(
@@ -2017,7 +2016,6 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
             </div>
           </div>
         </div>
-        <div className="text-[10px] text-[var(--text-muted)] mt-2 ml-11">⌘ + Enter para enviar</div>
       </div>
     </div>
   );

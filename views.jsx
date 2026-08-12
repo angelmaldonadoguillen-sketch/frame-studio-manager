@@ -252,7 +252,6 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
           className="w-full px-2.5 py-1.5 field text-[13px]"
          
         />
-        <div className="mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>0 o vacío = sin límite</div>
       </div>
 
       {/* Color */}
@@ -549,7 +548,6 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                 {items.length === 0 && (
                   <div className="text-center py-10 px-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-2)' }}>
                     <div className="text-[var(--text-muted)] text-[11px]">Sin tareas en {s.label.toLowerCase()}</div>
-                    <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Arrastrá una tarjeta acá</div>
                   </div>
                 )}
 
