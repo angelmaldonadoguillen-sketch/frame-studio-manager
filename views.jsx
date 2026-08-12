@@ -1005,7 +1005,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
     dt.setDate(start.getDate() + i);
     return dt;
   });
-  const todayDt = new Date(TODAY);
+  const todayISO = localISO(new Date(TODAY));
 
   // ── Drag handlers ───────────────────────────────────────────────
   const handleDragStart = (e, p) => {
@@ -1046,7 +1046,9 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
         {days.map((dt, i) => {
           const iso        = localISO(dt);
           const items      = projectsByDate[iso] || [];
-    // Las dos fechas se mueven juntas: si se moviera una sola volverian a
+          // Se comparan cadenas y no fechas: isSameDay vive dentro de
+          // CalendarView y desde acá no se ve.
+          const isToday    = iso === todayISO;
           const isDragOver = dragOverDate === iso;
           return (
             <div
