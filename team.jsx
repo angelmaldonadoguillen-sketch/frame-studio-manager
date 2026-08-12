@@ -770,8 +770,7 @@ const InviteMember = ({ canInvite, full, count, onInvite, sent = [], onCancel })
 
       {full ? (
         <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-          El tablero llegó al máximo de 3 personas. Para sumar a alguien más,
-          primero hay que sacar a otro.
+          Tablero completo
         </div>
       ) : (
         <div className="flex items-center gap-2 max-w-lg">

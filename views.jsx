@@ -353,7 +353,6 @@ const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agreg
             className="px-1.5 py-1 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>
             <Icon name="x" size={12} />
           </button>
-          <span className="ml-auto text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>Enter ↵</span>
         </div>
       </div>
     );

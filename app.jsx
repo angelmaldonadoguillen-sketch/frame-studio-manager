@@ -441,7 +441,6 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace })
                     style={{ background: 'var(--accent)', color: '#131315' }}>Crear</button>
                   <button onClick={() => { setCreating(false); setName(''); }}
                     className="px-2 py-1 rounded-md text-[12px]" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
-                  <span className="ml-auto text-[10px]" style={{ color: 'var(--text-muted)' }}>Hasta 3 personas</span>
                 </div>
               </div>
             ) : (
@@ -1308,10 +1307,6 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
                 {pendingUsers.length}
               </span>
             </div>
-            <p className="text-[12px] mb-3" style={{ color: 'var(--text-muted)' }}>
-              Al aprobar a alguien puede usar FRAME y se le crea su tablero personal.
-              No entra a ninguno de los tuyos: para eso hay que invitarlo.
-            </p>
             <div className="space-y-1.5">
               {pendingUsers.map(u => (
                 <div key={u.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
@@ -2151,11 +2146,23 @@ const App = () => {
   // Crea una tarjeta "vacía" con el título tipeado, heredando el contexto
   // donde se pulsó el "+" (estado de columna, fecha del día). No abre el modal.
   const handleQuickCreate = (opts = {}) => {
-    const { title, status, sessionDate, deadline, type } = opts;
+    const { title, status, startDate, sessionDate, deadline, type } = opts;
     const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 5);
-    const todayISO = localISO(new Date(TODAY));
-    const defDeadline = (() => { const dt = new Date(TODAY); dt.setDate(dt.getDate() + 14); return localISO(dt); })();
+
+    // Crear desde una celda del calendario tiene que dejar la tarea EN ese
+    // día. startDate no se leía de las opciones y quedaba fijo en hoy, así
+    // que la tarjeta aparecía en el día de hoy sin importar dónde la creaste.
+    const start = startDate || localISO(new Date(TODAY));
+
+    // Los 14 días de plazo se cuentan desde el arranque, no desde hoy: una
+    // tarea creada para dentro de un mes no vence la semana que viene.
+    const defDeadline = (() => {
+      const dt = new Date(start + 'T00:00');
+      dt.setDate(dt.getDate() + 14);
+      return localISO(dt);
+    })();
     const dl = deadline || defDeadline;
+
     const project = {
       id,
       title:      (title && title.trim()) || 'Nueva tarea',
@@ -2164,9 +2171,9 @@ const App = () => {
       status:     status || (state.kanbanColumns[0] && state.kanbanColumns[0].id) || 'briefing',
       priority:   'medium',
       assignees:  [],
-      startDate:  todayISO,
+      startDate:  start,
       deadline:   dl,
-      sessionDate: sessionDate || dl,
+      sessionDate: sessionDate || start,
       budget:     0,
       currency:   'USD',
       tags:       [],

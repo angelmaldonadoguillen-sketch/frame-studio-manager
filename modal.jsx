@@ -967,18 +967,13 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
             </PropRow>}
 
             <PropRow icon="calendar" label="Inicio">
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={project.startDate}
-                  onChange={(e) => updField('startDate')(e.target.value)}
-                  className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
-                  style={{ colorScheme: 'dark' }}
-                />
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                  es el día que ocupa en el calendario
-                </span>
-              </div>
+              <input
+                type="date"
+                value={project.startDate}
+                onChange={(e) => updField('startDate')(e.target.value)}
+                className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
+                style={{ colorScheme: 'dark' }}
+              />
             </PropRow>
 
             <PropRow icon="calendar" label="Fecha límite">
