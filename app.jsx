@@ -306,7 +306,7 @@ const InviteBanner = ({ invites, onAccept, onDecline }) => {
 // ── Selector de tablero ─────────────────────────────────────────
 // Cambiar de tablero recarga todos los datos: el estado se vacía en el
 // dispatch y los listeners se vuelven a suscribir con el workspaceId nuevo.
-const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace }) => {
+const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, collapsed }) => {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
@@ -386,22 +386,27 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace })
   };
 
   return (
-    <div className="px-3 py-2.5 border-b border-app relative" ref={ref}>
+    <div className={`${collapsed ? 'px-2' : 'px-3'} py-2.5 border-b border-app relative`} ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors"
+        title={collapsed ? (active ? active.name : 'Sin tablero') : undefined}
+        className={`w-full flex items-center rounded-lg transition-colors ${collapsed ? 'justify-center py-2.5' : 'gap-2 px-2 py-2'}`}
         style={{ background: open ? 'var(--surface-3)' : 'var(--surface-2)' }}
       >
-        <Icon name={active?.kind === 'team' ? 'users' : 'user'} size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-        <span className="flex-1 min-w-0 text-left truncate text-[13px] font-medium">
-          {active ? active.name : 'Sin tablero'}
-        </span>
-        <Icon name="chevronDown" size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+        <Icon name={active?.kind === 'team' ? 'users' : 'user'} size={collapsed ? 15 : 13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+        {!collapsed && (
+          <>
+            <span className="flex-1 min-w-0 text-left truncate text-[13px] font-medium">
+              {active ? active.name : 'Sin tablero'}
+            </span>
+            <Icon name="chevronDown" size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          </>
+        )}
       </button>
 
       {open && (
         <div
-          className="absolute left-3 right-3 mt-1.5 rounded-xl overflow-hidden z-50 anim-fade-in"
+          className={`absolute rounded-xl overflow-hidden z-50 anim-fade-in ${collapsed ? 'left-full ml-2 top-2 w-60' : 'left-3 right-3 mt-1.5'}`}
           style={{
             background: 'var(--surface-2)',
             boxShadow: 'inset 0 .5px 0 rgba(255,255,255,.08), 0 16px 40px -12px rgba(0,0,0,.8)',
@@ -463,7 +468,20 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace })
 };
 
 // ── Sidebar ─────────────────────────────────────────────────────
+const SIDEBAR_KEY = 'frame_sidebar_collapsed';
+
 const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }) => {
+  // Se recuerda plegada o abierta: si cada recarga la vuelve a abrir, el que
+  // trabaja plegado tiene que cerrarla otra vez todos los días.
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem(SIDEBAR_KEY) === '1'; } catch { return false; }
+  });
+  const toggle = () => setCollapsed(c => {
+    const next = !c;
+    try { localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0'); } catch {}
+    return next;
+  });
+
   const recentProjects = state.projects.slice(0, 5);
   const me = state.team.find(m => m.id === state.currentUserId) || getUser(state.currentUserId);
 
@@ -489,122 +507,207 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
   const activeKind = state.workspaces.find(w => w.id === state.activeWorkspaceId)?.kind;
 
   return (
-    <aside className="w-[240px] flex-shrink-0 border-r border-app flex flex-col" style={{ background: 'var(--surface)' }}>
+    <aside
+      className="flex-shrink-0 border-r border-app flex flex-col"
+      style={{ background: 'var(--surface)', width: collapsed ? 60 : 240, transition: 'width .18s var(--ease, ease)' }}
+    >
       {/* Logo — click va a inicio */}
-      <div className="px-5 py-5 border-b border-app">
+      <div className={`${collapsed ? 'px-2 py-4' : 'px-5 py-5'} border-b border-app flex items-center ${collapsed ? 'flex-col gap-2' : 'gap-2'}`}>
         <button
           onClick={() => {
             dispatch({ type: 'set_section', section: 'projects' });
             dispatch({ type: 'set_sidebar_filter', filter: 'all' });
             if (state.pinnedView) dispatch({ type: 'set_view', view: state.pinnedView });
           }}
-          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2.5 min-w-0 hover:opacity-80 transition-opacity"
           title="Ir al inicio"
         >
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent)' }}>
             <span className="font-display font-black text-lg" style={{ color: '#0a0a0b', letterSpacing: '-0.03em' }}>F</span>
           </div>
-          <div>
-            <div className="font-display font-bold text-[15px]" style={{ letterSpacing: '-0.02em' }}>FRAME</div>
-            <div className="text-[10px] tracking-[0.2em] text-[var(--text-muted)] uppercase">Studio Manager</div>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <div className="font-display font-bold text-[15px]" style={{ letterSpacing: '-0.02em' }}>FRAME</div>
+              <div className="text-[10px] tracking-[0.2em] text-[var(--text-muted)] uppercase">Studio Manager</div>
+            </div>
+          )}
+        </button>
+        {!collapsed && <div className="flex-1" />}
+        <button
+          onClick={toggle}
+          title={collapsed ? 'Desplegar menú' : 'Plegar menú'}
+          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-2)] transition-colors flex-shrink-0"
+        >
+          <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} size={14} />
         </button>
       </div>
 
       {/* Tablero activo */}
-      <WorkspaceSwitcher state={state} dispatch={dispatch} onCreateTeam={onCreateTeam} onDeleteWorkspace={onDeleteWorkspace} />
+      <WorkspaceSwitcher state={state} dispatch={dispatch} onCreateTeam={onCreateTeam} onDeleteWorkspace={onDeleteWorkspace} collapsed={collapsed} />
 
-      {/* Usuario autenticado */}
-      <div className="px-3 py-3 border-b border-app">
-        <div className="flex items-center gap-2.5 px-2 py-1.5">
-          <Avatar user={me} size={32} />
-          <div className="flex-1 min-w-0 select-none">
-            <div className="text-[13px] font-semibold truncate">{me.name}</div>
-            <div className="text-[10px] text-[var(--text-muted)] truncate">{me.role}</div>
-          </div>
-          <button
-            onClick={onSignOut}
-            title="Cerrar sesión"
-            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors flex-shrink-0"
-          >
-            <Icon name="logOut" size={14} />
-          </button>
-        </div>
-      </div>
+      {/* Usuario autenticado — cerrar sesión vive acá adentro */}
+      <ProfileMenu me={me} collapsed={collapsed} onSignOut={onSignOut}
+        onOpenSettings={() => dispatch({ type: 'set_section', section: 'settings' })} />
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 select-none">Espacios</div>
-        <NavItem icon="layers"  label="Todas las tareas"    count={counts.all}                    active={sf === 'all'}       onClick={() => setFilter('all')} />
-        <NavItem icon="star"    label="Favoritos"           count={counts.favorites || undefined} active={sf === 'favorites'} onClick={() => setFilter('favorites')} />
-        <NavItem icon="users"   label="Asignados a mí"     count={counts.mine}                   active={sf === 'mine'}      onClick={() => setFilter('mine')} />
-        <NavItem icon="alert"   label="Fechas límite urgentes" count={counts.urgent}              active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
-        <NavItem icon="check"   label="Entregados"         count={counts.delivered}              active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
-        <NavItem icon="trash"   label="Papelera"           count={counts.trash || undefined}     active={sf === 'trash'}     onClick={() => setFilter('trash')} />
+      <nav className={`flex-1 overflow-y-auto overflow-x-hidden ${collapsed ? 'px-2' : 'px-3'} py-3 space-y-0.5`}>
+        {!collapsed && <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 select-none">Espacios</div>}
+        <NavItem collapsed={collapsed} icon="layers"  label="Todas las tareas"    count={counts.all}                    active={sf === 'all'}       onClick={() => setFilter('all')} />
+        <NavItem collapsed={collapsed} icon="star"    label="Favoritos"           count={counts.favorites || undefined} active={sf === 'favorites'} onClick={() => setFilter('favorites')} />
+        <NavItem collapsed={collapsed} icon="users"   label="Asignados a mí"     count={counts.mine}                   active={sf === 'mine'}      onClick={() => setFilter('mine')} />
+        <NavItem collapsed={collapsed} icon="alert"   label="Fechas límite urgentes" count={counts.urgent}              active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
+        <NavItem collapsed={collapsed} icon="check"   label="Entregados"         count={counts.delivered}              active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
+        <NavItem collapsed={collapsed} icon="trash"   label="Papelera"           count={counts.trash || undefined}     active={sf === 'trash'}     onClick={() => setFilter('trash')} />
 
-        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4 select-none">Trabajo</div>
-        <NavItem icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
+        {collapsed
+          ? <div className="my-2 mx-1 hair" />
+          : <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] px-2 py-1.5 mt-4 select-none">Trabajo</div>}
+        <NavItem collapsed={collapsed} icon="briefcase" label="Clientes"  active={state.section === 'clients'}   onClick={() => dispatch({ type: 'set_section', section: 'clients' })} />
         {/* "Equipo" sólo aparece en tableros de equipo: en el personal estás
             solo y la sección no tenía nada que mostrar.
             Las aprobaciones se mudaron a Ajustes — son permiso de plataforma,
             no pertenencia a un tablero, y mezclarlas obligaba a mostrar
             "Equipo" donde no correspondía. */}
         {activeKind === 'team' && (
-          <NavItem icon="users"   label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
+          <NavItem collapsed={collapsed} icon="users"   label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
         )}
-        <NavItem icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
-        <NavItem icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} count={pendingCount || undefined} accent={pendingCount > 0} />
+        <NavItem collapsed={collapsed} icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
+        <NavItem collapsed={collapsed} icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} count={pendingCount || undefined} accent={pendingCount > 0} />
 
-        <div className="mt-5">
-          <div className="flex items-center justify-between px-2 py-1.5">
-            <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] select-none">Recientes</div>
-            <Icon name="chevronDown" size={11} className="text-[var(--text-muted)]" />
+        {/* Recientes y el equipo en línea no caben en 60px sin volverse
+            adivinanza: un punto de color no dice de qué tarea se trata. */}
+        {!collapsed && (
+          <div className="mt-5">
+            <div className="flex items-center justify-between px-2 py-1.5">
+              <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] select-none">Recientes</div>
+              <Icon name="chevronDown" size={11} className="text-[var(--text-muted)]" />
+            </div>
+            <div className="space-y-0.5">
+              {recentProjects.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => dispatch({ type: 'open_project', id: p.id })}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] text-[var(--text-dim)] hover:text-white hover:bg-[var(--surface-2)] transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: getType(p.type).color }}></span>
+                  <span className="truncate">{p.title}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="space-y-0.5">
-            {recentProjects.map(p => (
-              <button
-                key={p.id}
-                onClick={() => dispatch({ type: 'open_project', id: p.id })}
-                className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] text-[var(--text-dim)] hover:text-white hover:bg-[var(--surface-2)] transition-colors"
-              >
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: getType(p.type).color }}></span>
-                <span className="truncate">{p.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
       </nav>
 
       {/* Team */}
-      <div className="border-t border-app p-3">
-        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1 select-none">Equipo en línea</div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {wsPeople.slice(0, 5).map(u => (
-            <div key={u.id} className="relative" title={u.name}>
-              <Avatar user={u} size={26} />
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-2 ring-[var(--surface)]" style={{ background: '#7DD3C0' }}></span>
-            </div>
-          ))}
-          {wsPeople.length === 0 && (
-            <span className="text-[10px] text-[var(--text-muted)]">Sin integrantes</span>
-          )}
+      {!collapsed && (
+        <div className="border-t border-app p-3">
+          <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2 px-1 select-none">Equipo en línea</div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {wsPeople.slice(0, 5).map(u => (
+              <div key={u.id} className="relative" title={u.name}>
+                <Avatar user={u} size={26} />
+                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-2 ring-[var(--surface)]" style={{ background: '#7DD3C0' }}></span>
+              </div>
+            ))}
+            {wsPeople.length === 0 && (
+              <span className="text-[10px] text-[var(--text-muted)]">Sin integrantes</span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 };
 
-const NavItem = ({ icon, label, count, active, accent, onClick }) => (
+// ── Perfil ──────────────────────────────────────────────────────
+// Cerrar sesión estaba como un icono suelto al lado del nombre, a un clic
+// de distancia y pegado a cosas que se tocan seguido.
+const ProfileMenu = ({ me, collapsed, onSignOut, onOpenSettings }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const esc   = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+
+  const Item = ({ icon, label, danger, onClick }) => (
+    <button
+      onClick={() => { setOpen(false); onClick(); }}
+      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors"
+      style={{ color: danger ? 'var(--danger)' : 'var(--text)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = danger ? 'var(--danger-soft)' : 'var(--surface-3)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+    >
+      <Icon name={icon} size={14} />
+      <span>{label}</span>
+    </button>
+  );
+
+  return (
+    <div className={`${collapsed ? 'px-2' : 'px-3'} py-3 border-b border-app relative`} ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        title={collapsed ? me.name : undefined}
+        className={`w-full flex items-center rounded-lg transition-colors ${collapsed ? 'justify-center py-1' : 'gap-2.5 px-2 py-1.5'}`}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+      >
+        <Avatar user={me} size={32} />
+        {!collapsed && (
+          <>
+            <div className="flex-1 min-w-0 select-none text-left">
+              <div className="text-[13px] font-semibold truncate">{me.name}</div>
+              <div className="text-[10px] text-[var(--text-muted)] truncate">{me.role}</div>
+            </div>
+            <Icon name="chevronDown" size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          </>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className={`absolute rounded-xl overflow-hidden z-50 anim-fade-in ${collapsed ? 'left-full ml-2 top-2 w-56' : 'left-3 right-3 mt-1.5'}`}
+          style={{
+            background: 'var(--surface-2)',
+            boxShadow: 'inset 0 .5px 0 rgba(255,255,255,.08), 0 16px 40px -12px rgba(0,0,0,.8)',
+          }}
+        >
+          <div className="px-3 py-2.5 hair">
+            <div className="text-[13px] font-semibold truncate">{me.name}</div>
+            {me.email && <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{me.email}</div>}
+          </div>
+          <div className="p-1.5 space-y-0.5">
+            <Item icon="settings" label="Ajustes"       onClick={onOpenSettings} />
+            <Item icon="logOut"   label="Cerrar sesión" danger onClick={onSignOut} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const NavItem = ({ icon, label, count, active, accent, collapsed, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] transition-colors group ${active ? 'bg-[var(--surface-2)] text-white' : 'text-[var(--text-dim)] hover:text-white hover:bg-[var(--surface-2)]'}`}
+    title={collapsed ? label : undefined}
+    className={`w-full flex items-center rounded-md text-[13px] transition-colors group ${collapsed ? 'relative justify-center py-2' : 'gap-2.5 px-2 py-1.5'} ${active ? 'bg-[var(--surface-2)] text-white' : 'text-[var(--text-dim)] hover:text-white hover:bg-[var(--surface-2)]'}`}
   >
-    <Icon name={icon} size={14} className={accent ? '' : ''} style={{ color: accent ? 'var(--danger)' : undefined }} />
-    <span className="flex-1 text-left">{label}</span>
-    {count !== undefined && (
+    <Icon name={icon} size={collapsed ? 16 : 14} style={{ color: accent ? 'var(--danger)' : undefined }} />
+    {!collapsed && <span className="flex-1 text-left">{label}</span>}
+    {!collapsed && count !== undefined && (
       <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${active ? 'bg-[var(--surface-3)] text-white' : 'text-[var(--text-muted)]'}`}>
         {count}
       </span>
+    )}
+    {/* Plegada no cabe el número, pero sí importa saber que hay algo urgente
+        o esperando aprobación. */}
+    {collapsed && accent && count > 0 && (
+      <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--danger)' }} />
     )}
   </button>
 );
