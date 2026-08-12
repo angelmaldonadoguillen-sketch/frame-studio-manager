@@ -456,6 +456,32 @@ const progressOf = (project) => {
   return Math.round((project.checklist.filter(c => c.done).length / project.checklist.length) * 100);
 };
 
+// El texto visible del enlace sale del portapapeles: se escapa antes de
+// meterlo en el HTML que se inserta.
+const escapeDescText = (s) => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// ── Texto legible para un enlace ─────────────────────────────────
+// Una URL cruda de YouTube o Drive ocupa dos renglones y corta la lectura.
+// Se muestra el dominio y lo justo del camino para reconocerla; el enlace
+// completo sigue en el href.
+const shortenUrl = (url) => {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    const rest = (u.pathname === '/' ? '' : u.pathname) + u.search;
+    if (!rest) return host;
+    const full = host + rest;
+    if (full.length <= 42) return full;
+    // Se corta por el final: el principio es lo que dice de qué se trata
+    // (drive.google.com/file/d/…). Cortar por el otro lado deja colas como
+    // "…z012345/view?usp=sharing", que no le dicen nada a nadie.
+    return full.slice(0, 41) + '…';
+  } catch {
+    return url.length <= 42 ? url : url.slice(0, 41) + '…';
+  }
+};
+
 // ── Sanitizado del HTML de la descripción ────────────────────────
 // La descripción se guarda como HTML y se pinta con innerHTML. innerHTML no
 // ejecuta <script>, pero SÍ ejecuta manejadores de evento: basta un
@@ -476,6 +502,12 @@ const sanitizeDescHTML = (html) => {
 
   const walk = (node) => {
     [...node.children].forEach(el => {
+      // Primero adentro y después esta etiqueta. Al revés, desenvolver una
+      // etiqueta prohibida sacaba a sus hijos de la lista que se estaba
+      // recorriendo y nadie los volvía a revisar: <foo><img onerror=…></foo>
+      // pasaba entero.
+      walk(el);
+
       if (!DESC_ALLOWED_TAGS.has(el.tagName)) {
         // Se conserva el texto de adentro: quitar la etiqueta no debería
         // hacer desaparecer lo que la persona escribió.
@@ -520,11 +552,25 @@ const sanitizeDescHTML = (html) => {
           if (!/^(https?:\/\/|mailto:)/i.test(val)) el.removeAttribute(attr.name);
           return;
         }
+        if (el.tagName === 'A' && (name === 'target' || name === 'rel')) {
+          // Se normalizan en el segundo paso, más abajo.
+          return;
+        }
         // Todo lo demás sobra, incluido style: permite posicionar cosas
         // encima de la interfaz para engañar al que mira.
         el.removeAttribute(attr.name);
       });
-      walk(el);
+
+      // Un enlace sin href no es enlace: se deja sólo el texto. Y el que sí
+      // tiene abre aparte, con noopener para que la página de destino no
+      // pueda tocar la pestaña de FRAME.
+      if (el.tagName === 'A') {
+        if (!el.getAttribute('href')) el.replaceWith(...el.childNodes);
+        else {
+          el.setAttribute('target', '_blank');
+          el.setAttribute('rel', 'noopener noreferrer');
+        }
+      }
     });
   };
 

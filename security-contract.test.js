@@ -27,4 +27,23 @@ assert.doesNotMatch(storage, /frame_users/);
 assert.match(storage, /let projectDoc = firestore\.get[\s\S]*let workspaceDoc = firestore\.get/);
 assert.equal(firebase.storage.rules, 'storage.rules');
 
-console.log('security-contract: 13 checks passed');
+// El sanitizador recorre los hijos ANTES de desenvolver la etiqueta padre.
+// Al revés, <foo><img onerror=…></foo> salía intacto: al desenvolver <foo>
+// sus hijos quedaban fuera del arreglo que se estaba recorriendo.
+const data = fs.readFileSync('data.jsx', 'utf8');
+const walkBody = data.match(/const walk = \(node\) => \{[\s\S]*?DESC_ALLOWED_TAGS/)[0];
+assert.match(walkBody, /walk\(el\);[\s\S]*if \(!DESC_ALLOWED_TAGS/);
+
+// Todo enlace guardado sale con noopener: si no, la página de destino puede
+// reescribir la pestaña de FRAME vía window.opener.
+assert.match(data, /setAttribute\('rel', 'noopener noreferrer'\)/);
+assert.match(data, /if \(!el\.getAttribute\('href'\)\) el\.replaceWith/);
+
+// El texto visible del enlace viene del portapapeles.
+assert.match(modal, /escapeDescText\(picked \|\| shortenUrl\(url\)\)/);
+
+// Cada opción del menú de imagen cierra el menú.
+assert.match(modal, /const closeImageMenu = \(\) => \{/);
+assert.match(modal, /selectedImage\.setAttribute\(attribute, value\);[\s\S]*closeImageMenu\(\);/);
+
+console.log('security-contract: 19 checks passed');

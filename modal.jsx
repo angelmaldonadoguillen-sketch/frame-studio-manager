@@ -1713,6 +1713,26 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
       e.preventDefault();
       restoreEditorRange(savedRange);
       document.execCommand('insertHTML', false, sanitizeDescHTML(source.html));
+      return;
+    }
+
+    // Un enlace pegado se convierte en enlace. Pegado como texto plano queda
+    // una URL larga cortando el párrafo al medio; así queda legible y se
+    // puede abrir.
+    const url = text.trim();
+    if (/^https?:\/\/\S+$/i.test(url) && !/\s/.test(url)) {
+      e.preventDefault();
+      restoreEditorRange(savedRange);
+      const safe = url.replace(/"/g, '&quot;');
+      // Si había texto seleccionado, ese texto pasa a ser el enlace. Pegar
+      // encima de una selección no debería borrar lo que se escribió.
+      const picked = (savedRange?.toString() || '').trim();
+      const label = escapeDescText(picked || shortenUrl(url));
+      document.execCommand('insertHTML', false,
+        `<a href="${safe}" target="_blank" rel="noopener noreferrer">${label}</a>&nbsp;`);
+      descriptionDirtyRef.current = true;
+      save();
+      return;
     }
     // Texto ordinario conserva el comportamiento nativo del navegador.
   };
@@ -1771,11 +1791,21 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     return () => window.cancelAnimationFrame(frame);
   }, [selectedImage, imageMenuPosition?.width]);
 
+  const closeImageMenu = () => {
+    clearImageSelection();
+    setSelectedImage(null);
+    setImageMenuPosition(null);
+  };
+
+  // Cada acción cierra el menú. Antes quedaba abierto y tapaba justo la
+  // imagen que acababas de cambiar, así que no se veía el resultado de lo
+  // que elegiste. Para hacer otro ajuste, clic en la imagen de nuevo.
   const updateSelectedImage = (attribute, value) => {
     if (!selectedImage || !editorRef.current?.contains(selectedImage)) return;
     selectedImage.setAttribute(attribute, value);
     descriptionDirtyRef.current = true;
     save();
+    closeImageMenu();
   };
 
   const handleClick = (e) => {
@@ -1787,9 +1817,17 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
       positionImageMenu(e.target);
       return;
     }
-    clearImageSelection();
-    setSelectedImage(null);
-    setImageMenuPosition(null);
+
+    // El navegador no abre enlaces dentro de un contentEditable: sin esto
+    // el vínculo se ve azul pero no lleva a ningún lado.
+    const link = e.target.closest?.('a[href]');
+    if (link && editorRef.current?.contains(link)) {
+      e.preventDefault();
+      window.open(link.href, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    closeImageMenu();
   };
 
   // Botón de toolbar reutilizable
@@ -1857,8 +1895,8 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
             <TB className="w-full text-left" onMouseDown={() => updateSelectedImage('data-frame-align', 'center')} title="Centrar">Centrar</TB>
             <TB className="w-full text-left" onMouseDown={() => updateSelectedImage('data-frame-align', 'right')} title="Alinear a la derecha">Alinear a la derecha</TB>
             <div className="h-px my-1" style={{ background: 'var(--border-2)' }} />
-            <TB className="w-full text-left" onMouseDown={() => setLightbox(selectedImage.src)} title="Abrir imagen a tamaño completo">Abrir imagen</TB>
-            <TB className="w-full text-left" onMouseDown={() => { clearImageSelection(); setSelectedImage(null); setImageMenuPosition(null); }} title="Cerrar opciones">Cerrar</TB>
+            <TB className="w-full text-left" onMouseDown={() => { const src = selectedImage.src; closeImageMenu(); setLightbox(src); }} title="Abrir imagen a tamaño completo">Abrir imagen</TB>
+            <TB className="w-full text-left" onMouseDown={closeImageMenu} title="Cerrar opciones">Cerrar</TB>
           </div>,
           document.body
         )}
