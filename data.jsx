@@ -621,6 +621,11 @@ const isUrgent = (project) => {
 
 const isOverdue = (project) => !isClosed(project) && daysUntil(project.deadline) < 0;
 
+// Lo que tiene que encender la alerta. isUrgent sola deja fuera lo ya
+// vencido (pide d >= 0), que es el caso más urgente de todos: una tarea
+// atrasada dejaba el icono en gris y el filtro vacío.
+const needsAttention = (project) => isUrgent(project) || isOverdue(project);
+
 // ── Normalización de proyectos ───────────────────────────────────
 // Firestore no garantiza forma: un documento puede no tener un campo si se
 // creó con otra versión del esquema, se editó desde la consola o entró por
@@ -679,6 +684,6 @@ Object.assign(window, {
   getUser, getType, getStatus, getPrio,
   fmtMoney, fmtDate, fmtDateLong, daysUntil, relativeTime, progressOf,
   localISO, normalizeProject, normalizeClient, normalizeMember,
-  URGENT_DAYS, isClosed, isUrgent, isOverdue,
+  URGENT_DAYS, isClosed, isUrgent, isOverdue, needsAttention,
   memberCard, workspaceMembers, sanitizeDescHTML,
 });

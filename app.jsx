@@ -142,6 +142,9 @@ function reducer(state, action) {
       return { ...state, filters: { ...state.filters, [action.key]: next } };
     }
     case 'clear_filter':   return { ...state, filters: { ...state.filters, [action.key]: state.filters[action.key].filter(x => x !== action.value) } };
+    // Vacía una clave entera. 'clear_filter' saca un valor suelto: sin
+    // action.value no borra nada.
+    case 'reset_filter':   return { ...state, filters: { ...state.filters, [action.key]: [] } };
     case 'clear_all_filters': return { ...state, filters: { status: [], type: [], assignee: [], priority: [], client: [] }, search: '' };
     case 'set_projects':       return { ...state, projects: action.projects, loading: false };
     case 'delete_project':     return { ...state, projects: state.projects.filter(p => p.id !== action.id), openProjectId: state.openProjectId === action.id ? null : state.openProjectId };
@@ -489,7 +492,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
     all:       state.projects.filter(p => p.status !== 'archived').length,
     favorites: state.projects.filter(p => p.favorite).length,
     mine:      state.projects.filter(p => p.assignees.includes(state.currentUserId) && p.status !== 'archived').length,
-    urgent:    state.projects.filter(isUrgent).length,
+    urgent:    state.projects.filter(needsAttention).length,
     delivered: state.projects.filter(p => p.status === 'delivered').length,
     archived:  state.projects.filter(p => p.status === 'archived').length,
     trash:     state.trash.length,
@@ -555,7 +558,9 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
         <NavItem collapsed={collapsed} icon="layers"  label="Todas las tareas"    count={counts.all}                    active={sf === 'all'}       onClick={() => setFilter('all')} />
         <NavItem collapsed={collapsed} icon="star"    label="Favoritos"           count={counts.favorites || undefined} active={sf === 'favorites'} onClick={() => setFilter('favorites')} />
         <NavItem collapsed={collapsed} icon="users"   label="Asignados a mí"     count={counts.mine}                   active={sf === 'mine'}      onClick={() => setFilter('mine')} />
-        <NavItem collapsed={collapsed} icon="alert"   label="Fechas límite urgentes" count={counts.urgent}              active={sf === 'urgent'}    accent onClick={() => setFilter('urgent')} />
+        {/* Rojo sólo cuando de verdad hay algo por vencer. Encendido siempre,
+            el color no avisaba nada: era parte del decorado. */}
+        <NavItem collapsed={collapsed} icon="alert"   label="Fechas límite urgentes" count={counts.urgent}              active={sf === 'urgent'}    accent={counts.urgent > 0} onClick={() => setFilter('urgent')} />
         <NavItem collapsed={collapsed} icon="check"   label="Entregados"         count={counts.delivered}              active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
         <NavItem collapsed={collapsed} icon="trash"   label="Papelera"           count={counts.trash || undefined}     active={sf === 'trash'}     onClick={() => setFilter('trash')} />
 
@@ -887,7 +892,20 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
 const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject, onApproveUser, onRejectUser, onPinView }) => {
   // Se calcula acá y no se recibe de App: el filtro por responsable tiene que
   // ofrecer a los miembros del tablero abierto, no a los de la plataforma.
-  const wsMembers = workspaceMembers(state.workspaces.find(w => w.id === state.activeWorkspaceId));
+  const activeWs  = state.workspaces.find(w => w.id === state.activeWorkspaceId);
+  const wsMembers = workspaceMembers(activeWs);
+
+  // En el tablero personal sos el único integrante: filtrar "por equipo" es
+  // elegirte a vos mismo, o sea no filtrar nada.
+  const soloYo = activeWs?.kind === 'personal';
+
+  // Si venías de un tablero de equipo con alguien filtrado, ese filtro
+  // seguiría aplicándose sin desplegable donde verlo ni sacarlo.
+  useEffect(() => {
+    if (soloYo && state.filters.assignee.length) {
+      dispatch({ type: 'reset_filter', key: 'assignee' });
+    }
+  }, [soloYo, state.filters.assignee.length]);
   const me = getUser(state.currentUserId);
   const activeFilters = [
     ...state.filters.status.map(v => ({ key: 'status', value: v, label: getStatus(v).label, color: getStatus(v).color })),
@@ -964,7 +982,9 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
         <FilterDropdown label="Estado"    icon="dot"       filterKey="status"   options={state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES}    state={state} dispatch={dispatch} />
         <FilterDropdown label="Tipo"      icon="film"      filterKey="type"     options={state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES}    state={state} dispatch={dispatch} />
         <FilterDropdown label="Prioridad" icon="flag"      filterKey="priority" options={PRIORITIES}                                                              state={state} dispatch={dispatch} />
-        <FilterDropdown label="Equipo"    icon="users"     filterKey="assignee" options={(wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
+        {!soloYo && (
+          <FilterDropdown label="Equipo"    icon="users"     filterKey="assignee" options={(wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
+        )}
         <FilterDropdown label="Cliente"   icon="briefcase" filterKey="client"   options={[...new Map((state.projects || []).filter(p => p.client).map(p => { const cl = (state.clients || []).find(c => c.name === p.client); return [p.client, { id: p.client, label: p.client, color: cl?.color || '#9A9AA3' }]; })).values()]} state={state} dispatch={dispatch} />
 
         <div className="flex-1"></div>
@@ -1062,10 +1082,7 @@ const applyFilters = (state) => {
     // ── Sidebar filter ──
     if (state.sidebarFilter === 'favorites' && !p.favorite) return false;
     if (state.sidebarFilter === 'mine' && !p.assignees.includes(state.currentUserId)) return false;
-    if (state.sidebarFilter === 'urgent') {
-      const d = daysUntil(p.deadline);
-      if (!isUrgent(p)) return false;
-    }
+    if (state.sidebarFilter === 'urgent' && !needsAttention(p)) return false;
     if (state.sidebarFilter === 'delivered' && p.status !== 'delivered') return false;
     if (state.sidebarFilter === 'archived'  && p.status !== 'archived')  return false;
     // En vista 'all' ocultar archivados salvo que se filtren explícitamente por estado
