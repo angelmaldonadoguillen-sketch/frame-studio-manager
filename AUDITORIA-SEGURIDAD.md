@@ -105,16 +105,24 @@ que ya no corresponde a este proyecto y sólo genera esta duda.
 `firestore.rules.v2:111-124`
 
 La regla de update fija `ownerId`, `kind` y `memberIds`, pero **no toca
-`members`** — el array denormalizado con nombre, correo y rol de cada
-integrante (`memberCard` en `data.jsx`).
+`members`** ni `roles` — el mapa denormalizado, con clave por uid, que guarda
+nombre, correo y rol de cada integrante (`memberCard` en `data.jsx`).
 
-Cualquier miembro del tablero, no sólo el dueño, puede reescribir ese array
+Cualquier miembro del tablero, no sólo el dueño, puede reescribir ese mapa
 entero desde la consola: ponerse tu nombre, cambiar el correo que se muestra de
-otro, cambiarle el rol. No gana permisos —`memberIds` sí está protegido— pero sí
-puede hacerse pasar por otro dentro del tablero.
+otro, cambiarle el rol, o ascenderse en `roles`. No gana permisos de Firestore
+—`memberIds` sí está protegido— pero sí puede hacerse pasar por otro dentro del
+tablero.
 
-**Arreglo:** exigir que `members` sólo lo cambie el dueño, o que cada quien sólo
-pueda tocar su propia ficha.
+**Arreglo:** es de una línea y sin riesgo, porque el código ya escribe
+únicamente su propia clave (`members.${uid}`, `app.jsx:1698`). Basta con exigir
+en la regla lo que el código ya hace:
+
+```
+request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([myUid()])
+```
+
+más una excepción para que el dueño pueda quitar a alguien al expulsarlo.
 
 ### 5 — Cero validación de contenido en proyectos, clientes y papelera · MODERADO
 
@@ -171,16 +179,154 @@ alarga el camino tres minutos.
 
 ---
 
-## Orden sugerido
+---
 
-| # | Qué | Por qué primero |
-|---|-----|-----------------|
-| 3 | Verificar qué reglas están publicadas | Si están las viejas, todo lo demás sobra |
-| 1 | `email_verified` en invitaciones + envío de verificación | Es la única escalación real que queda |
-| 4 | Proteger el array `members` | Barato, una línea |
-| 2 | Decidir qué hacer con las URLs de Storage | Necesita una decisión tuya, no sólo código |
-| 5 | Validar tipos y tamaños | Mejora la robustez más que la seguridad |
-| 7 | App Check | Cuando pases a servidor propio |
+# Plan de corrección
 
-Nada de esto se toca sin tu visto bueno: publicar reglas es una operación sobre
+Regla de oro de todo el plan: **una regla mal publicada deja a FRAME sin acceso
+a nada, y no hay forma de arreglarlo desde la app**. Por eso el orden no va de
+más grave a menos grave — va de menos riesgoso a más riesgoso, y la red de
+seguridad se construye antes de tocar la primera regla.
+
+## Fase 0 — Saber qué hay publicado
+
+Riesgo: **ninguno**, no se modifica nada.
+
+- **0.1** Abrir consola de Firebase → Firestore → Reglas. Copiar lo que hay y
+  compararlo contra `firestore.rules.v2`. Si difieren, se publica v2 (que es lo
+  que el código de hoy espera).
+- **0.2** Borrar `firestore.rules` del repo. Es del proyecto viejo compartido
+  con TOONED-OS, ya no corresponde a `frame-studio-3a18f`, y su sola presencia
+  es lo que hace que no se pueda saber qué está vivo mirando el repo.
+- **0.3** Cerrar la tarea "Fase 0.3 — mover credenciales fuera del HTML" como
+  **no aplica** (ver arriba: la config web de Firebase es pública por diseño).
+- **0.4** Cerrar también "Fase 2.3 — race condition: dos personas
+  registrándose se vuelven admin". Las reglas v2 ya lo impiden: el alta fuerza
+  `platformAdmin:false` y nadie se puede promover a sí mismo.
+
+**Cómo se comprueba:** entrás a FRAME y todo sigue igual. Si algo dejó de
+cargar, es que lo publicado no era v2 y acabamos de descubrir el hallazgo 3 en
+vivo.
+
+## Fase 1 — Red de seguridad: probar las reglas antes de publicarlas
+
+Riesgo: **ninguno**, es todo local.
+
+Esto es lo que hace que el resto del plan no sea una apuesta. Hoy la única
+forma de saber si una regla funciona es publicarla en producción y ver si la
+app se cae — que es exactamente lo que querés evitar.
+
+- **1.1** Instalar el emulador de Firestore y `@firebase/rules-unit-testing`.
+- **1.2** Escribir un banco de pruebas de reglas que verifique, con usuarios
+  falsos, lo que ya debería ser cierto hoy: que un extraño no lee nada, que un
+  pendiente no lee nada, que un miembro lee su tablero y no el ajeno, que nadie
+  se auto-aprueba, que el cuarto miembro es rechazado.
+- **1.3** Correrlo contra `firestore.rules.v2` tal como está. Todo debe pasar
+  **antes** de cambiar una sola línea. Si algo falla acá, encontramos un
+  hallazgo que esta auditoría no vio.
+
+A partir de acá, cada cambio de reglas se prueba primero y se publica después.
+
+## Fase 2 — Los arreglos de una línea
+
+Riesgo: **bajo**. Los dos aprietan permisos sobre cosas que el código ya
+respeta, así que no le quitan nada a la app.
+
+- **2.1** Hallazgo 4 — que cada quien sólo pueda tocar su propia ficha en
+  `members` y `roles`, más la excepción del dueño para expulsar. El código ya
+  escribe únicamente `members.${uid}`.
+- **2.2** Hallazgo 6 — `frame_invites` en lectura pasa de `signedIn()` a
+  `approved()`. Un usuario sin aprobar no debería enterarse de nada.
+- **2.3** Prueba en el emulador + publicación.
+
+**Cómo se comprueba:** aceptar una invitación de verdad con la segunda cuenta.
+Es el único camino que toca esas dos reglas a la vez.
+
+## Fase 3 — Verificación de correo (hallazgo 1)
+
+Riesgo: **alto si se hace al revés**. Si primero se aprieta la regla, todo el
+que no verificó su correo —vos incluido— deja de poder aceptar invitaciones,
+sin ningún mensaje que explique por qué.
+
+El orden importa más que el contenido:
+
+- **3.1** *Primero el código.* Enviar `sendEmailVerification()` después del
+  registro. Mostrar un aviso en la app cuando `emailVerified` es falso, con un
+  botón para reenviar. Publicar esto solo, sin tocar reglas: no rompe nada
+  porque todavía ninguna regla lo exige.
+- **3.2** *Después las personas.* Que verifiquen su correo las cuentas que ya
+  existen: la tuya, la de tu esposa, y los clientes que migres. Es un clic en
+  un correo.
+- **3.3** *Recién ahí la regla.* Agregar
+  `request.auth.token.email_verified == true` a la rama de invitación. Probar
+  en el emulador los dos casos —verificado entra, sin verificar no— y publicar.
+
+**Cómo se comprueba:** con una cuenta sin verificar, aceptar una invitación
+tiene que fallar; con la misma cuenta ya verificada, tiene que entrar.
+
+## Fase 4 — Los archivos de Storage (hallazgo 2)
+
+Riesgo: **depende de la opción**. Esta fase necesita una decisión tuya antes
+que código.
+
+No hay arreglo cómodo. Las tres opciones reales:
+
+| Opción | Qué implica | Costo |
+|---|---|---|
+| **a. Asumirlo** | Tratar esas URLs como enlaces secretos y documentarlo. Las reglas de Storage siguen sirviendo para *subir*, no para *leer*. | Cero |
+| **b. Revocar cuando haga falta** | Igual que (a), más el procedimiento para cortar el acceso a un archivo puntual desde la consola. | Cero, pero manual |
+| **c. Servir por Cloud Function** | Los archivos dejan de tener URL pública; una función comprueba pertenencia y devuelve el archivo. Es el arreglo de verdad. | Alto: reescribir subida y visualización, y pagar tráfico |
+
+**Mi recomendación:** (a) + (b) por ahora. Para un estudio de tres personas
+donde los archivos son material de trabajo de clientes que ya los tienen, el
+riesgo real es bajo, y (c) es desproporcionado para lo que hoy es FRAME. Vale
+la pena reconsiderar (c) cuando entren clientes con material confidencial o
+cuando pases a servidor propio.
+
+Lo que **sí** hay que hacer en cualquier caso: dejarlo escrito, para que nadie
+—vos incluido, en seis meses— crea que sacar a alguien del tablero le corta el
+acceso a los archivos que ya vio.
+
+## Fase 5 — Validación de tipos y tamaños (hallazgo 5)
+
+Riesgo: **el más alto del plan**, y por eso va casi al final. Una regla que
+valide de más rechaza los documentos que ya existen y rompe el guardado sin
+aviso.
+
+- **5.1** Mirar qué forma tienen de verdad los documentos actuales, incluidos
+  los que se crearon con versiones viejas del esquema.
+- **5.2** Escribir la validación **sólo sobre `request.resource`**, nunca sobre
+  `resource`. Así un documento viejo con forma rara se puede seguir corrigiendo;
+  si se valida el existente, queda congelado y sin forma de arreglarlo.
+- **5.3** Empezar por `frame_projects` con lo mínimo: `workspaceId` es string,
+  `title` es string y no pasa de N caracteres, `tags` es lista. Nada más.
+- **5.4** Probar en el emulador contra copias de documentos reales, publicar,
+  y recién entonces seguir con `frame_clients` y `frame_trash`.
+
+## Fase 6 — App Check (hallazgo 7)
+
+Riesgo: **alto si se activa de golpe** — deja fuera a cualquier cliente que no
+mande el token, o sea a la app entera.
+
+- **6.1** Registrar la app con reCAPTCHA v3 y activar App Check en modo
+  **monitoreo**, que no bloquea nada y sólo reporta.
+- **6.2** Mirar las métricas unos días hasta ver que el 100% del tráfico
+  legítimo llega con token.
+- **6.3** Recién ahí, activar el bloqueo.
+
+---
+
+## Resumen del orden
+
+```
+Fase 0  Saber qué hay publicado          riesgo cero      ← empezar acá
+Fase 1  Emulador + pruebas de reglas     riesgo cero
+Fase 2  Arreglos de una línea            riesgo bajo
+Fase 3  Verificación de correo           código → gente → regla
+Fase 4  Storage                          decisión tuya primero
+Fase 5  Validación de tipos              riesgo alto, ir de a poco
+Fase 6  App Check                        monitoreo antes que bloqueo
+```
+
+Nada se publica sin tu visto bueno: tocar reglas es una operación sobre
 producción.
