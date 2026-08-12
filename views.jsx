@@ -666,19 +666,19 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     return cells;
   }, [year, month]);
 
-  // Una tarea, un día: se ubica por su fecha límite y nada más.
+  // Una tarea, un día — y ese día es el de SESIÓN: cuándo se trabaja.
   //
-  // Antes se mapeaba a deadline Y sessionDate, así que una tarea con fechas
-  // distintas aparecía dos veces. Y como arrastrar movía una sola de las dos,
-  // mover una tarjeta la partía en dos: la que arrastrabas iba al día nuevo y
-  // quedaba una copia en el día de la otra fecha.
+  // La fecha límite no ubica nada en el calendario; es un dato de la tarea,
+  // como el cliente o el presupuesto. El calendario responde "qué hago hoy",
+  // no "qué vence hoy" — para eso está el contador de entrega en la tarjeta.
   //
-  // sessionDate se conserva en el dato —lo usa el carry-over automático— pero
-  // deja de dibujarse aparte en el calendario.
+  // Antes se mapeaba a las dos fechas, así que una tarea con fechas distintas
+  // aparecía dos veces, y arrastrarla movía sólo una: la tarjeta se partía en
+  // dos, una en cada día.
   const projectsByDate = useMemo(() => {
     const map = {};
     projects.forEach(p => {
-      const date = p.deadline || p.sessionDate;
+      const date = p.sessionDate || p.deadline;
       if (!date) return;
       if (!map[date]) map[date] = [];
       if (!map[date].some(x => x.id === p.id)) map[date].push(p);
@@ -746,10 +746,12 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     if (!dragging) return;
     const project = projects.find(p => p.id === dragging.id);
     if (!project) return;
-    const currentDate = project.deadline;
+    const currentDate = project.sessionDate;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
-    // Mueve deadline Y sessionDate juntos para que el proyecto no aparezca en dos días
-    onUpdateProject && onUpdateProject({ ...project, deadline: iso, sessionDate: iso });
+    // Arrastrar reagenda el trabajo: mueve la fecha de sesión y deja la
+    // fecha límite intacta, que es un compromiso con el cliente y no algo
+    // que deba cambiar por reordenar la semana.
+    onUpdateProject && onUpdateProject({ ...project, sessionDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
 
@@ -1033,12 +1035,11 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
       if (match) found = match;
     });
     if (!found) return;
-    const currentDate = found.deadline;
+    const currentDate = found.sessionDate;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
-    // Las dos fechas se mueven juntas: moviendo una sola volverian a
-    // separarse y la tarjeta se partiria en dos. cleanProject ya no lleva _kind.
+    // Sólo la fecha de sesión: la límite es un dato, no una posición.
     const cleanProject = found;
-    onUpdateProject && onUpdateProject({ ...cleanProject, deadline: iso, sessionDate: iso });
+    onUpdateProject && onUpdateProject({ ...cleanProject, sessionDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
   return (

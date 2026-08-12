@@ -994,7 +994,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
               </div>
             </PropRow>
 
-            {collaborationEnabled && <PropRow icon="camera" label="Próxima fecha de trabajo">
+            {/* Este es el campo que ubica la tarea en el calendario, así que
+                no puede estar detrás de collaborationEnabled: en un tablero
+                personal quedaba oculto y no había forma de fijar el día salvo
+                arrastrando la tarjeta. */}
+            <PropRow icon="camera" label="Día de trabajo">
               <div className="flex items-center gap-2">
                 <input
                   type="date"
@@ -1004,17 +1008,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
                   style={{ colorScheme: 'dark' }}
                 />
-                {/* Cuando las fechas difieren, el proyecto ocupa dos días en
-                    el calendario. Conviene decirlo acá, que es donde se toma
-                    la decisión, y no dejar que se descubra viendo la tarjeta
-                    repetida. */}
-                {project.sessionDate && project.deadline && project.sessionDate !== project.deadline && (
-                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    aparece en 2 días del calendario
-                  </span>
-                )}
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  es el día que ocupa en el calendario
+                </span>
               </div>
-            </PropRow>}
+            </PropRow>
 
             {collaborationEnabled && <PropRow icon="zap" label="Presupuesto">
               <div className="flex items-center gap-1 text-sm">
