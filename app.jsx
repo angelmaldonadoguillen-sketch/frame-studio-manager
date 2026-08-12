@@ -515,27 +515,29 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
       style={{ background: 'var(--surface)', width: collapsed ? 60 : 240, transition: 'width .18s var(--ease, ease)' }}
     >
       {/* Logo — click va a inicio */}
-      <div className={`${collapsed ? 'px-2 py-4' : 'px-5 py-5'} border-b border-app flex items-center ${collapsed ? 'flex-col gap-2' : 'gap-2'}`}>
+      <div className={`${collapsed ? 'px-2 py-4 flex-col gap-2' : 'px-4 py-5 gap-1'} border-b border-app flex items-center`}>
         <button
           onClick={() => {
             dispatch({ type: 'set_section', section: 'projects' });
             dispatch({ type: 'set_sidebar_filter', filter: 'all' });
             if (state.pinnedView) dispatch({ type: 'set_view', view: state.pinnedView });
           }}
-          className="flex items-center gap-2.5 min-w-0 hover:opacity-80 transition-opacity"
+          className={`flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity ${collapsed ? '' : 'flex-1'}`}
           title="Ir al inicio"
         >
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent)' }}>
             <span className="font-display font-black text-lg" style={{ color: '#0a0a0b', letterSpacing: '-0.03em' }}>F</span>
           </div>
           {!collapsed && (
-            <div className="min-w-0">
-              <div className="font-display font-bold text-[15px]" style={{ letterSpacing: '-0.02em' }}>FRAME</div>
-              <div className="text-[10px] tracking-[0.2em] text-[var(--text-muted)] uppercase">Studio Manager</div>
+            /* whitespace-nowrap: "Studio Manager" con esa separación entre
+               letras no entra en lo que sobra al lado del chevrón, y se
+               partía en dos renglones desalineados. */
+            <div className="min-w-0 leading-tight">
+              <div className="font-display font-bold text-[15px] whitespace-nowrap" style={{ letterSpacing: '-0.02em' }}>FRAME</div>
+              <div className="text-[9px] tracking-[0.16em] text-[var(--text-muted)] uppercase whitespace-nowrap">Studio Manager</div>
             </div>
           )}
         </button>
-        {!collapsed && <div className="flex-1" />}
         <button
           onClick={toggle}
           title={collapsed ? 'Desplegar menú' : 'Plegar menú'}
