@@ -285,8 +285,15 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
     mover(dx < 0 ? 1 : -1);
   };
+  // Cíclico: de la última se vuelve a la primera y al revés. Con tres o
+  // cuatro columnas, toparse con una flecha muerta obliga a deshacer todo el
+  // camino para ver la de al lado.
+  //
+  // El + columnas.length antes del resto es lo que hace que funcione hacia
+  // atrás: en JavaScript -1 % 3 da -1, no 2.
   const mover = (paso) => {
-    setColIndex(i => Math.min(columnas.length - 1, Math.max(0, i + paso)));
+    if (columnas.length <= 1) return;
+    setColIndex(i => (i + paso + columnas.length) % columnas.length);
   };
 
   // ── Abrir el detalle: trae modal.jsx si todavía no está ──
@@ -339,7 +346,7 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
       <div className="flex items-center justify-center gap-4 px-3 py-2.5 flex-shrink-0" style={{ background: 'var(--surface)' }}>
         <button
           onClick={() => mover(-1)}
-          disabled={colIndex === 0}
+          disabled={columnas.length <= 1}
           className="p-2 rounded-lg disabled:opacity-25"
           style={{ color: 'var(--text-muted)' }}
           aria-label="Columna anterior"
@@ -363,7 +370,7 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
 
         <button
           onClick={() => mover(1)}
-          disabled={colIndex >= columnas.length - 1}
+          disabled={columnas.length <= 1}
           className="p-2 rounded-lg disabled:opacity-25"
           style={{ color: 'var(--text-muted)' }}
           aria-label="Columna siguiente"
