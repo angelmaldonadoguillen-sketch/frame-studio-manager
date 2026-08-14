@@ -114,13 +114,19 @@ const MobileCard = ({ project, onOpen, previewFields = {} }) => {
         {/* La cuenta regresiva sola ("2 d") no dice para cuándo. En el
             teléfono, donde se mira de paso, la fecha ahorra la cuenta
             mental. */}
+        {/* Sin la comprobación, una tarjeta sin fecha —las que entran por la
+            API REST pueden no traerla— mostraba "Invalid Date". */}
         <span className="ml-auto flex items-baseline gap-1.5 flex-shrink-0">
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            {fmtDate(project.deadline)}
-          </span>
-          <span className="text-[11px] tnum font-semibold" style={{ color: counter.color }}>
-            {counter.value}
-          </span>
+          {project.deadline && (
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              {fmtDate(project.deadline)}
+            </span>
+          )}
+          {project.deadline && (
+            <span className="text-[11px] tnum font-semibold" style={{ color: counter.color }}>
+              {counter.value}
+            </span>
+          )}
         </span>
       </div>
 
@@ -251,8 +257,16 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
 
   const columna = columnas[colIndex] || columnas[0] || { id: 'briefing', label: 'Pendiente' };
 
+  // Ordenadas por fecha de entrega, la más cercana arriba: es el orden en que
+  // hay que atenderlas. Y es la misma fecha que muestra la tarjeta — ordenar
+  // por otra dejaría las fechas salteadas y parecería que el orden está roto.
+  //
+  // Se comparan las cadenas directamente: localISO da AAAA-MM-DD, que ordena
+  // igual como texto que como fecha. Sin fecha van al final, no adelante.
   const visibles = React.useMemo(
-    () => state.projects.filter(p => p.status === columna.id),
+    () => state.projects
+      .filter(p => p.status === columna.id)
+      .sort((a, b) => (a.deadline || '9999-12-31').localeCompare(b.deadline || '9999-12-31')),
     [state.projects, columna.id]
   );
 
