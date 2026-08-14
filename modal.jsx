@@ -249,13 +249,16 @@ const PriorityBadge = ({ priority }) => {
 // Etiqueta y valor lado a lado en los dos tamaños; lo que cambia es el ancho
 // de la etiqueta. Los 140px del escritorio no entran en un teléfono, pero
 // apilarlas duplicaba el alto de la lista y obligaba a scrollear de más. La
-// más ancha ("Responsables") mide 101px, así que van 112 y no 104: por tres
-// píxeles de margen, en un teléfono con otra tipografía de respaldo la
-// etiqueta se parte en dos renglones y se desalinea toda la lista. Al valor
-// le quedan igual 244px.
+// más ancha ("Responsables") mide 101px, y ahí no cabía ningún valor al lado.
+//
+// En el teléfono cada propiedad es una unidad que fluye: etiqueta chica
+// arriba, valor abajo, y el contenedor las acomoda de a dos por renglón
+// bajando la que no entra. flex-1 con min-w las deja todas del mismo ancho en
+// vez de dejar huecos según el largo del contenido.
 const PropRow = ({ icon, label, children }) => (
-  <div className="grid grid-cols-[112px_1fr] md:grid-cols-[140px_1fr] gap-2 md:gap-3 items-start py-1.5">
-    <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)] pt-1 whitespace-nowrap">
+  <div className="flex-1 min-w-[136px] flex flex-col gap-1
+                  md:min-w-0 md:grid md:grid-cols-[140px_1fr] md:gap-3 md:items-start md:py-1.5">
+    <div className="flex items-center gap-1.5 md:gap-2 text-[11px] md:text-[12px] text-[var(--text-muted)] md:pt-1 whitespace-nowrap">
       <Icon name={icon} size={13} />
       <span>{label}</span>
     </div>
@@ -875,9 +878,16 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
             pantalla de 375 se salía entera, y con ella todo lo de adentro.
             Acá el que scrollea es el contenedor, no cada columna. */}
         <div className="flex-1 overflow-y-auto md:overflow-hidden md:grid md:grid-cols-[420px_1fr]">
-          {/* Left: properties */}
-          <div className="border-b md:border-b-0 md:border-r border-app md:overflow-y-auto p-5 space-y-1">
-            <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Propiedades</div>
+          {/* Left: properties
+              En el teléfono las propiedades fluyen: se acomodan de a dos por
+              renglón y la que no entra baja sola. Una lista de siete filas de
+              ancho completo desperdiciaba media pantalla en blanco a la
+              derecha de "Reel" o "Alta". En escritorio sigue siendo una lista
+              vertical, que con 420px de ancho se lee mejor así. */}
+          <div className="border-b md:border-b-0 md:border-r border-app md:overflow-y-auto p-5
+                          flex flex-wrap gap-x-5 gap-y-3 content-start
+                          md:block md:space-y-1">
+            <div className="basis-full text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Propiedades</div>
 
             <PropRow icon="briefcase" label="Cliente">
               <ClientAutocomplete
@@ -1038,7 +1048,10 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
             </PropRow>
 
             {/* Progress mini */}
-            <div className="mt-6 pt-4 border-t border-app">
+            {/* basis-full: el progreso no es una propiedad, es una sección
+                aparte. Sin esto entraba en el flujo y se acomodaba al lado de
+                Tags, partiendo la barra por la mitad del panel. */}
+            <div className="basis-full mt-6 pt-4 border-t border-app">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">Progreso</div>
                 <div className="text-xs font-mono" style={{ color: 'var(--accent)' }}>{progress}%</div>
