@@ -246,12 +246,16 @@ const PriorityBadge = ({ priority }) => {
 };
 
 // ── Property row (Notion-style) ─────────────────────────────────
-// La etiqueta de 140px dejaba 195px al valor en un teléfono: los nombres de
-// cliente y las fechas quedaban cortados. Angosto, etiqueta arriba y valor
-// abajo, cada uno con el ancho entero.
+// Etiqueta y valor lado a lado en los dos tamaños; lo que cambia es el ancho
+// de la etiqueta. Los 140px del escritorio no entran en un teléfono, pero
+// apilarlas duplicaba el alto de la lista y obligaba a scrollear de más. La
+// más ancha ("Responsables") mide 101px, así que van 112 y no 104: por tres
+// píxeles de margen, en un teléfono con otra tipografía de respaldo la
+// etiqueta se parte en dos renglones y se desalinea toda la lista. Al valor
+// le quedan igual 244px.
 const PropRow = ({ icon, label, children }) => (
-  <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-1 md:gap-3 items-start py-1.5">
-    <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)] pt-1">
+  <div className="grid grid-cols-[112px_1fr] md:grid-cols-[140px_1fr] gap-2 md:gap-3 items-start py-1.5">
+    <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)] pt-1 whitespace-nowrap">
       <Icon name={icon} size={13} />
       <span>{label}</span>
     </div>
