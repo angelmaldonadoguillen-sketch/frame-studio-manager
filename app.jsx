@@ -2379,6 +2379,10 @@ const App = () => {
       .catch(err => console.error('Error al crear cliente:', err));
   };
 
+  // Va acá arriba y no junto al return: es un hook, y después de la primera
+  // salida temprana ya no se puede llamar.
+  const isMobile = useIsMobile();
+
   // El orden importa: los listeners de Firestore ahora solo corren con sesión
   // activa, así que teamLoading/loading siguen en true mientras no haya login.
   // Hay que descartar el caso "sin sesión" ANTES de mirar los flags de carga,
@@ -2409,6 +2413,49 @@ const App = () => {
   if (state.workspacesLoading || !state.activeWorkspaceId) return <LoadingScreen />;
 
   if (state.loading) return <LoadingScreen />;
+
+  // El detalle es el mismo en los dos tamaños, con los mismos handlers. Se
+  // arma una sola vez y se le pasa a la vista que corresponda: si se
+  // duplicara, cada arreglo habría que hacerlo dos veces.
+  const modalDetalle = openProject && (
+    <ProjectModal
+      key={openProject.id}
+      project={openProject}
+      projects={filtered}
+      onNavigate={(id) => dispatch({ type: 'open_project', id })}
+      currentUserId={state.currentUserId}
+      team={workspaceMembers(state.workspaces.find(w => w.id === state.activeWorkspaceId))}
+      clients={state.clients}
+      onCreateClient={handleCreateClient}
+      onClose={() => dispatch({ type: 'close_project' })}
+      onUpdate={handleUpdateProject}
+      onDelete={handleDeleteProject}
+      customTypes={state.customTypes}
+      onCreateCustomType={handleCreateCustomType}
+      onUpdateCustomType={handleUpdateCustomType}
+      onDeleteCustomType={handleDeleteCustomType}
+      workspaceKind={activeWs?.kind || 'personal'}
+    />
+  );
+
+  // En el teléfono FRAME es otra cosa: modo rápido, agregar y mirar. No es
+  // esta misma pantalla angosta — es otro árbol de vistas sobre el mismo
+  // estado y los mismos handlers.
+  if (isMobile) {
+    return (
+      <MobileApp
+        state={state}
+        dispatch={dispatch}
+        authUser={authUser}
+        workspaces={state.workspaces}
+        activeWorkspaceId={state.activeWorkspaceId}
+        onQuickCreate={handleQuickCreate}
+        onSignOut={() => firebase.auth().signOut()}
+      >
+        {modalDetalle}
+      </MobileApp>
+    );
+  }
 
   return (
     <div className="h-screen flex" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
@@ -2519,26 +2566,7 @@ const App = () => {
       )}
       </div>
 
-      {openProject && (
-        <ProjectModal
-          key={openProject.id}
-          project={openProject}
-          projects={filtered}
-          onNavigate={(id) => dispatch({ type: 'open_project', id })}
-          currentUserId={state.currentUserId}
-          team={workspaceMembers(state.workspaces.find(w => w.id === state.activeWorkspaceId))}
-          clients={state.clients}
-          onCreateClient={handleCreateClient}
-          onClose={() => dispatch({ type: 'close_project' })}
-          onUpdate={handleUpdateProject}
-          onDelete={handleDeleteProject}
-          customTypes={state.customTypes}
-          onCreateCustomType={handleCreateCustomType}
-          onUpdateCustomType={handleUpdateCustomType}
-          onDeleteCustomType={handleDeleteCustomType}
-          workspaceKind={activeWs?.kind || 'personal'}
-        />
-      )}
+      {modalDetalle}
 
       {state.showNewProject && (
         <NewProjectModal

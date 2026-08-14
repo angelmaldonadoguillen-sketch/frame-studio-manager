@@ -1,0 +1,442 @@
+// ─────────────────────────────────────────────────────────────────
+// MÓVIL — Modo rápido
+//
+// No es la versión de escritorio achicada: es otro árbol de vistas para
+// otro uso. Con el teléfono en la mano se agrega y se mira, no se
+// administra.
+//
+// El cerebro NO se duplica. Este archivo no habla con Firestore ni tiene
+// reducer: recibe el mismo `state` y los mismos handlers que <App>. Si
+// tuviera su propia copia de las escrituras, en un mes una de las dos
+// versiones tendría un arreglo que la otra no.
+//
+// Diferencias con el escritorio, todas a propósito:
+//   · Una columna del kanban a la vez, no las cinco al lado.
+//   · Sin clientes, sin equipo, sin analytics, sin galería, sin lista.
+//   · El detalle de tarjeta y la rutina se traen recién cuando se piden
+//     (ver cargarModulo): son las dos piezas más pesadas y en la mayoría
+//     de las sesiones no se abren.
+// ─────────────────────────────────────────────────────────────────
+
+// ── Cuándo entra el modo móvil ───────────────────────────────────
+// matchMedia y no CSS: acá no se reacomodan cajas, se renderiza otra
+// aplicación. Una media query no puede quitar funciones.
+const MOBILE_QUERY = '(max-width: 767px)';
+
+const useIsMobile = () => {
+  const [is, setIs] = React.useState(() => {
+    try { return window.matchMedia(MOBILE_QUERY).matches; } catch { return false; }
+  });
+  React.useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia(MOBILE_QUERY); } catch { return; }
+    // Se relee la consulta en vez de confiar en e.matches: así el mismo
+    // manejador sirve para los dos eventos.
+    const on = () => setIs(mq.matches);
+    // addListener es el nombre viejo; Safari lo necesitó hasta hace poco.
+    if (mq.addEventListener) mq.addEventListener('change', on);
+    else mq.addListener(on);
+    // Y 'resize' además de 'change': no todos los entornos disparan el
+    // segundo. Releer es barato y setIs con el mismo valor no re-renderiza.
+    window.addEventListener('resize', on);
+    on();
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', on);
+      else mq.removeListener(on);
+      window.removeEventListener('resize', on);
+    };
+  }, []);
+  return is;
+};
+
+// ── Carga a demanda ──────────────────────────────────────────────
+// Sin empaquetador no hay import(). Se trae el .jsx, lo compila Babel en
+// el navegador y se evalúa. Es lo mismo que hace index.html al arrancar,
+// sólo que en el momento en que hace falta y no antes.
+//
+// modal.jsx pesa 94 KB y routine.jsx 31 KB. Cargarlos al abrir la app
+// serían 125 KB que la mayoría de las veces no se usan, descargados y
+// compilados con datos móviles antes de ver la primera tarjeta.
+const _modulos = {};
+const cargarModulo = (archivo, comprobar) => {
+  if (typeof comprobar === 'function' && comprobar()) return Promise.resolve(true);
+  if (_modulos[archivo]) return _modulos[archivo];
+  _modulos[archivo] = fetch(archivo)
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    })
+    .then(src => {
+      const code = window.Babel.transform(src, { presets: ['react'] }).code;
+      // new Function y no eval: el cuerpo corre en ámbito global, que es
+      // donde viven el resto de los componentes de FRAME.
+      new Function(code)();
+      return true;
+    })
+    .catch(err => {
+      // Se olvida el intento fallido: si fue un corte de señal, el
+      // siguiente toque tiene que poder reintentar.
+      delete _modulos[archivo];
+      throw err;
+    });
+  return _modulos[archivo];
+};
+
+// ── Tarjeta ──────────────────────────────────────────────────────
+// Más alta y con más aire que la de escritorio: el dedo necesita blanco
+// alrededor, y en el teléfono se ven pocas a la vez.
+const MobileCard = ({ project, onOpen, previewFields = {} }) => {
+  const pf      = previewFields;
+  const tipo    = getType(project.type);
+  const estado  = getStatus(project.status);
+  const counter = deliveryCounter(project);
+
+  const hechos = (project.checklist || []).filter(i => i.done).length;
+  const total  = (project.checklist || []).length;
+
+  return (
+    <button
+      onClick={() => onOpen(project.id)}
+      className="w-full text-left surf p-4 anim-fade-in"
+      style={{ display: 'block' }}
+    >
+      {/* Cabecera: tipo y estado */}
+      <div className="flex items-center gap-2 mb-2.5">
+        {pf.tipo !== false && (
+          <span className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: tipo.color }}>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tipo.color }} />
+            {tipo.label}
+          </span>
+        )}
+        {pf.estado !== false && (
+          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>· {estado.label}</span>
+        )}
+        <span className="ml-auto text-[11px] tnum font-semibold flex-shrink-0" style={{ color: counter.color }}>
+          {counter.value}
+        </span>
+      </div>
+
+      {/* Título */}
+      <div className="text-[15px] font-semibold leading-snug mb-1" style={{ letterSpacing: '-0.01em' }}>
+        {project.title}
+      </div>
+
+      {/* Cliente */}
+      {pf.cliente !== false && project.client && (
+        <div className="text-[12px] mb-3" style={{ color: 'var(--text-muted)' }}>{project.client}</div>
+      )}
+
+      {/* Progreso del checklist */}
+      {pf.progreso !== false && total > 0 && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] tracking-[0.14em] uppercase" style={{ color: 'var(--text-muted)' }}>Avance</span>
+            <span className="text-[11px] tnum" style={{ color: 'var(--text-muted)' }}>{hechos}/{total}</span>
+          </div>
+          <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+            <div className="h-full rounded-full" style={{ width: (hechos / total * 100) + '%', background: 'var(--accent)' }} />
+          </div>
+        </div>
+      )}
+
+      {/* Responsables */}
+      {pf.responsables !== false && (project.assignees || []).length > 0 && (
+        <div className="flex items-center gap-1.5 mt-3">
+          {project.assignees.slice(0, 4).map(id => {
+            const u = getUser(id);
+            return (
+              <span key={id} className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                    style={{ background: u.color, color: '#0a0a0b' }}>
+                {u.initials}
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </button>
+  );
+};
+
+// ── Agregado rápido ──────────────────────────────────────────────
+// El motivo por el que existe la versión móvil. Pide lo mínimo: título y
+// tipo. Todo lo demás sale por defecto — el estado es el de la columna
+// donde estás parado, para que la tarjeta aparezca donde la creaste.
+const QuickAddSheet = ({ tipos, statusId, onCreate, onClose }) => {
+  const [titulo, setTitulo] = React.useState('');
+  const [tipo, setTipo]     = React.useState(tipos[0]?.id || 'reel');
+  const inputRef            = React.useRef(null);
+
+  React.useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const crear = () => {
+    const t = titulo.trim();
+    if (!t) return;
+    onCreate({ title: t, type: tipo, status: statusId });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
+      <div className="surf-panel p-5 anim-fade-in" onClick={(e) => e.stopPropagation()}
+           style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
+        <input
+          ref={inputRef}
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); crear(); } }}
+          placeholder="¿Qué hay que hacer?"
+          className="field w-full px-3.5 py-3 text-[16px] mb-3"
+        />
+
+        {/* Tipo: pastillas y no un desplegable — un toque en vez de tres. */}
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {tipos.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTipo(t.id)}
+              className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors"
+              style={{
+                background: tipo === t.id ? t.color : 'var(--surface-3)',
+                color:      tipo === t.id ? '#0a0a0b' : 'var(--text-dim)',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button onClick={onClose} className="px-4 py-3 rounded-xl text-[14px]" style={{ color: 'var(--text-muted)' }}>
+            Cancelar
+          </button>
+          <button
+            onClick={crear}
+            disabled={!titulo.trim()}
+            className="flex-1 py-3 rounded-xl text-[15px] font-semibold disabled:opacity-40"
+            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+          >
+            Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Aplicación móvil ─────────────────────────────────────────────
+const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
+                     onQuickCreate, onSignOut, children }) => {
+  const columnas = state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES;
+  const tipos    = state.customTypes.length   > 0 ? state.customTypes   : PROJECT_TYPES;
+
+  const [colIndex, setColIndex] = React.useState(0);
+  const [quickAdd, setQuickAdd] = React.useState(false);
+  const [rutina, setRutina]     = React.useState(false);
+  const [perfil, setPerfil]     = React.useState(false);
+  const [cargando, setCargando] = React.useState(null);
+
+  // Si cambian las columnas del tablero, el índice guardado puede quedar
+  // apuntando a una que ya no existe.
+  React.useEffect(() => {
+    if (colIndex > columnas.length - 1) setColIndex(0);
+  }, [columnas.length, colIndex]);
+
+  const columna = columnas[colIndex] || columnas[0] || { id: 'briefing', label: 'Pendiente' };
+
+  const visibles = React.useMemo(
+    () => state.projects.filter(p => p.status === columna.id),
+    [state.projects, columna.id]
+  );
+
+  const me = state.team.find(m => m.id === state.currentUserId) || getUser(state.currentUserId);
+
+  // ── Deslizar para cambiar de columna ──
+  const touch = React.useRef(null);
+  const onTouchStart = (e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onTouchEnd = (e) => {
+    if (!touch.current) return;
+    const dx = e.changedTouches[0].clientX - touch.current.x;
+    const dy = e.changedTouches[0].clientY - touch.current.y;
+    touch.current = null;
+    // Se exige que el gesto sea claramente horizontal: si no, cada scroll
+    // con el pulgar un poco torcido cambiaría de columna.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    mover(dx < 0 ? 1 : -1);
+  };
+  const mover = (paso) => {
+    setColIndex(i => Math.min(columnas.length - 1, Math.max(0, i + paso)));
+  };
+
+  // ── Abrir el detalle: trae modal.jsx si todavía no está ──
+  const abrirTarjeta = (id) => {
+    setCargando('tarjeta');
+    cargarModulo('modal.jsx', () => typeof ProjectModal !== 'undefined')
+      .then(() => { setCargando(null); dispatch({ type: 'open_project', id }); })
+      .catch(() => { setCargando(null); window.frameToast?.('No se pudo abrir la tarjeta. Revisá la conexión.'); });
+  };
+
+  const abrirRutina = () => {
+    setCargando('rutina');
+    cargarModulo('routine.jsx', () => typeof RoutineWidget !== 'undefined')
+      .then(() => { setCargando(null); setRutina(true); })
+      .catch(() => { setCargando(null); window.frameToast?.('No se pudo abrir la rutina. Revisá la conexión.'); });
+  };
+
+  return (
+    <div className="h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+      <ToastStack />
+
+      {/* ── Barra: tableros + rutina ── */}
+      <div className="flex items-center gap-1 px-3 hair flex-shrink-0"
+           style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))', paddingBottom: 10, background: 'var(--surface)' }}>
+        <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto">
+          {workspaces.map(w => (
+            <button
+              key={w.id}
+              onClick={() => dispatch({ type: 'set_active_workspace', id: w.id })}
+              className="px-3 py-1.5 rounded-lg text-[13px] font-medium whitespace-nowrap flex-shrink-0 transition-colors"
+              style={{
+                background: w.id === activeWorkspaceId ? 'var(--surface-3)' : 'transparent',
+                color:      w.id === activeWorkspaceId ? 'var(--text)'      : 'var(--text-muted)',
+              }}
+            >
+              {w.name}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={abrirRutina}
+          className="px-3 py-1.5 rounded-lg text-[13px] font-medium flex-shrink-0"
+          style={{ color: 'var(--accent)' }}
+        >
+          Rutina
+        </button>
+      </div>
+
+      {/* ── Columna actual ── */}
+      <div className="flex items-center justify-center gap-4 px-3 py-2.5 flex-shrink-0" style={{ background: 'var(--surface)' }}>
+        <button
+          onClick={() => mover(-1)}
+          disabled={colIndex === 0}
+          className="p-2 rounded-lg disabled:opacity-25"
+          style={{ color: 'var(--text-muted)' }}
+          aria-label="Columna anterior"
+        >
+          <Icon name="chevronLeft" size={16} />
+        </button>
+
+        <div className="text-center min-w-0">
+          <div className="text-[13px] font-semibold tracking-[0.1em] uppercase truncate" style={{ color: 'var(--text)' }}>
+            {columna.label}
+          </div>
+          <div className="flex items-center justify-center gap-1 mt-1.5">
+            {columnas.map((c, i) => (
+              <span key={c.id} className="rounded-full transition-all" style={{
+                width: i === colIndex ? 14 : 5, height: 5,
+                background: i === colIndex ? 'var(--accent)' : 'var(--surface-3)',
+              }} />
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => mover(1)}
+          disabled={colIndex >= columnas.length - 1}
+          className="p-2 rounded-lg disabled:opacity-25"
+          style={{ color: 'var(--text-muted)' }}
+          aria-label="Columna siguiente"
+        >
+          <Icon name="chevronRight" size={16} />
+        </button>
+      </div>
+
+      {/* ── Tarjetas ── */}
+      <div
+        className="flex-1 overflow-y-auto px-3 pt-3 space-y-2.5"
+        style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))', WebkitOverflowScrolling: 'touch' }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        {state.loading && (
+          <div className="text-center py-16 text-[13px]" style={{ color: 'var(--text-muted)' }}>Cargando…</div>
+        )}
+
+        {!state.loading && visibles.length === 0 && (
+          <div className="text-center py-20">
+            <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Nada en {columna.label.toLowerCase()}</div>
+          </div>
+        )}
+
+        {visibles.map(p => (
+          <MobileCard key={p.id} project={p} onOpen={abrirTarjeta} previewFields={state.previewFields} />
+        ))}
+      </div>
+
+      {/* ── Perfil y agregar ── */}
+      <div className="fixed right-4 flex flex-col items-center gap-3"
+           style={{ bottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
+        <button
+          onClick={() => setPerfil(true)}
+          className="w-10 h-10 rounded-full flex items-center justify-center text-[12px] font-bold surf-float"
+          style={{ color: 'var(--text)' }}
+          aria-label="Perfil"
+        >
+          {me.initials}
+        </button>
+        <button
+          onClick={() => setQuickAdd(true)}
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ background: 'var(--accent)', color: '#0a0a0b', boxShadow: '0 8px 24px -6px rgba(0,0,0,.6)' }}
+          aria-label="Agregar tarjeta"
+        >
+          <Icon name="plus" size={24} strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {/* ── Capas ── */}
+      {cargando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,.4)' }}>
+          <div className="surf-float px-5 py-3 text-[13px]">Abriendo…</div>
+        </div>
+      )}
+
+      {quickAdd && (
+        <QuickAddSheet
+          tipos={tipos}
+          statusId={columna.id}
+          onCreate={onQuickCreate}
+          onClose={() => setQuickAdd(false)}
+        />
+      )}
+
+      {perfil && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,.5)' }} onClick={() => setPerfil(false)}>
+          <div className="surf-panel p-5 anim-fade-in" onClick={(e) => e.stopPropagation()}
+               style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
+            <div className="text-[15px] font-semibold">{me.name}</div>
+            {me.email && <div className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>{me.email}</div>}
+            <button
+              onClick={onSignOut}
+              className="w-full py-3 rounded-xl text-[14px] font-semibold"
+              style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      )}
+
+      {rutina && typeof RoutineWidget !== 'undefined' && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,.5)' }} onClick={() => setRutina(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+            <RoutineWidget workspaceId={activeWorkspaceId} />
+          </div>
+        </div>
+      )}
+
+      {/* El modal de detalle lo sigue montando <App>: es el mismo de
+          escritorio y usa los mismos handlers. */}
+      {children}
+    </div>
+  );
+};
