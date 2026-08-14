@@ -6,7 +6,10 @@ const path = require('path');
 
 const ROOT = path.resolve(process.argv[2] || '.');
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.jsx': 'text/babel',
-                '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml' };
+                '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml',
+                // Sin estos dos el navegador no toma el manifiesto como tal ni
+                // los iconos como imagenes, y la app no aparece como instalable.
+                '.webmanifest': 'application/manifest+json', '.png': 'image/png' };
 
 http.createServer((req, res) => {
   const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'preview-ui.html';

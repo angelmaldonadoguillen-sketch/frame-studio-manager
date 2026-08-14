@@ -12,6 +12,24 @@
 <title>FRAME — Studio Manager</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23d4ff4f'/><text x='16' y='24' font-family='system-ui,sans-serif' font-weight='900' font-size='22' text-anchor='middle' fill='%230a0a0b'>F</text></svg>" />
 
+<!-- Instalable como app. Las rutas van relativas porque en GitHub Pages
+     FRAME no vive en la raíz del dominio sino en /frame-studio-manager/:
+     con "/" el navegador buscaría el manifiesto donde no está. -->
+<link rel="manifest" href="manifest.webmanifest" />
+
+<!-- iOS no lee display:standalone del manifiesto; necesita lo suyo. Sin
+     esto, agregarla a la pantalla de inicio abre igual con la barra de
+     Safari, que es justo lo que se quiere evitar. -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<!-- black-translucent: la app se dibuja debajo de la barra de estado. Es lo
+     que hace que el fondo llegue hasta arriba del todo en vez de dejar una
+     franja. Funciona porque el viewport ya lleva viewport-fit=cover y las
+     pantallas usan env(safe-area-inset-*) para no meterse bajo el reloj. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="FRAME" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <!-- Una sola familia para toda la interfaz. Syne y Space Grotesk son tipografías
@@ -91,5 +109,20 @@
        cuál de los dos renderiza. -->
   <script type="text/babel" src="mobile.jsx"></script>
   <script type="text/babel" src="app.jsx"></script>
+
+  <script>
+    // El service worker no cachea nada (ver sw.js): está sólo para que el
+    // navegador ofrezca instalar la app. Se registra después de 'load' para
+    // no competir por ancho de banda con lo que hace falta para pintar.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (err) {
+          // Que falle no rompe nada: FRAME sigue funcionando en el navegador,
+          // sólo deja de ofrecerse el botón de instalar.
+          console.warn('[FRAME] Service worker no registrado:', err.message);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
