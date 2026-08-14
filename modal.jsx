@@ -246,8 +246,11 @@ const PriorityBadge = ({ priority }) => {
 };
 
 // ── Property row (Notion-style) ─────────────────────────────────
+// La etiqueta de 140px dejaba 195px al valor en un teléfono: los nombres de
+// cliente y las fechas quedaban cortados. Angosto, etiqueta arriba y valor
+// abajo, cada uno con el ancho entero.
 const PropRow = ({ icon, label, children }) => (
-  <div className="grid grid-cols-[140px_1fr] gap-3 items-start py-1.5">
+  <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-1 md:gap-3 items-start py-1.5">
     <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)] pt-1">
       <Icon name={icon} size={13} />
       <span>{label}</span>
@@ -863,10 +866,13 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
           </div>
         </div>
 
-        {/* Body — two column */}
-        <div className="flex-1 grid grid-cols-[420px_1fr] overflow-hidden">
+        {/* Body — dos columnas en escritorio, una sola que baja en el
+            teléfono. La columna de propiedades medía 420px fijos: en una
+            pantalla de 375 se salía entera, y con ella todo lo de adentro.
+            Acá el que scrollea es el contenedor, no cada columna. */}
+        <div className="flex-1 overflow-y-auto md:overflow-hidden md:grid md:grid-cols-[420px_1fr]">
           {/* Left: properties */}
-          <div className="border-r border-app overflow-y-auto p-5 space-y-1">
+          <div className="border-b md:border-b-0 md:border-r border-app md:overflow-y-auto p-5 space-y-1">
             <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Propiedades</div>
 
             <PropRow icon="briefcase" label="Cliente">
@@ -1043,7 +1049,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
           </div>
 
           {/* Right: content */}
-          <div className="overflow-y-auto">
+          <div className="md:overflow-y-auto min-w-0">
             {/* Tabs */}
             <div className="sticky top-0 z-10 surface border-b border-app px-6 flex items-center gap-1" style={{ background: 'var(--surface)' }}>
               {[
@@ -1455,8 +1461,11 @@ const TimelineAdd = ({ onAdd }) => {
     setLabel('');
   };
 
+  // flex-wrap: el nombre del hito, la fecha y el botón no entran en una línea
+  // de 300px. Sin esto no se achicaban — se empujaban fuera de la pantalla.
+  // Angosto, la fecha y el botón bajan al renglón siguiente.
   return (
-    <div className="relative flex items-center gap-2 py-2">
+    <div className="relative flex flex-wrap md:flex-nowrap items-center gap-2 py-2">
       {/* El punto era un anillo punteado con el centro transparente y sin
           máscara, así que la línea vertical del timeline se veía pasar por
           dentro. Ahora lleva fondo propio y el mismo anillo del color del
@@ -1475,7 +1484,7 @@ const TimelineAdd = ({ onAdd }) => {
         onChange={(e) => setLabel(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
         placeholder="Nuevo hito…"
-        className="flex-1 px-2.5 py-1.5 rounded-md text-[13px] border ml-3"
+        className="flex-1 min-w-0 basis-full md:basis-auto px-2.5 py-1.5 rounded-md text-[13px] border ml-3"
        
       />
       <input

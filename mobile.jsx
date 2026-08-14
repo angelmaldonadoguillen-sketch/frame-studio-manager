@@ -111,8 +111,16 @@ const MobileCard = ({ project, onOpen, previewFields = {} }) => {
         {pf.estado !== false && (
           <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>· {estado.label}</span>
         )}
-        <span className="ml-auto text-[11px] tnum font-semibold flex-shrink-0" style={{ color: counter.color }}>
-          {counter.value}
+        {/* La cuenta regresiva sola ("2 d") no dice para cuándo. En el
+            teléfono, donde se mira de paso, la fecha ahorra la cuenta
+            mental. */}
+        <span className="ml-auto flex items-baseline gap-1.5 flex-shrink-0">
+          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            {fmtDate(project.deadline)}
+          </span>
+          <span className="text-[11px] tnum font-semibold" style={{ color: counter.color }}>
+            {counter.value}
+          </span>
         </span>
       </div>
 
@@ -375,13 +383,16 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
       {/* ── Perfil y agregar ── */}
       <div className="fixed right-4 flex flex-col items-center gap-3"
            style={{ bottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
+        {/* El mismo <Avatar> que en el escritorio, no una copia con otros
+            estilos: así lleva tu color —y tu foto si la tenés— y no se
+            desincroniza cuando uno de los dos cambie. */}
         <button
           onClick={() => setPerfil(true)}
-          className="w-10 h-10 rounded-full flex items-center justify-center text-[12px] font-bold surf-float"
-          style={{ color: 'var(--text)' }}
+          className="rounded-full flex-shrink-0"
+          style={{ boxShadow: '0 4px 14px -4px rgba(0,0,0,.6)' }}
           aria-label="Perfil"
         >
-          {me.initials}
+          <Avatar user={me} size={40} />
         </button>
         <button
           onClick={() => setQuickAdd(true)}
