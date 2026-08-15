@@ -824,6 +824,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
                       <WeekCard
                         key={p.id}
                         project={p}
+                        calendarDate={iso}
                         onClick={() => !dragging && onOpenProject(p.id)}
                         draggable
                         onDragStart={(e) => handleDragStart(e, p)}
@@ -865,7 +866,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
 // ── Tarjeta vertical estilo Notion para vista semanal ────────────
 // Cada property en su propia fila → el título puede wrappear libremente
 // y la tarjeta se adapta a cualquier ancho de columna sin aplastar nada.
-const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, onToggleFavorite, onDelete, onDuplicate, previewFields: pf = {} }) => {
+const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDragEnd, dragging, onToggleFavorite, onDelete, onDuplicate, previewFields: pf = {} }) => {
   const [confirmDel, setConfirmDel] = React.useState(false);
   const t        = getType(project.type);
   const st       = getStatus(project.status);
@@ -874,6 +875,9 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
   const isOver   = days < 0  && project.status !== 'delivered' && project.status !== 'archived';
   const progress = progressOf(project);
   const hasTags  = pf.tags && project.tags?.length > 0;
+  // En el calendario la fecha visible debe ser la misma que ubica la tarjeta.
+  // Mostrar deadline acá hacía parecer que el arrastre no había guardado.
+  const displayedDate = calendarDate || project.startDate || project.sessionDate || project.deadline;
 
   return (
     <div
@@ -974,14 +978,14 @@ const WeekCard = ({ project, onClick, draggable, onDragStart, onDragEnd, draggin
           </div>
         )}
 
-        {/* Responsables + deadline — fila final */}
+        {/* Responsables + fecha de inicio del calendario — fila final */}
         {(pf.responsables !== false || pf.deadline !== false) && (
           <div className="flex items-center justify-between gap-1 mt-0.5">
             {pf.responsables !== false ? <AvatarStack ids={project.assignees} size={16} max={3} /> : <span />}
-            {pf.deadline !== false && project.deadline && (
-              <div className="flex items-center gap-0.5 text-[10px] font-mono" style={{ color: isOver ? 'var(--danger)' : 'var(--text-muted)' }}>
+            {pf.deadline !== false && displayedDate && (
+              <div className="flex items-center gap-0.5 text-[10px] font-mono" style={{ color: 'var(--text-muted)' }} title="Fecha de inicio">
                 <Icon name="calendar" size={9} />
-                {fmtDate(project.deadline)}
+                {fmtDate(displayedDate)}
               </div>
             )}
           </div>
@@ -1091,6 +1095,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                   <WeekCard
                     key={p.id}
                     project={p}
+                    calendarDate={iso}
                     onClick={() => !dragging && onOpenProject(p.id)}
                     draggable
                     onDragStart={(e) => handleDragStart(e, p)}

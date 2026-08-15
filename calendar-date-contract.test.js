@@ -12,5 +12,9 @@ assert.match(views, /onUpdateProject\s*&&\s*onUpdateProject\(\{ \.\.\.cleanProje
 assert.doesNotMatch(views, /onUpdateProject\([^\n]*deadline:\s*iso/);
 assert.match(app, /startDate:\s+start/);
 assert.match(app, /before\.startDate !== after\.startDate/);
+assert.match(views, /const displayedDate = calendarDate \|\| project\.startDate/);
+assert.match(views, /calendarDate=\{iso\}/);
+assert.match(views, /fmtDate\(displayedDate\)/);
+assert.doesNotMatch(views, /fmtDate\(project\.deadline\)/);
 
-console.log('calendar-date-contract: 6 checks passed');
+console.log('calendar-date-contract: 10 checks passed');
