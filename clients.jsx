@@ -78,6 +78,25 @@ const CLIENT_COLORS = [
   'var(--resource-blue)', 'var(--resource-pink)', 'var(--resource-green)', 'var(--danger)',
 ];
 
+// Progreso operativo mensual del cliente. La fecha de inicio es la misma que
+// ubica la tarea en el calendario; una tarea archivada no forma parte del
+// trabajo del mes y una entregada cuenta como completada.
+const clientMonthlyProgress = (projects, clientName, today = TODAY) => {
+  const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const normalizedName = String(clientName || '').trim().toLowerCase();
+  const monthly = (projects || []).filter(project =>
+    String(project.client || '').trim().toLowerCase() === normalizedName
+    && project.status !== 'archived'
+    && String(project.startDate || '').startsWith(monthKey)
+  );
+  const completed = monthly.filter(project => project.status === 'delivered').length;
+  return {
+    total: monthly.length,
+    completed,
+    percent: monthly.length ? Math.round((completed / monthly.length) * 100) : 0,
+  };
+};
+
 // ── Client avatar ────────────────────────────────────────────────
 const ClientAvatar = ({ client, size = 40 }) => {
   const color = resolveThemeColor(client.color);
@@ -184,6 +203,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
   const totalBudget = cp.reduce((s, p) => s + (p.budget || 0), 0);
   const inProgress  = cp.filter(p => p.status !== 'delivered' && p.status !== 'archived').length;
   const clientColor = resolveThemeColor(client.color);
+  const monthlyProgress = clientMonthlyProgress(projects, client.name);
 
   const upd        = (patch) => onUpdate({ ...client, ...patch });
   const addTag     = (t) => { if (!t.trim()) return; upd({ tags: [...new Set([...client.tags, t.trim()])] }); };
@@ -261,6 +281,39 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                   <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.12em]">{s.label}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Progreso del mes */}
+            <div className="mt-4 rounded-lg p-3.5" style={{ background: 'var(--surface-2)' }}>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div>
+                  <div className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ color: 'var(--text-muted)' }}>
+                    Progreso del mes
+                  </div>
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-dim)' }}>
+                    {monthlyProgress.total > 0
+                      ? `${monthlyProgress.completed} de ${monthlyProgress.total} tareas entregadas`
+                      : 'Sin tareas iniciadas este mes'}
+                  </div>
+                </div>
+                <div className="text-[18px] font-display font-bold flex-shrink-0" style={{ color: monthlyProgress.total > 0 ? clientColor : 'var(--text-muted)' }}>
+                  {monthlyProgress.percent}%
+                </div>
+              </div>
+              <div
+                className="h-2 rounded-full overflow-hidden"
+                style={{ background: 'var(--surface-3)' }}
+                role="progressbar"
+                aria-label={`Progreso mensual de ${client.name}`}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={monthlyProgress.percent}
+              >
+                <div
+                  className="h-full rounded-full transition-[width] duration-500"
+                  style={{ width: `${monthlyProgress.percent}%`, background: clientColor }}
+                />
+              </div>
             </div>
 
             {/* Status breakdown */}
@@ -833,4 +886,4 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
   );
 };
 
-Object.assign(window, { ClientsSection, ClientAutocomplete, SEED_CLIENTS });
+Object.assign(window, { ClientsSection, ClientAutocomplete, SEED_CLIENTS, clientMonthlyProgress });
