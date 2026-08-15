@@ -8,6 +8,7 @@ const { useState, useRef, useEffect, useMemo } = React;
 const Avatar = ({ user, size = 24, ring = false }) => {
   if (!user) return null;
   const ringClass = ring ? 'ring-2 ring-[#0a0a0b]' : '';
+  const avatarColor = resolveThemeColor(user.color);
   if (user.avatar) {
     return (
       <img
@@ -24,7 +25,7 @@ const Avatar = ({ user, size = 24, ring = false }) => {
       className={`rounded-full flex items-center justify-center font-semibold flex-shrink-0 ${ringClass}`}
       style={{
         width: size, height: size,
-        background: user.color,
+        background: avatarColor,
         color: 'var(--resource-on)',
         fontSize: Math.max(9, size * 0.4),
         letterSpacing: '0.02em',
@@ -363,11 +364,34 @@ const Cover = ({ cover, height = 180, className = '' }) => {
     return (
       <div className={`relative overflow-hidden ${className}`} style={{ height }}>
         <img src={cover.value} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] to-transparent opacity-60"></div>
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,.76) 0%, rgba(0,0,0,.24) 52%, rgba(0,0,0,.04) 100%)' }}
+        ></div>
       </div>
     );
   }
   return <div className={className} style={{ height, background: cover.value }}></div>;
+};
+
+// El título vive encima de la portada, no encima de la superficie del tema.
+// Para colores sólidos se elige el texto con mayor contraste WCAG; sobre una
+// foto el degradado de Cover garantiza una base oscura y estable para blanco.
+const coverTextColor = (cover) => {
+  if (cover?.type === 'image') return '#ffffff';
+  const value = typeof cover?.value === 'string' ? cover.value.trim() : '';
+  if (value.startsWith('var(')) return 'var(--text)';
+  const match = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) return '#ffffff';
+  const hex = match[1].length === 3
+    ? match[1].split('').map(char => char + char).join('')
+    : match[1];
+  const channels = [0, 2, 4].map(index => parseInt(hex.slice(index, index + 2), 16) / 255)
+    .map(channel => channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4));
+  const luminance = (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+  const contrastWithBlack = (luminance + 0.05) / 0.05;
+  const contrastWithWhite = 1.05 / (luminance + 0.05);
+  return contrastWithWhite >= contrastWithBlack ? '#ffffff' : '#111113';
 };
 
 // ── Cover editor ────────────────────────────────────────────────
@@ -840,13 +864,14 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, w
             {onMoveWorkspace && moveTargets.length > 0 && (
               <div className="relative">
                 <button
-                  className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)] hover:text-white transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
                   title="Trasladar a otro tablero"
                   aria-label="Trasladar a otro tablero"
                   onClick={() => setMoveOpen(v => !v)}
                   disabled={moving}
                 >
                   <Icon name="layers" size={15} />
+                  <span className="hidden sm:inline text-[12px] font-medium">Trasladar</span>
                 </button>
                 {moveOpen && (
                   <div className="absolute right-0 top-full mt-1 surf-float p-1.5 min-w-[230px] z-50 anim-scale-in">
@@ -918,7 +943,14 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, w
               <StatusPill status={project.status} size="md" />
               <PriorityBadge priority={project.priority} />
             </div>
-            <h1 className="font-display text-3xl md:text-4xl font-bold balance" style={{ letterSpacing: '-0.02em' }}>
+            <h1
+              className="font-display text-3xl md:text-4xl font-bold balance"
+              style={{
+                letterSpacing: '-0.02em',
+                color: coverTextColor(project.cover),
+                textShadow: project.cover?.type === 'image' ? '0 1px 3px rgba(0,0,0,.72)' : 'none',
+              }}
+            >
               <InlineEdit value={project.title} onChange={updField('title')} className="!px-0 !py-0 hover:!bg-transparent" />
             </h1>
           </div>

@@ -79,27 +79,30 @@ const CLIENT_COLORS = [
 ];
 
 // ── Client avatar ────────────────────────────────────────────────
-const ClientAvatar = ({ client, size = 40 }) => (
-  <div
-    className="rounded-xl flex items-center justify-center font-display font-bold flex-shrink-0"
-    style={{
-      width: size, height: size,
-      background: colorAlpha(client.color, 10),
-      color: client.color,
-      fontSize: Math.max(11, size * 0.33),
-      letterSpacing: '-0.02em',
-      border: `1.5px solid ${colorAlpha(client.color, 27)}`,
-    }}
-  >
-    {client.initials}
-  </div>
-);
+const ClientAvatar = ({ client, size = 40 }) => {
+  const color = resolveThemeColor(client.color);
+  return (
+    <div
+      className="rounded-xl flex items-center justify-center font-display font-bold flex-shrink-0"
+      style={{
+        width: size, height: size,
+        background: colorAlpha(color, 10),
+        color,
+        fontSize: Math.max(11, size * 0.33),
+        letterSpacing: '-0.02em',
+        border: `1.5px solid ${colorAlpha(color, 27)}`,
+      }}
+    >
+      {client.initials}
+    </div>
+  );
+};
 
 // ── Industry badge ───────────────────────────────────────────────
 const IndustryBadge = ({ industry, color }) => (
   <span
     className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium"
-    style={{ background: colorAlpha(color, 9), color: color }}
+    style={{ background: colorAlpha(resolveThemeColor(color), 9), color: resolveThemeColor(color) }}
   >
     {industry}
   </span>
@@ -107,6 +110,7 @@ const IndustryBadge = ({ industry, color }) => (
 
 // ── Client card ──────────────────────────────────────────────────
 const ClientCard = ({ client, projects, onClick }) => {
+  const clientColor = resolveThemeColor(client.color);
   const cp = projects.filter(p => p.client.toLowerCase() === client.name.toLowerCase());
   const totalBudget = cp.reduce((s, p) => s + (p.budget || 0), 0);
   const active = cp.filter(p => p.status !== 'delivered' && p.status !== 'archived').length;
@@ -127,7 +131,7 @@ const ClientCard = ({ client, projects, onClick }) => {
             <div className="font-semibold text-[15px] truncate mb-1" style={{ letterSpacing: '-0.01em' }}>
               {client.name}
             </div>
-            <IndustryBadge industry={client.industry} color={client.color} />
+            <IndustryBadge industry={client.industry} color={clientColor} />
           </div>
           <Icon
             name="arrowUpRight"
@@ -147,7 +151,7 @@ const ClientCard = ({ client, projects, onClick }) => {
           <div>
             <div
               className="text-[22px] font-display font-bold leading-none mb-0.5"
-              style={{ color: client.color, letterSpacing: '-0.03em' }}
+              style={{ color: clientColor, letterSpacing: '-0.03em' }}
             >
               {cp.length}
             </div>
@@ -179,6 +183,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
   const cp = projects.filter(p => p.client.toLowerCase() === client.name.toLowerCase());
   const totalBudget = cp.reduce((s, p) => s + (p.budget || 0), 0);
   const inProgress  = cp.filter(p => p.status !== 'delivered' && p.status !== 'archived').length;
+  const clientColor = resolveThemeColor(client.color);
 
   const upd        = (patch) => onUpdate({ ...client, ...patch });
   const addTag     = (t) => { if (!t.trim()) return; upd({ tags: [...new Set([...client.tags, t.trim()])] }); };
@@ -212,7 +217,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
 
         <div className="flex-1 overflow-y-auto">
           {/* Color strip */}
-          <div className="h-1" style={{ background: client.color }}></div>
+          <div className="h-1" style={{ background: clientColor }}></div>
 
           {/* Hero section */}
           <div className="p-6 border-b border-app">
@@ -238,7 +243,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
             {/* Stats strip */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { value: cp.length,    label: 'Tareas',     color: client.color },
+                { value: cp.length,    label: 'Tareas',     color: clientColor },
                 { value: inProgress,   label: 'En curso',   color: '#ededef' },
                 { value: totalBudget > 0 ? fmtMoney(totalBudget) : '—', label: 'Budget total', color: '#ededef', mono: true },
               ].map(s => (
@@ -626,7 +631,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
           className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-[var(--surface-3)] transition-colors text-left"
         >
           <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-            style={{ background: colorAlpha(c.color, 13), color: c.color, border: `1px solid ${colorAlpha(c.color, 27)}` }}>
+            style={{ background: colorAlpha(resolveThemeColor(c.color), 13), color: resolveThemeColor(c.color), border: `1px solid ${colorAlpha(resolveThemeColor(c.color), 27)}` }}>
             {c.initials}
           </div>
           <div className="flex-1 min-w-0">
@@ -670,7 +675,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
       <div ref={wrapRef} onClick={openDropdown} className={wrapCls} style={wrapStyle}>
         {matched && !open && (
           <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
-            style={{ background: colorAlpha(matched.color, 13), color: matched.color, border: `1px solid ${colorAlpha(matched.color, 27)}` }}>
+            style={{ background: colorAlpha(resolveThemeColor(matched.color), 13), color: resolveThemeColor(matched.color), border: `1px solid ${colorAlpha(resolveThemeColor(matched.color), 27)}` }}>
             {matched.initials.slice(0, 1)}
           </div>
         )}
