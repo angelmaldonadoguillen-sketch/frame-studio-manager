@@ -3,12 +3,29 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<!-- color-scheme le avisa al navegador que la app es oscura. Sin esto los
-     controles nativos —los selectores de fecha, las barras de scroll, los
-     desplegables— se dibujan en claro sobre fondo oscuro. Estaba parcheado
-     input por input con style={{colorScheme:'dark'}}; acá se resuelve una vez. -->
-<meta name="color-scheme" content="dark" />
+<!-- Los controles nativos siguen el tema activo. El script inmediato evita
+     mostrar un frame oscuro antes de que React restaure la preferencia. -->
+<meta name="color-scheme" content="dark light" />
 <meta name="theme-color" content="#131315" />
+<script>
+  (() => {
+    const key = 'frame_theme';
+    const normalize = value => value === 'light' ? 'light' : 'dark';
+    let initial = 'dark';
+    try { initial = normalize(localStorage.getItem(key)); } catch {}
+
+    window.setFrameTheme = value => {
+      const theme = normalize(value);
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+      document.querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', theme === 'light' ? '#f4f4f7' : '#131315');
+      try { localStorage.setItem(key, theme); } catch {}
+      return theme;
+    };
+    window.setFrameTheme(initial);
+  })();
+</script>
 <title>FRAME — Studio Manager</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23d4ff4f'/><text x='16' y='24' font-family='system-ui,sans-serif' font-weight='900' font-size='22' text-anchor='middle' fill='%230a0a0b'>F</text></svg>" />
 

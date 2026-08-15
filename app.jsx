@@ -1200,7 +1200,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app appearance-none cursor-pointer"
-                style={{ colorScheme: 'dark' }}
+                style={{ colorScheme: 'var(--color-scheme)' }}
               >
                 {[...PROJECT_TYPES, ...customTypes].map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
@@ -1211,7 +1211,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app appearance-none cursor-pointer"
-                style={{ colorScheme: 'dark' }}
+                style={{ colorScheme: 'var(--color-scheme)' }}
               >
                 {PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
@@ -1224,7 +1224,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
               className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app cursor-pointer"
-              style={{ colorScheme: 'dark' }}
+              style={{ colorScheme: 'var(--color-scheme)' }}
             />
           </div>
         </div>
@@ -1352,6 +1352,12 @@ const PREVIEW_FIELD_LABELS = [
 
 const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleCarryOverProjects, pendingUsers = [], onApproveUser, onRejectUser, workspaceId }) => {
   const [carryOver, setCarryOver] = useState(false);
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'dark');
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(window.setFrameTheme ? window.setFrameTheme(next) : next);
+  };
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -1415,6 +1421,24 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
         <div>
           <h1 className="font-display text-2xl font-bold mb-1" style={{ letterSpacing: '-0.02em' }}>Ajustes</h1>
           <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Configuración del espacio de trabajo</p>
+        </div>
+
+        {/* Apariencia local: no pertenece al tablero ni requiere Firestore. */}
+        <div className="surf-panel p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Icon name="sun" size={15} style={{ color: 'var(--accent-dim)' }} />
+            <h2 className="font-display font-semibold text-[17px]">Apariencia</h2>
+          </div>
+          <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
+            Elegí el tema de FRAME en este dispositivo.
+          </p>
+          <ToggleRow
+            active={theme === 'light'}
+            onClick={toggleTheme}
+            icon="sun"
+            label="Modo claro"
+            description={theme === 'light' ? 'Activo · tocá para volver al modo oscuro' : 'Inactivo · FRAME está en modo oscuro'}
+          />
         </div>
 
         {/* Solicitudes de acceso — permiso de PLATAFORMA, no de tablero.

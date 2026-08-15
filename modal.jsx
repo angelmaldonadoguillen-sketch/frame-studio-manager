@@ -992,7 +992,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 value={project.startDate}
                 onChange={(e) => updField('startDate')(e.target.value)}
                 className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
-                style={{ colorScheme: 'dark' }}
+                style={{ colorScheme: 'var(--color-scheme)' }}
               />
             </PropRow>
 
@@ -1008,7 +1008,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                   min={project.startDate || undefined}
                   onChange={(e) => updField('deadline')(e.target.value)}
                   className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
-                  style={{ colorScheme: 'dark' }}
+                  style={{ colorScheme: 'var(--color-scheme)' }}
                 />
                 {isUrgent && <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>en {days}d</span>}
               </div>

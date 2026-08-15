@@ -248,6 +248,12 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
   const [rutina, setRutina]     = React.useState(false);
   const [perfil, setPerfil]     = React.useState(false);
   const [cargando, setCargando] = React.useState(null);
+  const [theme, setTheme]       = React.useState(() => document.documentElement.dataset.theme || 'dark');
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(window.setFrameTheme ? window.setFrameTheme(next) : next);
+  };
 
   // Si cambian las columnas del tablero, el índice guardado puede quedar
   // apuntando a una que ya no existe.
@@ -447,6 +453,20 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
                style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
             <div className="text-[15px] font-semibold">{me.name}</div>
             {me.email && <div className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>{me.email}</div>}
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 mb-3 rounded-xl text-left"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+              aria-label={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+            >
+              <span className="flex items-center gap-3 text-[14px] font-medium">
+                <Icon name="sun" size={17} style={{ color: 'var(--accent-dim)' }} />
+                Apariencia
+              </span>
+              <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                {theme === 'light' ? 'Modo claro' : 'Modo oscuro'}
+              </span>
+            </button>
             <button
               onClick={onSignOut}
               className="w-full py-3 rounded-xl text-[14px] font-semibold"

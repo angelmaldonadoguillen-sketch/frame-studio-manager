@@ -46,6 +46,7 @@
     --warn-soft:     rgba(255, 212, 38, 0.10);
     --warn-soft-2:   rgba(255, 212, 38, 0.20);
     --info:        #64d2ff;
+    --color-scheme: dark;
 
     /* ── Escala tipográfica ───────────────────────────────────────
        De 21 tamaños sueltos a 9. Sin medios píxeles. */
@@ -58,7 +59,31 @@
     /* La curva de resorte de iOS. Todo se mueve con el mismo carácter. */
     --ease: cubic-bezier(.32, .72, 0, 1);
   }
-  html { color-scheme: dark; }
+  html { color-scheme: var(--color-scheme); }
+
+  html[data-theme="light"] {
+    --bg:        #f4f4f7;
+    --surface:   #ffffff;
+    --surface-2: #f0f0f3;
+    --surface-3: #e5e5ea;
+    --text:       #18181b;
+    --text-dim:   rgba(24, 24, 27, 0.68);
+    --text-muted: rgba(24, 24, 27, 0.45);
+    --text-faint: rgba(24, 24, 27, 0.25);
+    --border:   rgba(60, 60, 67, 0.18);
+    --border-2: rgba(60, 60, 67, 0.30);
+    --hairline: rgba(0, 0, 0, 0.055);
+    --accent-dim:  #607c00;
+    --accent-soft: rgba(122, 158, 0, 0.14);
+    --danger:        #d92d20;
+    --danger-soft:   rgba(217, 45, 32, 0.09);
+    --danger-soft-2: rgba(217, 45, 32, 0.16);
+    --warn:          #9a6700;
+    --warn-soft:     rgba(154, 103, 0, 0.09);
+    --warn-soft-2:   rgba(154, 103, 0, 0.16);
+    --info: #0077a8;
+    --color-scheme: light;
+  }
   html, body, #root { height: 100%; }
 
   /* ── Movimiento reducido ──────────────────────────────────────
@@ -173,6 +198,19 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2a2a31; border-radius: 10px; border: 2px solid var(--bg); }
   ::-webkit-scrollbar-thumb:hover { background: #3a3a44; }
+  html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c7c7cc; }
+  html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #aeaeb2; }
+
+  html[data-theme="light"] .surf,
+  html[data-theme="light"] .surf-panel {
+    box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.8), 0 8px 24px -18px rgba(0, 0, 0, 0.28);
+  }
+  html[data-theme="light"] .surf-float {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.9), 0 16px 40px -18px rgba(0, 0, 0, 0.32);
+  }
+  html[data-theme="light"] .text-white { color: var(--text) !important; }
+  html[data-theme="light"] .hover\:text-white:hover { color: var(--text) !important; }
 
   .surface { background: var(--surface); }
   .surface-2 { background: var(--surface-2); }
