@@ -712,6 +712,7 @@ Object.assign(window, {
   USERS, PROJECT_TYPES, STATUSES, PRIORITIES, SEED_PROJECTS, COVER_IMAGES,
   TODAY, d,
   getUser, getType, getStatus, getPrio,
+  resolveThemeColor,
   fmtMoney, fmtDate, fmtDateLong, daysUntil, relativeTime, progressOf,
   localISO, normalizeProject, normalizeClient, normalizeMember,
   URGENT_DAYS, isClosed, isUrgent, isOverdue, needsAttention,

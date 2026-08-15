@@ -8,6 +8,7 @@ const modal = fs.readFileSync('modal.jsx', 'utf8');
 const mobile = fs.readFileSync('mobile.jsx', 'utf8');
 const data = fs.readFileSync('data.jsx', 'utf8');
 const routine = fs.readFileSync('routine.jsx', 'utf8');
+const clients = fs.readFileSync('clients.jsx', 'utf8');
 
 assert.match(html, /frame_theme/);
 assert.match(html, /window\.setFrameTheme/);
@@ -42,5 +43,12 @@ assert.match(data, /const resolveThemeColor/);
 assert.match(routine, /background: allDone \? 'var\(--accent\)' : 'var\(--resource-green\)'/);
 assert.doesNotMatch(routine, /rgba\(212,255,79/);
 assert.doesNotMatch(routine, /#6CC4FF/);
+assert.match(modal, /const coverTextColor/);
+assert.match(modal, /contrastWithWhite >= contrastWithBlack/);
+assert.match(modal, /linear-gradient\(to top, rgba\(0,0,0,.76\)/);
+assert.match(modal, />Trasladar<\/span>/);
+assert.match(modal, /resolveThemeColor\(user\.color\)/);
+assert.match(clients, /resolveThemeColor\(client\.color\)/);
+assert.match(clients, /resolveThemeColor\(matched\.color\)/);
 
-console.log('theme-contract: 33 checks passed');
+console.log('theme-contract: 40 checks passed');
