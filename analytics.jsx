@@ -5,16 +5,16 @@
 const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
 
   // ── Datos base ───────────────────────────────────────────────
-  const active    = projects.filter(p => p.status !== 'archived');
-  const delivered = projects.filter(p => p.status === 'delivered');
-  const urgent    = projects.filter(p => {
-    const d = daysUntil(p.deadline);
-    return d >= 0 && d < 3 && p.status !== 'delivered' && p.status !== 'archived';
-  });
+  // "Activa" significa trabajo pendiente. Antes sólo se quitaban archivadas,
+  // así que una tarea entregada seguía sumando carga, presupuesto y vencidos.
+  const reportable = projects.filter(p => p.status !== 'archived');
+  const active     = reportable.filter(p => !isClosed(p));
+  const delivered  = reportable.filter(p => p.status === 'delivered');
+  const urgent     = active.filter(needsAttention);
 
   const totalBudget  = active.reduce((sum, p) => sum + (p.budget || 0), 0);
-  const deliveryRate = projects.length
-    ? Math.round((delivered.length / projects.length) * 100)
+  const deliveryRate = reportable.length
+    ? Math.round((delivered.length / reportable.length) * 100)
     : 0;
 
   const now      = new Date(TODAY);
@@ -24,29 +24,34 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
   // Usa los statuses reales del workflow (sin archived)
   const statusGroups = STATUSES.filter(s => s.id !== 'archived').map(s => ({
     ...s,
-    count: projects.filter(p => p.status === s.id).length,
+    color: resolveThemeColor(s.color),
+    count: reportable.filter(p => p.status === s.id).length,
   }));
   const totalStatus = statusGroups.reduce((sum, s) => sum + s.count, 0) || 1;
 
   // ── Tipos de producción ──────────────────────────────────────
   // Deriva de los proyectos reales → maneja tipos custom automáticamente
-  const typeIds    = [...new Set(projects.map(p => p.type).filter(Boolean))];
+  const typeIds    = [...new Set(reportable.map(p => p.type).filter(Boolean))];
   const typeCounts = typeIds
-    .map(id => ({ ...getType(id), count: projects.filter(p => p.type === id).length }))
+    .map(id => ({ ...getType(id), count: reportable.filter(p => p.type === id).length }))
     .sort((a, b) => b.count - a.count);
   const maxType = Math.max(...typeCounts.map(t => t.count), 1);
 
   // ── Carga del equipo (solo miembros activos) ─────────────────
   const activeTeam = team.filter(m => !m.status || m.status === 'active');
   const workload   = activeTeam
-    .map(m => ({ ...m, count: active.filter(p => p.assignees.includes(m.id)).length }))
+    .map(m => ({
+      ...m,
+      displayColor: resolveThemeColor(m.color),
+      count: active.filter(p => p.assignees.includes(m.id)).length,
+    }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
   const maxWork = Math.max(...workload.map(w => w.count), 1);
 
   // ── Top clientes (con colores reales) ────────────────────────
   const clientMap = {};
-  projects.forEach(p => {
+  reportable.forEach(p => {
     if (!p.client) return;
     if (!clientMap[p.client]) clientMap[p.client] = { name: p.client, count: 0, budget: 0 };
     clientMap[p.client].count++;
@@ -57,7 +62,12 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
     .slice(0, 6)
     .map(c => {
       const cl = (clients || []).find(x => x.name === c.name);
-      return { ...c, color: cl?.color || null };
+      const fallbackPalette = [
+        'var(--resource-violet)', 'var(--resource-teal)', 'var(--resource-blue)',
+        'var(--resource-coral)', 'var(--resource-green)', 'var(--resource-orange)',
+      ];
+      const seed = [...c.name].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      return { ...c, color: resolveThemeColor(cl?.color || fallbackPalette[seed % fallbackPalette.length]) };
     });
 
   // ── Proyectos por mes — últimos 6 meses (por deadline) ───────
@@ -68,13 +78,13 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
     d.setMonth(d.getMonth() - i);
     const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const label = d.toLocaleString('es', { month: 'short' });
-    const list  = projects.filter(p => (p.deadline || p.startDate || '').startsWith(key));
+    const list  = reportable.filter(p => (p.deadline || p.startDate || '').startsWith(key));
     months.push({ key, label, count: list.length, budget: list.reduce((s, p) => s + (p.budget || 0), 0) });
   }
   const maxMonthly = Math.max(...months.map(m => m.count), 1);
 
   // ── Favoritos ────────────────────────────────────────────────
-  const favCount = projects.filter(p => p.favorite).length;
+  const favCount = reportable.filter(p => p.favorite).length;
 
   const fmtCurrency = (n) => {
     if (!n) return '$0';
@@ -93,15 +103,15 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
     <main className="flex-1 flex flex-col overflow-hidden">
 
       {/* ── Page header ── */}
-      <div className="border-b border-app px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ background: 'var(--surface)' }}>
+      <div className="border-b border-app px-4 md:px-6 py-4 flex items-center justify-between gap-3 flex-shrink-0" style={{ background: 'var(--surface)' }}>
         <div>
           <div className="font-display font-bold text-xl" style={{ letterSpacing: '-0.02em' }}>Analytics</div>
           <div className="text-[12px] text-[var(--text-muted)] mt-0.5">
-            {projects.length} tareas · {activeTeam.length} integrantes activos · {clients.length} clientes
+            {reportable.length} tareas · {activeTeam.length} integrantes activos · {clients.length} clientes
           </div>
         </div>
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px]"
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px]"
           style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
         >
           <Icon name="clock" size={13} />
@@ -109,15 +119,15 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-5">
 
         {/* ── KPI cards ── */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
           <KpiCard
             icon="layers"
             label="Tareas activas"
             value={active.length}
-            sub={`${projects.length} en total · ${favCount} favorito${favCount !== 1 ? 's' : ''}`}
+            sub={`${reportable.length} en total · ${favCount} favorito${favCount !== 1 ? 's' : ''}`}
             color="var(--accent)"
           />
           <KpiCard
@@ -125,26 +135,26 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
             label="Presupuesto activo"
             value={fmtCurrency(totalBudget)}
             sub={totalBudget > 0 ? 'en tareas activas' : 'sin presupuesto registrado'}
-            color="#7DD3C0"
+            color="var(--resource-teal)"
           />
           <KpiCard
             icon="check"
             label="Tasa de entrega"
             value={`${deliveryRate}%`}
-            sub={`${delivered.length} entregado${delivered.length !== 1 ? 's' : ''} de ${projects.length}`}
-            color="#A78BFA"
+            sub={`${delivered.length} entregado${delivered.length !== 1 ? 's' : ''} de ${reportable.length}`}
+            color="var(--resource-violet)"
           />
           <KpiCard
             icon="alert"
             label="Fechas límite urgentes"
             value={urgent.length}
-            sub="vencen en menos de 3 días"
+            sub="vencidas o próximas a vencer"
             color="var(--danger)"
           />
         </div>
 
         {/* ── Row 2: Estado + Tipo ── */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* Status breakdown */}
           <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
@@ -207,7 +217,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         </div>
 
         {/* ── Row 3: Proyectos por mes + Carga del equipo ── */}
-        <div className="grid grid-cols-[1fr_300px] gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-4">
 
           {/* Monthly project count bar chart */}
           <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
@@ -228,7 +238,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                         className="text-[10px] font-mono text-center mb-1 transition-opacity opacity-0 group-hover:opacity-100"
                         style={{ color: isCurrent ? 'var(--accent)' : 'var(--text-muted)' }}
                       >
-                        {m.count > 0 ? `${m.count} proy.` : '–'}
+                        {m.count > 0 ? `${m.count} tareas` : '–'}
                       </div>
                       <div
                         className="w-full rounded-t-md transition duration-700"
@@ -275,7 +285,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
                         <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
                           <div
                             className="h-full rounded-full transition duration-700"
-                            style={{ width: `${pct}%`, background: m.color || 'var(--accent)' }}
+                            style={{ width: `${pct}%`, background: m.displayColor }}
                           />
                         </div>
                       </div>
@@ -297,17 +307,14 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
           ) : (
             <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
               {topClients.map((c, i) => {
-                // Si tiene color real del cliente, úsalo; si no, genera uno consistente
                 const color = c.color;
-                const hue   = (i * 57 + 190) % 360;
-                const bg    = color ? color + '33' : `hsl(${hue}, 55%, 25%)`;
-                const fg    = color || `hsl(${hue}, 80%, 75%)`;
+                const bg    = colorAlpha(color, 13);
                 return (
                   <div key={c.name} className="flex items-center gap-4 py-3">
                     <span className="text-[11px] font-mono text-[var(--text-muted)] w-4 text-center">{i + 1}</span>
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[15px] flex-shrink-0"
-                      style={{ background: bg, color: fg, border: color ? `1px solid ${color}55` : 'none' }}
+                      style={{ background: bg, color, border: `1px solid ${colorAlpha(color, 27)}` }}
                     >
                       {c.name.charAt(0).toUpperCase()}
                     </div>
@@ -352,7 +359,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
               const isUrgent = d >= 0 && d < 3;
               const isOver   = d < 0;
               return (
-                <div key={p.id} className="flex items-center gap-3 py-2 border-b border-app last:border-0">
+                <div key={p.id} className="flex items-center gap-3 py-2 border-b border-app last:border-0 min-w-0">
                   <div className="w-0.5 h-8 rounded-full flex-shrink-0" style={{ background: t.color }} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] truncate font-medium">{p.title}</div>
@@ -393,7 +400,7 @@ const KpiCard = ({ icon, label, value, sub, color }) => (
       <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">{label}</div>
       <div
         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: color + '22', color }}
+        style={{ background: colorAlpha(color, 13), color }}
       >
         <Icon name={icon} size={14} />
       </div>
