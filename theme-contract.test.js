@@ -24,9 +24,10 @@ assert.match(css, /--accent-border:\s*rgba\(24, 24, 27, 0\.36\)/);
 assert.match(css, /\.text-white\s*\{\s*color:\s*var\(--text\)/);
 assert.match(app, /label="Modo claro"/);
 assert.match(app, /window\.setFrameTheme\(next\)/);
+assert.match(app, /isPinned \? 'var\(--accent-on\)'/);
 assert.match(mobile, /window\.setFrameTheme\(next\)/);
 assert.match(mobile, /Cambiar a modo oscuro/);
 assert.match(mobile, /Cambiar a modo claro/);
 assert.doesNotMatch(app + modal, /colorScheme:\s*'dark'/);
 
-console.log('theme-contract: 21 checks passed');
+console.log('theme-contract: 22 checks passed');

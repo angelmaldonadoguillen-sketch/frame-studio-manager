@@ -950,7 +950,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
                   className={`absolute -top-1.5 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center transition ${isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                   style={{
                     background: isPinned ? 'var(--accent)' : 'var(--surface-3)',
-                    color:      isPinned ? '#0a0a0b'       : 'var(--text-muted)',
+                    color:      isPinned ? 'var(--accent-on)' : 'var(--text-muted)',
                     border:     `1px solid ${isPinned ? 'transparent' : 'var(--border)'}`,
                     boxShadow:  '0 1px 6px rgba(0,0,0,0.4)',
                     zIndex: 10,
