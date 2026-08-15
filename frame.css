@@ -41,14 +41,16 @@
     --accent-soft: rgba(255, 255, 255, 0.13);
     --accent-soft-weak: rgba(255, 255, 255, 0.07);
     --accent-border: rgba(255, 255, 255, 0.38);
-    --resource-blue:    #6cc4ff;
-    --resource-violet:  #c089ff;
-    --resource-teal:    #7dd3c0;
-    --resource-coral:   #ff7a59;
-    --resource-pink:    #fb7185;
-    --resource-green:   #4ade80;
-    --resource-orange:  #f97316;
-    --resource-neutral: #9a9aa3;
+    /* Variantes eléctricas de la paleta joya. Tienen luz suficiente para
+       leerse sobre negro sin convertirse en tonos pastel. */
+    --resource-blue:    #39a8ff;
+    --resource-violet:  #aa72ff;
+    --resource-teal:    #2ed6c2;
+    --resource-coral:   #ff6262;
+    --resource-pink:    #ff62a3;
+    --resource-green:   #25e27a;
+    --resource-orange:  #ffd23f;
+    --resource-neutral: #a6a2ad;
     --resource-on:      #0a0a0b;
     --danger:        #ff453a;
     --danger-soft:   rgba(255, 69, 58, 0.10);
@@ -92,14 +94,16 @@
     --accent-soft: rgba(24, 24, 27, 0.11);
     --accent-soft-weak: rgba(24, 24, 27, 0.06);
     --accent-border: rgba(24, 24, 27, 0.36);
-    --resource-blue:    #215f84;
-    --resource-violet:  #67468a;
-    --resource-teal:    #28675d;
-    --resource-coral:   #984a36;
-    --resource-pink:    #963f57;
-    --resource-green:   #28653e;
-    --resource-orange:  #934b18;
-    --resource-neutral: #5f5f68;
+    /* Paleta joya de la referencia: profunda y desaturada, con contraste
+       alto sobre blanco. El color informa; nunca hace de marca. */
+    --resource-blue:    #104b82;
+    --resource-violet:  #2a105c;
+    --resource-teal:    #09645d;
+    --resource-coral:   #8f2424;
+    --resource-pink:    #6f244a;
+    --resource-green:   #087a3d;
+    --resource-orange:  #7b5900;
+    --resource-neutral: #4b4652;
     --resource-on:      #ffffff;
     --danger:        #d92d20;
     --danger-soft:   rgba(217, 45, 32, 0.09);
