@@ -542,7 +542,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal' }) => {
+const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, workspaces = [], onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal' }) => {
   const collaborationEnabled = workspaceKind === 'team';
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
@@ -564,6 +564,22 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
   const [editingDvData, setEditingDvData] = useState({});
   const editDvNameRef = useRef(null);
   const [confirmDel, setConfirmDel]       = useState(false);
+  const [moveOpen, setMoveOpen]           = useState(false);
+  const [moving, setMoving]               = useState(false);
+  const moveTargets = workspaces.filter(w => w.id !== project.workspaceId && !w._hasPendingWrites);
+
+  const moveToWorkspace = async (workspaceId) => {
+    if (!onMoveWorkspace || moving) return;
+    setMoving(true);
+    try {
+      await onMoveWorkspace(project, workspaceId);
+      setMoveOpen(false);
+    } catch {
+      // El handler ya muestra el error; se mantiene abierto para reintentar.
+    } finally {
+      setMoving(false);
+    }
+  };
 
   // ── Listener de comentarios en tiempo real ────────────────────
   useEffect(() => {
@@ -820,6 +836,41 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                 style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>
                 <Icon name="alert" size={11} /> URGENTE
               </span>
+            )}
+            {onMoveWorkspace && moveTargets.length > 0 && (
+              <div className="relative">
+                <button
+                  className="p-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)] hover:text-white transition-colors"
+                  title="Trasladar a otro tablero"
+                  aria-label="Trasladar a otro tablero"
+                  onClick={() => setMoveOpen(v => !v)}
+                  disabled={moving}
+                >
+                  <Icon name="layers" size={15} />
+                </button>
+                {moveOpen && (
+                  <div className="absolute right-0 top-full mt-1 surf-float p-1.5 min-w-[230px] z-50 anim-scale-in">
+                    <div className="px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+                      Trasladar tarea a
+                    </div>
+                    {moveTargets.map(w => (
+                      <button
+                        key={w.id}
+                        onClick={() => moveToWorkspace(w.id)}
+                        disabled={moving}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-left hover:bg-[var(--surface-3)] disabled:opacity-50"
+                      >
+                        <Icon name={w.kind === 'team' ? 'users' : 'user'} size={13} style={{ color: 'var(--text-muted)' }} />
+                        <span className="flex-1 text-[12px] font-medium truncate">{w.name}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{w.kind === 'team' ? 'Equipo' : 'Personal'}</span>
+                      </button>
+                    ))}
+                    <div className="px-2 py-1.5 text-[10px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+                      La tarea dejará este tablero y conservará su contenido y archivos.
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             {/* Delete button — two-step confirm */}
             {onDelete && (

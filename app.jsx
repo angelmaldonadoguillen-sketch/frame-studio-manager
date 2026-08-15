@@ -2182,6 +2182,66 @@ const App = () => {
       .catch(err => notifyWriteError(err, 'la copia de la tarea'));
   };
 
+  // ── Trasladar una tarea entre tableros ──────────────────────
+  // Es el mismo documento: sus subcolecciones y archivos siguen unidos al
+  // mismo id. Las reglas exigen pertenecer tanto al origen como al destino.
+  const handleMoveProject = async (project, targetWorkspaceId) => {
+    const target = state.workspaces.find(w => w.id === targetWorkspaceId && !w._hasPendingWrites);
+    if (!target || targetWorkspaceId === (project.workspaceId || wsId)) return;
+
+    try {
+      const configRoot = window.db.collection('frame_workspaces').doc(targetWorkspaceId).collection('config');
+      const [columnsSnap, typesSnap] = await Promise.all([
+        configRoot.doc('kanban_columns').get(),
+        configRoot.doc('project_types').get(),
+      ]);
+
+      const targetColumns = columnsSnap.exists
+        ? (columnsSnap.data()?.columns || [])
+        : STATUSES.filter(s => s.id !== 'archived');
+      const statusExists = targetColumns.some(c => c.id === project.status);
+      const targetStatus = statusExists
+        ? project.status
+        : (targetColumns[0]?.id || 'briefing');
+
+      // Si el tipo era personalizado, lleva su definición al destino para que
+      // no aparezca degradado como "Otro". Sólo se agrega si todavía no existe.
+      const targetTypes = typesSnap.exists ? (typesSnap.data()?.types || []) : PROJECT_TYPES;
+      if (!targetTypes.some(t => t.id === project.type)) {
+        const sourceType = state.customTypes.find(t => t.id === project.type);
+        if (sourceType) {
+          await configRoot.doc('project_types').set({ types: [...targetTypes, sourceType] });
+        }
+      }
+
+      const targetMembers = new Set(target.memberIds || []);
+      const moved = {
+        workspaceId: targetWorkspaceId,
+        status: targetStatus,
+        assignees: (project.assignees || []).filter(id => targetMembers.has(id)),
+      };
+      await window.db.collection('frame_projects').doc(project.id).update(moved);
+
+      const actor = state.team.find(m => m.id === state.currentUserId);
+      const event = {
+        id: 'a' + Date.now() + Math.random().toString(36).slice(2, 6),
+        actorId: state.currentUserId,
+        actorName: actor?.name || 'Alguien',
+        summary: `trasladó la tarea a ${target.name}`,
+        at: new Date().toISOString(),
+      };
+      window.db.collection('frame_projects').doc(project.id).collection('activity').doc(event.id).set(event)
+        .catch(err => console.error('Task move activity:', err));
+
+      dispatch({ type: 'close_project' });
+      dispatch({ type: 'set_active_workspace', id: targetWorkspaceId });
+      window.frameToast?.(`Tarea trasladada a ${target.name}.`);
+    } catch (err) {
+      notifyWriteError(err, 'el traslado de la tarea');
+      throw err;
+    }
+  };
+
   // Todo lo que se crea nace sellado con el tablero activo. Sin esto el
   // documento no aparece en ninguna consulta (todas filtran por workspaceId)
   // y las reglas lo rechazan.
@@ -2455,6 +2515,8 @@ const App = () => {
       onClose={() => dispatch({ type: 'close_project' })}
       onUpdate={handleUpdateProject}
       onDelete={handleDeleteProject}
+      onMoveWorkspace={handleMoveProject}
+      workspaces={state.workspaces}
       customTypes={state.customTypes}
       onCreateCustomType={handleCreateCustomType}
       onUpdateCustomType={handleUpdateCustomType}
