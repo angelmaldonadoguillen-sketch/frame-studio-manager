@@ -1062,7 +1062,7 @@ const FilterDropdown = ({ label, icon, filterKey, options, state, dispatch }) =>
       {options.map(o => {
         const id = o.id;
         const isOn = active.includes(id);
-        const color = o.color;
+        const color = resolveThemeColor(o.color);
         return (
           <MenuItem key={id} onClick={() => dispatch({ type: 'toggle_filter', key: filterKey, value: id })} active={isOn}>
             <span className={`check ${isOn ? 'on' : ''}`}>
@@ -1108,10 +1108,10 @@ const StatusStatsBar = ({ projects }) => {
       {STATUSES.filter(s => s.id !== 'archived').map(s => {
         const n = projects.filter(p => p.status === s.id).length;
         return (
-          <div key={s.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: colorAlpha(s.color, 8) }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }}></span>
-            <span className="text-[11px]" style={{ color: s.color }}>{s.label}</span>
-            <span className="text-[11px] font-mono font-semibold" style={{ color: s.color }}>{n}</span>
+          <div key={s.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: colorAlpha(resolveThemeColor(s.color), 8) }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: resolveThemeColor(s.color) }}></span>
+            <span className="text-[11px]" style={{ color: resolveThemeColor(s.color) }}>{s.label}</span>
+            <span className="text-[11px] font-mono font-semibold" style={{ color: resolveThemeColor(s.color) }}>{n}</span>
           </div>
         );
       })}
@@ -1249,7 +1249,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
 // ── Pantalla: esperando aprobación ──────────────────────────────
 const PendingApprovalScreen = ({ member, onSignOut }) => (
   <div className="h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
-    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--accent)', boxShadow: '0 0 40px rgba(212,255,79,0.2)' }}>
+    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--accent)', boxShadow: '0 0 40px var(--accent-soft)' }}>
       <span className="font-display font-black text-[26px]" style={{ color: 'var(--accent-on)', letterSpacing: '-0.04em' }}>F</span>
     </div>
     <div className="flex gap-1.5">
@@ -1391,7 +1391,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
       className="flex items-center gap-3 px-3 py-2.5 rounded-lg border transition text-left w-full"
       style={{
         background:  active ? 'var(--accent-soft)'    : 'var(--surface-2)',
-        borderColor: active ? 'rgba(212,255,79,0.3)'  : 'var(--border)',
+        borderColor: active ? 'var(--accent-border)' : 'var(--border)',
       }}
     >
       <div

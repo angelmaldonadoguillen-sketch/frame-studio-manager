@@ -301,7 +301,7 @@ const RoutineWidget = ({ workspaceId }) => {
               {streak > 0 && (
                 <div
                   className="flex items-center gap-1 px-2 py-1 rounded-full select-none"
-                  style={{ background: 'rgba(255,209,102,0.10)', border: '1px solid rgba(255,209,102,0.22)' }}
+                  style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn-soft-2)' }}
                 >
                   <span style={{ fontSize: 12 }}>🔥</span>
                   <span className="text-[11px] font-bold" style={{ color: 'var(--warn)' }}>
@@ -339,7 +339,7 @@ const RoutineWidget = ({ workspaceId }) => {
                     height: '100%',
                     width: pct + '%',
                     borderRadius: 999,
-                    background: allDone ? 'var(--accent)' : 'var(--resource-blue)',
+                    background: allDone ? 'var(--accent)' : 'var(--resource-green)',
                     transition: 'width 400ms cubic-bezier(.2,.8,.2,1)',
                   }}
                 />
@@ -504,9 +504,9 @@ const RoutineWidget = ({ workspaceId }) => {
                     <span
                       className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md select-none"
                       style={{
-                        background: daysOwed >= 3 ? 'rgba(255,107,107,0.18)' : 'rgba(255,122,89,0.15)',
+                        background: daysOwed >= 3 ? 'var(--danger-soft-2)' : colorAlpha('var(--resource-coral)', 15),
                         color:      daysOwed >= 3 ? 'var(--danger)'                 : 'var(--resource-coral)',
-                        border: `1px solid ${daysOwed >= 3 ? 'rgba(255,107,107,0.35)' : 'rgba(255,122,89,0.3)'}`,
+                        border: `1px solid ${daysOwed >= 3 ? 'var(--danger)' : colorAlpha('var(--resource-coral)', 30)}`,
                       }}
                       title={`Sin completar hace ${daysOwed} ${daysOwed === 1 ? 'día' : 'días'}`}
                     >
@@ -578,8 +578,8 @@ const RoutineWidget = ({ workspaceId }) => {
                       <div
                         className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{
-                          background: perfect ? 'var(--accent-soft)' : 'rgba(255,107,107,0.10)',
-                          border:     `1px solid ${perfect ? 'var(--accent-border)' : 'rgba(255,107,107,0.28)'}`,
+                          background: perfect ? 'var(--accent-soft)' : 'var(--danger-soft)',
+                          border:     `1px solid ${perfect ? 'var(--accent-border)' : 'var(--danger-soft-2)'}`,
                         }}
                       >
                         <span className="select-none" style={{ fontSize: 8, fontWeight: 700, color: perfect ? 'var(--accent)' : 'var(--danger)' }}>
@@ -649,9 +649,9 @@ const RoutineWidget = ({ workspaceId }) => {
           fontSize: 13,
           letterSpacing: '-0.01em',
           background:   allDone ? 'var(--accent)'    : 'var(--surface-2)',
-          color:        allDone ? '#0a0a0b'           : 'var(--text)',
+          color:        allDone ? 'var(--accent-on)'   : 'var(--text)',
           border:       allDone ? 'none'              : '1px solid var(--border-2)',
-          boxShadow:    allDone ? '0 4px 20px rgba(212,255,79,0.25), 0 2px 8px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.4)',
+          boxShadow:    allDone ? '0 4px 20px var(--accent-soft), 0 2px 8px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.4)',
         }}
         title="Abrir rutina diaria"
       >

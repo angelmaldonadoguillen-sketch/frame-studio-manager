@@ -185,7 +185,7 @@ const TypeDropdownContent = ({ allTypes, currentType, onSelect, onCreateCustomTy
             onClick={() => onSelect(t.id)}
             className={`flex-1 text-left px-2.5 py-1.5 rounded-md text-[13px] flex items-center gap-2 transition-colors ${currentType === t.id ? 'bg-[var(--surface-3)]' : 'hover:bg-[var(--surface-3)]'}`}
           >
-            <Icon name={t.icon} size={13} style={{ color: t.color }} />
+            <Icon name={t.icon} size={13} style={{ color: resolveThemeColor(t.color) }} />
             <span className="flex-1">{t.label}</span>
             {currentType === t.id && <Icon name="check" size={12} style={{ color: 'var(--accent)' }} />}
           </button>
@@ -938,7 +938,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                     upd({ status: s.id });
                     close();
                   }} active={project.status === s.id}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: s.color }}></span>
+                    <span className="w-2 h-2 rounded-full" style={{ background: resolveThemeColor(s.color) }}></span>
                     <span>{s.label}</span>
                   </MenuItem>
                 ))}

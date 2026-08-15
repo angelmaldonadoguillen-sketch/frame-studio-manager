@@ -241,7 +241,7 @@ const QuickAddSheet = ({ tipos, statusId, onCreate, onClose }) => {
 const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
                      onQuickCreate, onSignOut, children }) => {
   const columnas = state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES;
-  const tipos    = state.customTypes.length   > 0 ? state.customTypes   : PROJECT_TYPES;
+  const tipos    = (state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES).map(themed);
 
   const [colIndex, setColIndex] = React.useState(0);
   const [quickAdd, setQuickAdd] = React.useState(false);

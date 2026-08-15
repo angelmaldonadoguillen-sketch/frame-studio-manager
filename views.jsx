@@ -396,8 +396,8 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
     setExpandedCols(prev => ({ ...prev, [colId]: !prev[colId] }));
 
   const baseCols = (columns && columns.length > 0)
-    ? columns
-    : STATUSES.filter(s => s.id !== 'archived');
+    ? columns.map(themed)
+    : STATUSES.filter(s => s.id !== 'archived').map(themed);
 
   const reorder = (arr, fromId, toId) => {
     const a = [...arr];

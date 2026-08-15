@@ -415,15 +415,41 @@ const SEED_PROJECTS = [
 // Helpers
 // ─────────────────────────────────────────────────────────────────
 
+// Compatibilidad visual para documentos creados con la paleta eléctrica
+// anterior. Se adapta al tema al renderizar y nunca reescribe Firestore.
+const LEGACY_THEME_COLORS = {
+  '#d4ff4f': 'var(--resource-green)',
+  '#ff7a59': 'var(--resource-coral)',
+  '#6cc4ff': 'var(--resource-blue)',
+  '#c089ff': 'var(--resource-violet)',
+  '#7dd3c0': 'var(--resource-teal)',
+  '#fb7185': 'var(--resource-pink)',
+  '#4ade80': 'var(--resource-green)',
+  '#34d399': 'var(--resource-green)',
+  '#f97316': 'var(--resource-orange)',
+  '#f59e0b': 'var(--resource-orange)',
+  '#38bdf8': 'var(--resource-blue)',
+  '#06b6d4': 'var(--resource-teal)',
+  '#8b5cf6': 'var(--resource-violet)',
+  '#ec4899': 'var(--resource-pink)',
+  '#9a9aa3': 'var(--resource-neutral)',
+  '#62626b': 'var(--resource-neutral)',
+};
+const resolveThemeColor = (color) => {
+  if (!color || typeof color !== 'string') return 'var(--resource-neutral)';
+  return LEGACY_THEME_COLORS[color.trim().toLowerCase()] || color;
+};
+const themed = (item) => item ? { ...item, color: resolveThemeColor(item.color) } : item;
+
 const getUser   = (id) => {
   const live = window.__liveTeam;
-  if (live) { const u = live.find(u => u.id === id); if (u) return u; }
-  return USERS.find(u => u.id === id) || null;
+  if (live) { const u = live.find(u => u.id === id); if (u) return themed(u); }
+  return themed(USERS.find(u => u.id === id)) || null;
 };
 // FRAME_CUSTOM_TYPES tiene prioridad — puede sobreescribir color/label de tipos default
-const getType   = (id) => (window.FRAME_CUSTOM_TYPES || []).find(t => t.id === id) || PROJECT_TYPES.find(t => t.id === id) || PROJECT_TYPES[PROJECT_TYPES.length - 1];
-const getStatus = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
-const getPrio   = (id) => PRIORITIES.find(p => p.id === id) || PRIORITIES[0];
+const getType   = (id) => themed((window.FRAME_CUSTOM_TYPES || []).find(t => t.id === id) || PROJECT_TYPES.find(t => t.id === id) || PROJECT_TYPES[PROJECT_TYPES.length - 1]);
+const getStatus = (id) => themed(STATUSES.find(s => s.id === id) || STATUSES[0]);
+const getPrio   = (id) => themed(PRIORITIES.find(p => p.id === id) || PRIORITIES[0]);
 
 const fmtMoney = (n, c = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(n);
 const fmtDate  = (iso) => {

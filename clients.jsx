@@ -662,7 +662,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
     ? 'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-md border cursor-pointer transition-colors'
     : 'flex items-center gap-2 px-2 py-1 -mx-2 rounded hover:bg-[var(--surface-2)] cursor-pointer transition-colors';
   const wrapStyle = fieldMode
-    ? { background: 'var(--surface-2)', borderColor: open ? 'rgba(212,255,79,.5)' : 'var(--border)' }
+    ? { background: 'var(--surface-2)', borderColor: open ? 'var(--accent-border)' : 'var(--border)' }
     : {};
 
   return (

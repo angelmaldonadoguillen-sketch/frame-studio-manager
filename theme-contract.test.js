@@ -6,6 +6,8 @@ const css = fs.readFileSync('frame.css', 'utf8');
 const app = fs.readFileSync('app.jsx', 'utf8');
 const modal = fs.readFileSync('modal.jsx', 'utf8');
 const mobile = fs.readFileSync('mobile.jsx', 'utf8');
+const data = fs.readFileSync('data.jsx', 'utf8');
+const routine = fs.readFileSync('routine.jsx', 'utf8');
 
 assert.match(html, /frame_theme/);
 assert.match(html, /window\.setFrameTheme/);
@@ -33,5 +35,12 @@ assert.match(mobile, /window\.setFrameTheme\(next\)/);
 assert.match(mobile, /Cambiar a modo oscuro/);
 assert.match(mobile, /Cambiar a modo claro/);
 assert.doesNotMatch(app + modal, /colorScheme:\s*'dark'/);
+assert.match(data, /const LEGACY_THEME_COLORS/);
+assert.match(data, /'#6cc4ff': 'var\(--resource-blue\)'/);
+assert.match(data, /'#c089ff': 'var\(--resource-violet\)'/);
+assert.match(data, /const resolveThemeColor/);
+assert.match(routine, /background: allDone \? 'var\(--accent\)' : 'var\(--resource-green\)'/);
+assert.doesNotMatch(routine, /rgba\(212,255,79/);
+assert.doesNotMatch(routine, /#6CC4FF/);
 
-console.log('theme-contract: 26 checks passed');
+console.log('theme-contract: 33 checks passed');
