@@ -61,14 +61,14 @@ const AvatarStack = ({ ids, size = 22, max = 4 }) => {
 };
 
 // ── Pills ───────────────────────────────────────────────────────
-const StatusPill = ({ status, size = 'sm' }) => {
+const StatusPill = ({ status, size = 'sm', solid = false }) => {
   const s = getStatus(status);
   if (!s) return null;
   const px = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs';
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md ${px} font-medium`}
-      style={{ background: colorAlpha(s.color, 13), color: s.color }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }}></span>
+      style={{ background: solid ? s.color : colorAlpha(s.color, 13), color: solid ? 'var(--resource-on)' : s.color }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: solid ? 'currentColor' : s.color }}></span>
       {s.label}
     </span>
   );
@@ -222,24 +222,31 @@ const TypeDropdownContent = ({ allTypes, currentType, onSelect, onCreateCustomTy
   );
 };
 
-const TypePill = ({ type, size = 'sm' }) => {
+const TypePill = ({ type, size = 'sm', solid = false }) => {
   const t = getType(type);
   if (!t) return null;
   const px = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs';
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md ${px} font-medium border max-w-full overflow-hidden`}
-      style={{ borderColor: colorAlpha(t.color, 27), color: t.color, background: colorAlpha(t.color, 7) }}>
+      style={{
+        borderColor: solid ? t.color : colorAlpha(t.color, 27),
+        color: solid ? 'var(--resource-on)' : t.color,
+        background: solid ? t.color : colorAlpha(t.color, 7),
+      }}>
       <Icon name={t.icon} size={11} style={{ flexShrink: 0 }} />
       <span className="truncate">{t.label}</span>
     </span>
   );
 };
 
-const PriorityBadge = ({ priority }) => {
+const PriorityBadge = ({ priority, solid = false }) => {
   const p = getPrio(priority);
   if (!p) return null;
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: p.color }}>
+    <span
+      className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${solid ? 'px-2.5 py-1 rounded-md' : ''}`}
+      style={{ background: solid ? p.color : 'transparent', color: solid ? 'var(--resource-on)' : p.color }}
+    >
       <Icon name="flag" size={11} />
       {p.label}
     </span>
@@ -566,7 +573,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, workspaces = [], onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal' }) => {
+const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisibility, workspaces = [], activeWorkspaceId, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal' }) => {
   const collaborationEnabled = workspaceKind === 'team';
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
@@ -588,20 +595,38 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, w
   const [editingDvData, setEditingDvData] = useState({});
   const editDvNameRef = useRef(null);
   const [confirmDel, setConfirmDel]       = useState(false);
-  const [moveOpen, setMoveOpen]           = useState(false);
-  const [moving, setMoving]               = useState(false);
-  const moveTargets = workspaces.filter(w => w.id !== project.workspaceId && !w._hasPendingWrites);
+  const [visibilityOpen, setVisibilityOpen] = useState(false);
+  const [savingVisibility, setSavingVisibility] = useState(false);
+  const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState(() =>
+    project.workspaceIds?.length ? project.workspaceIds : [project.workspaceId]
+  );
+  const availableWorkspaces = workspaces.filter(w => !w._hasPendingWrites);
 
-  const moveToWorkspace = async (workspaceId) => {
-    if (!onMoveWorkspace || moving) return;
-    setMoving(true);
+  useEffect(() => {
+    setSelectedWorkspaceIds(project.workspaceIds?.length ? project.workspaceIds : [project.workspaceId]);
+  }, [project.id, JSON.stringify(project.workspaceIds || [])]);
+
+  const toggleWorkspaceVisibility = (workspaceId) => {
+    if (workspaceId === project.workspaceId) return;
+    if (!selectedWorkspaceIds.includes(workspaceId) && selectedWorkspaceIds.length >= 5) {
+      window.frameToast?.('Una tarea puede mostrarse en un máximo de 5 tableros.');
+      return;
+    }
+    setSelectedWorkspaceIds(current => current.includes(workspaceId)
+      ? current.filter(id => id !== workspaceId)
+      : [...current, workspaceId]);
+  };
+
+  const saveWorkspaceVisibility = async () => {
+    if (!onSetWorkspaceVisibility || savingVisibility) return;
+    setSavingVisibility(true);
     try {
-      await onMoveWorkspace(project, workspaceId);
-      setMoveOpen(false);
+      await onSetWorkspaceVisibility(project, selectedWorkspaceIds);
+      setVisibilityOpen(false);
     } catch {
       // El handler ya muestra el error; se mantiene abierto para reintentar.
     } finally {
-      setMoving(false);
+      setSavingVisibility(false);
     }
   };
 
@@ -748,7 +773,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, w
         body: `${sender?.name || 'Alguien'} te mencionó: "${preview}"`,
         projectId: project.id,
         projectTitle: project.title,
-        workspaceId: project.workspaceId,
+        workspaceId: activeWorkspaceId || project.workspaceId,
       }));
     }
     setNewComment('');
@@ -861,38 +886,54 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, w
                 <Icon name="alert" size={11} /> URGENTE
               </span>
             )}
-            {onMoveWorkspace && moveTargets.length > 0 && (
+            {onSetWorkspaceVisibility && availableWorkspaces.length > 1 && (
               <div className="relative">
                 <button
                   className="flex items-center gap-1.5 px-2.5 py-2 rounded-md hover:bg-[var(--surface-2)] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
-                  title="Trasladar a otro tablero"
-                  aria-label="Trasladar a otro tablero"
-                  onClick={() => setMoveOpen(v => !v)}
-                  disabled={moving}
+                  title="Elegir en qué tableros aparece"
+                  aria-label="Mostrar en tableros"
+                  onClick={() => setVisibilityOpen(v => !v)}
+                  disabled={savingVisibility}
                 >
                   <Icon name="layers" size={15} />
-                  <span className="hidden sm:inline text-[12px] font-medium">Trasladar</span>
+                  <span className="hidden sm:inline text-[12px] font-medium">Tableros</span>
                 </button>
-                {moveOpen && (
-                  <div className="absolute right-0 top-full mt-1 surf-float p-1.5 min-w-[230px] z-50 anim-scale-in">
+                {visibilityOpen && (
+                  <div className="absolute right-0 top-full mt-1 surf-float p-1.5 min-w-[270px] z-50 anim-scale-in">
                     <div className="px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
-                      Trasladar tarea a
+                      Mostrar esta tarea en
                     </div>
-                    {moveTargets.map(w => (
+                    {availableWorkspaces.map(w => {
+                      const selected = selectedWorkspaceIds.includes(w.id);
+                      const principal = w.id === project.workspaceId;
+                      return (
                       <button
                         key={w.id}
-                        onClick={() => moveToWorkspace(w.id)}
-                        disabled={moving}
+                        onClick={() => toggleWorkspaceVisibility(w.id)}
+                        disabled={savingVisibility || principal}
                         className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-left hover:bg-[var(--surface-3)] disabled:opacity-50"
                       >
-                        <Icon name={w.kind === 'team' ? 'users' : 'user'} size={13} style={{ color: 'var(--text-muted)' }} />
+                        <span
+                          className="w-4 h-4 rounded flex items-center justify-center border"
+                          style={{ background: selected ? 'var(--accent)' : 'transparent', borderColor: selected ? 'var(--accent)' : 'var(--border-2)', color: 'var(--accent-on)' }}
+                        >
+                          {selected && <Icon name="check" size={10} />}
+                        </span>
                         <span className="flex-1 text-[12px] font-medium truncate">{w.name}</span>
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{w.kind === 'team' ? 'Equipo' : 'Personal'}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{principal ? 'Principal' : (w.kind === 'team' ? 'Equipo' : 'Personal')}</span>
                       </button>
-                    ))}
+                    );})}
                     <div className="px-2 py-1.5 text-[10px] leading-snug" style={{ color: 'var(--text-muted)' }}>
-                      La tarea dejará este tablero y conservará su contenido y archivos.
+                      Es una sola tarea: los cambios se reflejan en todos los tableros seleccionados.
                     </div>
+                    <button
+                      onClick={saveWorkspaceVisibility}
+                      disabled={savingVisibility}
+                      className="w-full mt-1 px-3 py-2 rounded-md text-[12px] font-semibold disabled:opacity-50"
+                      style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
+                    >
+                      {savingVisibility ? 'Guardando…' : 'Guardar tableros'}
+                    </button>
                   </div>
                 )}
               </div>
@@ -939,9 +980,9 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, w
           <CoverEditor cover={project.cover} onChange={(cover) => upd({ cover })} projectId={project.id} />
           <div className="absolute bottom-4 left-6 right-6">
             <div className="flex items-center gap-2 mb-2">
-              <TypePill type={project.type} size="md" />
-              <StatusPill status={project.status} size="md" />
-              <PriorityBadge priority={project.priority} />
+              <TypePill type={project.type} size="md" solid />
+              <StatusPill status={project.status} size="md" solid />
+              <PriorityBadge priority={project.priority} solid />
             </div>
             <h1
               className="font-display text-3xl md:text-4xl font-bold balance"
@@ -1013,7 +1054,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onMoveWorkspace, w
                             body: `${changer?.name || 'Alguien'} cambió "${project.title}" → ${newSt?.label || s.id}`,
                             projectId: project.id,
                             projectTitle: project.title,
-                            workspaceId: project.workspaceId,
+                            workspaceId: activeWorkspaceId || project.workspaceId,
                           });
                         }
                       });

@@ -25,6 +25,13 @@ assert.match(storage, /match \/frame-deliverables\/\{projectId\}\/\{fileName\}/)
 assert.match(storage, /function validDeliverable/);
 assert.doesNotMatch(storage, /frame_users/);
 assert.match(storage, /let projectDoc = firestore\.get[\s\S]*let workspaceDoc = firestore\.get/);
+assert.match(firestore, /function hasProjectAccess\(data\)/);
+assert.match(firestore, /data\.workspaceIds\.size\(\) <= 5/);
+assert.match(firestore, /data\.viewerIds\.size\(\) <= 15/);
+assert.match(firestore, /function selectedWorkspaceMembers\(data\)/);
+assert.match(firestore, /data\.viewerIds\.toSet\(\) == selectedWorkspaceMembers\(data\)/);
+assert.match(firestore, /request\.resource\.data\.workspaceId == resource\.data\.workspaceId/);
+assert.match(storage, /request\.auth\.uid in projectDoc\.data\.viewerIds/);
 assert.equal(firebase.storage.rules, 'storage.rules');
 
 // El sanitizador recorre los hijos ANTES de desenvolver la etiqueta padre.
@@ -46,4 +53,4 @@ assert.match(modal, /escapeDescText\(picked \|\| shortenUrl\(url\)\)/);
 assert.match(modal, /const closeImageMenu = \(\) => \{/);
 assert.match(modal, /selectedImage\.setAttribute\(attribute, value\);[\s\S]*closeImageMenu\(\);/);
 
-console.log('security-contract: 19 checks passed');
+console.log('security-contract: 26 checks passed');
