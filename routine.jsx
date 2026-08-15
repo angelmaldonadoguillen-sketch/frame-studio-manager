@@ -339,7 +339,7 @@ const RoutineWidget = ({ workspaceId }) => {
                     height: '100%',
                     width: pct + '%',
                     borderRadius: 999,
-                    background: allDone ? 'var(--accent)' : '#6CC4FF',
+                    background: allDone ? 'var(--accent)' : 'var(--resource-blue)',
                     transition: 'width 400ms cubic-bezier(.2,.8,.2,1)',
                   }}
                 />
@@ -395,7 +395,7 @@ const RoutineWidget = ({ workspaceId }) => {
                         transition: 'background 180ms, border-color 180ms',
                       }}
                     >
-                      {done && <Icon name="check" size={10} strokeWidth={3} style={{ color: '#0a0a0b' }} />}
+                      {done && <Icon name="check" size={10} strokeWidth={3} style={{ color: 'var(--accent-on)' }} />}
                     </div>
                   )}
 
@@ -505,7 +505,7 @@ const RoutineWidget = ({ workspaceId }) => {
                       className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md select-none"
                       style={{
                         background: daysOwed >= 3 ? 'rgba(255,107,107,0.18)' : 'rgba(255,122,89,0.15)',
-                        color:      daysOwed >= 3 ? 'var(--danger)'                 : '#FF7A59',
+                        color:      daysOwed >= 3 ? 'var(--danger)'                 : 'var(--resource-coral)',
                         border: `1px solid ${daysOwed >= 3 ? 'rgba(255,107,107,0.35)' : 'rgba(255,122,89,0.3)'}`,
                       }}
                       title={`Sin completar hace ${daysOwed} ${daysOwed === 1 ? 'día' : 'días'}`}
@@ -551,7 +551,7 @@ const RoutineWidget = ({ workspaceId }) => {
                   <button
                     onClick={addTask}
                     className="px-2.5 py-1 rounded-md text-[11px] font-bold flex-shrink-0"
-                    style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+                    style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
                   >
                     Agregar
                   </button>
@@ -613,7 +613,7 @@ const RoutineWidget = ({ workspaceId }) => {
               <button
                 onClick={() => { setEditMode(false); setNewText(''); setEditingId(null); }}
                 className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg transition"
-                style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+                style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
               >
                 <Icon name="check" size={12} strokeWidth={2.5} />
                 Listo
@@ -657,7 +657,7 @@ const RoutineWidget = ({ workspaceId }) => {
       >
         {allDone ? (
           <>
-            <Icon name="check" size={14} strokeWidth={2.5} style={{ color: '#0a0a0b' }} />
+            <Icon name="check" size={14} strokeWidth={2.5} style={{ color: 'var(--accent-on)' }} />
             <span>{completed}/{total}</span>
             {streak > 0 && <span style={{ fontSize: 13 }}>🔥</span>}
           </>

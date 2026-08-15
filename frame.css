@@ -32,15 +32,24 @@
     --border-2: rgba(84, 84, 88, 0.60);
     --hairline: rgba(255, 255, 255, 0.055);
 
-    /* ── Acento y estados ─────────────────────────────────────────
-       El lima marca dos cosas: "acá podés actuar" y "esto es hoy".
-       danger/warn dejan de estar escritos a mano (#FF6B6B aparecía 64
-       veces suelto en el código). */
-    --accent:      #d4ff4f;
-    --accent-dim:  #aacf3d;
-    --accent-soft: rgba(212, 255, 79, 0.14);
-    --accent-soft-weak: rgba(212, 255, 79, 0.08);
-    --accent-border: rgba(212, 255, 79, 0.40);
+    /* ── Marca y recursos ─────────────────────────────────────────
+       FRAME no tiene un color de marca: las acciones son blanco/negro.
+       El color queda reservado para comunicar estados y categorías. */
+    --accent:      #f5f5f7;
+    --accent-dim:  #d0d0d5;
+    --accent-on:   #0a0a0b;
+    --accent-soft: rgba(255, 255, 255, 0.13);
+    --accent-soft-weak: rgba(255, 255, 255, 0.07);
+    --accent-border: rgba(255, 255, 255, 0.38);
+    --resource-blue:    #6cc4ff;
+    --resource-violet:  #c089ff;
+    --resource-teal:    #7dd3c0;
+    --resource-coral:   #ff7a59;
+    --resource-pink:    #fb7185;
+    --resource-green:   #4ade80;
+    --resource-orange:  #f97316;
+    --resource-neutral: #9a9aa3;
+    --resource-on:      #0a0a0b;
     --danger:        #ff453a;
     --danger-soft:   rgba(255, 69, 58, 0.10);
     --danger-soft-2: rgba(255, 69, 58, 0.20);
@@ -77,11 +86,21 @@
     --border:   rgba(42, 42, 48, 0.22);
     --border-2: rgba(42, 42, 48, 0.36);
     --hairline: rgba(0, 0, 0, 0.09);
-    --accent:      #647d00;
-    --accent-dim:  #506500;
-    --accent-soft: rgba(100, 125, 0, 0.14);
-    --accent-soft-weak: rgba(100, 125, 0, 0.08);
-    --accent-border: rgba(100, 125, 0, 0.42);
+    --accent:      #18181b;
+    --accent-dim:  #343439;
+    --accent-on:   #ffffff;
+    --accent-soft: rgba(24, 24, 27, 0.11);
+    --accent-soft-weak: rgba(24, 24, 27, 0.06);
+    --accent-border: rgba(24, 24, 27, 0.36);
+    --resource-blue:    #215f84;
+    --resource-violet:  #67468a;
+    --resource-teal:    #28675d;
+    --resource-coral:   #984a36;
+    --resource-pink:    #963f57;
+    --resource-green:   #28653e;
+    --resource-orange:  #934b18;
+    --resource-neutral: #5f5f68;
+    --resource-on:      #ffffff;
     --danger:        #d92d20;
     --danger-soft:   rgba(217, 45, 32, 0.09);
     --danger-soft-2: rgba(217, 45, 32, 0.16);

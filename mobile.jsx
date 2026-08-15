@@ -160,7 +160,7 @@ const MobileCard = ({ project, onOpen, previewFields = {} }) => {
             const u = getUser(id);
             return (
               <span key={id} className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
-                    style={{ background: u.color, color: '#0a0a0b' }}>
+                    style={{ background: u.color, color: 'var(--resource-on)' }}>
                 {u.initials}
               </span>
             );
@@ -227,7 +227,7 @@ const QuickAddSheet = ({ tipos, statusId, onCreate, onClose }) => {
             onClick={crear}
             disabled={!titulo.trim()}
             className="flex-1 py-3 rounded-xl text-[15px] font-semibold disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
           >
             Agregar
           </button>
@@ -424,7 +424,7 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
         <button
           onClick={() => setQuickAdd(true)}
           className="w-14 h-14 rounded-full flex items-center justify-center"
-          style={{ background: 'var(--accent)', color: '#0a0a0b', boxShadow: '0 8px 24px -6px rgba(0,0,0,.6)' }}
+          style={{ background: 'var(--accent)', color: 'var(--accent-on)', boxShadow: '0 8px 24px -6px rgba(0,0,0,.6)' }}
           aria-label="Agregar tarjeta"
         >
           <Icon name="plus" size={24} strokeWidth={2.5} />

@@ -9,7 +9,7 @@ const SEED_TEAM = [
     name: 'Lucía Mendoza',
     role: 'Directora creativa',
     initials: 'LM',
-    color: '#D4FF4F',
+    color: 'var(--resource-green)',
     email: 'lucia@frame.studio',
     phone: '+54 11 5555-0001',
     skills: ['Dirección', 'Fotografía', 'Color grading', 'Gestión de proyectos'],
@@ -22,7 +22,7 @@ const SEED_TEAM = [
     name: 'Mateo Vargas',
     role: 'Editor',
     initials: 'MV',
-    color: '#FF7A59',
+    color: 'var(--resource-coral)',
     email: 'mateo@frame.studio',
     phone: '+54 11 5555-0002',
     skills: ['Premiere Pro', 'After Effects', 'DaVinci Resolve', 'Motion graphics'],
@@ -35,7 +35,7 @@ const SEED_TEAM = [
     name: 'Sofía Reyes',
     role: 'Fotógrafa',
     initials: 'SR',
-    color: '#6CC4FF',
+    color: 'var(--resource-blue)',
     email: 'sofia@frame.studio',
     phone: '+54 11 5555-0003',
     skills: ['Fotografía de producto', 'Retrato', 'Lightroom', 'Estudio y locación'],
@@ -48,7 +48,7 @@ const SEED_TEAM = [
     name: 'Diego Cruz',
     role: 'Productor',
     initials: 'DC',
-    color: '#C089FF',
+    color: 'var(--resource-violet)',
     email: 'diego@frame.studio',
     phone: '+54 11 5555-0004',
     skills: ['Gestión de producción', 'Presupuestos', 'Casting', 'Logística'],
@@ -72,14 +72,14 @@ const SEED_TEAM = [
 ];
 
 const TEAM_COLORS = [
-  '#D4FF4F', '#FF7A59', '#6CC4FF', '#C089FF',
-  'var(--warn)', '#FB7185', '#7DD3C0', 'var(--danger)',
+  'var(--resource-green)', 'var(--resource-coral)', 'var(--resource-blue)', 'var(--resource-violet)',
+  'var(--warn)', 'var(--resource-pink)', 'var(--resource-teal)', 'var(--danger)',
 ];
 
 const AVAILABILITY = [
-  { id: 'available', label: 'Disponible', color: '#7DD3C0' },
+  { id: 'available', label: 'Disponible', color: 'var(--resource-teal)' },
   { id: 'busy',      label: 'Ocupado/a',  color: 'var(--warn)' },
-  { id: 'vacation',  label: 'Vacaciones', color: '#9A9AA3' },
+  { id: 'vacation',  label: 'Vacaciones', color: 'var(--resource-neutral)' },
 ];
 
 const getAvail = (id) => AVAILABILITY.find(a => a.id === id) || AVAILABILITY[0];
@@ -147,18 +147,18 @@ const MemberCard = ({ member, projects, onClick }) => {
               src={member.avatar}
               alt={member.initials}
               className="rounded-xl object-cover flex-shrink-0"
-              style={{ width: 46, height: 46, border: `1.5px solid ${member.color}44` }}
+              style={{ width: 46, height: 46, border: `1.5px solid ${colorAlpha(member.color, 27)}` }}
             />
           ) : (
             <div
               className="rounded-xl flex items-center justify-center font-display font-bold flex-shrink-0"
               style={{
                 width: 46, height: 46,
-                background: member.color + '1a',
+                background: colorAlpha(member.color, 10),
                 color: member.color,
                 fontSize: 14,
                 letterSpacing: '-0.02em',
-                border: `1.5px solid ${member.color}44`,
+                border: `1.5px solid ${colorAlpha(member.color, 27)}`,
               }}
             >
               {member.initials}
@@ -170,7 +170,7 @@ const MemberCard = ({ member, projects, onClick }) => {
             </div>
             <span
               className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium mt-1"
-              style={{ background: member.color + '18', color: member.color }}
+              style={{ background: colorAlpha(member.color, 9), color: member.color }}
             >
               {member.role}
             </span>
@@ -301,18 +301,18 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
                     src={member.avatar}
                     alt={member.initials}
                     className="rounded-2xl object-cover"
-                    style={{ width: 64, height: 64, border: `2px solid ${member.color}44` }}
+                    style={{ width: 64, height: 64, border: `2px solid ${colorAlpha(member.color, 27)}` }}
                   />
                 ) : (
                   <div
                     className="rounded-2xl flex items-center justify-center font-display font-bold"
                     style={{
                       width: 64, height: 64,
-                      background: member.color + '1a',
+                      background: colorAlpha(member.color, 10),
                       color: member.color,
                       fontSize: 22,
                       letterSpacing: '-0.03em',
-                      border: `2px solid ${member.color}44`,
+                      border: `2px solid ${colorAlpha(member.color, 27)}`,
                     }}
                   >
                     {member.initials}
@@ -371,8 +371,8 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
                   <button
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium border"
                     style={{
-                      background: avail.color + '18',
-                      borderColor: avail.color + '44',
+                      background: colorAlpha(avail.color, 9),
+                      borderColor: colorAlpha(avail.color, 27),
                       color: avail.color,
                     }}
                   >
@@ -612,7 +612,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
           <div className="flex items-center gap-3">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-lg flex-shrink-0 transition"
-              style={{ background: color + '1a', color, border: `2px solid ${color}55`, letterSpacing: '-0.02em' }}
+              style={{ background: colorAlpha(color, 10), color, border: `2px solid ${colorAlpha(color, 33)}`, letterSpacing: '-0.02em' }}
             >
               {initials}
             </div>
@@ -670,7 +670,7 @@ const NewMemberModal = ({ onCreate, onClose }) => {
             onClick={submit}
             disabled={!name.trim()}
             className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition hover:brightness-110"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
           >
             Agregar al equipo
           </button>
@@ -716,7 +716,7 @@ const PendingApprovals = ({ pending, onApprove, onReject }) => {
             <button
               onClick={() => onApprove(u.id)}
               className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition"
-              style={{ background: 'var(--accent)', color: '#131315' }}
+              style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
             >
               Aprobar
             </button>
@@ -787,7 +787,7 @@ const InviteMember = ({ canInvite, full, count, onInvite, sent = [], onCancel })
             onClick={submit}
             disabled={!email.trim() || busy}
             className="px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-40 transition"
-            style={{ background: 'var(--accent)', color: '#131315' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
           >
             {busy ? 'Enviando…' : 'Invitar'}
           </button>

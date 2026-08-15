@@ -173,9 +173,9 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
 
 // ── Column color presets ─────────────────────────────────────────
 const COL_COLORS = [
-  '#9A9AA3','var(--warn)','#6CC4FF','#C089FF','#7DD3C0',
-  '#FF7A59','#FB7185','#D4FF4F','var(--danger)','#34D399',
-  '#F59E0B','#EC4899','#8B5CF6','#06B6D4','#38BDF8',
+  'var(--resource-neutral)','var(--warn)','var(--resource-blue)','var(--resource-violet)','var(--resource-teal)',
+  'var(--resource-coral)','var(--resource-pink)','var(--resource-green)','var(--danger)','var(--resource-green)',
+  'var(--resource-orange)','var(--resource-pink)','var(--resource-violet)','var(--info)','var(--resource-blue)',
 ];
 
 // ── Column settings menu (rendered via portal to escape overflow clipping) ──
@@ -345,7 +345,7 @@ const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agreg
         <div className="flex items-center gap-1.5 mt-2">
           <button onMouseDown={(e) => e.preventDefault()} onClick={submit} disabled={!title.trim()}
             className="px-2 py-1 rounded text-[11px] font-semibold disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}>
+            style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>
             Crear
           </button>
           <button onMouseDown={(e) => e.preventDefault()} onClick={() => { setActive(false); setTitle(''); }}
@@ -477,7 +477,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
               className="flex flex-col w-[280px] flex-shrink-0 rounded-xl border transition"
               style={{
                 background: 'var(--surface)',
-                borderColor: isColOver ? 'var(--accent)' : isCardOver ? s.color + '88' : 'var(--border)',
+                borderColor: isColOver ? 'var(--accent)' : isCardOver ? colorAlpha(s.color, 53) : 'var(--border)',
                 boxShadow: isColOver ? '0 0 0 2px var(--accent)' : 'none',
                 opacity: isBeingDragged ? 0.4 : 1,
                 height: '100%',
@@ -608,7 +608,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                     onClick={submitNewCol}
                     disabled={!newColLabel.trim()}
                     className="flex-1 py-1.5 rounded-md text-[12px] font-semibold disabled:opacity-40"
-                    style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+                    style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
                   >Crear</button>
                   <button
                     onClick={() => { setAddingCol(false); setNewColLabel(''); }}
@@ -1209,7 +1209,7 @@ const GalleryAddCard = ({ onCreate }) => {
           <div className="flex items-center justify-center gap-1.5 mt-3">
             <button onMouseDown={(e) => e.preventDefault()} onClick={submit} disabled={!title.trim()}
               className="px-3 py-1 rounded text-[11px] font-semibold disabled:opacity-40"
-              style={{ background: 'var(--accent)', color: '#0a0a0b' }}>
+              style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>
               Crear
             </button>
             <button onMouseDown={(e) => e.preventDefault()} onClick={() => { setActive(false); setTitle(''); }}

@@ -25,7 +25,7 @@ const Avatar = ({ user, size = 24, ring = false }) => {
       style={{
         width: size, height: size,
         background: user.color,
-        color: '#0a0a0b',
+        color: 'var(--resource-on)',
         fontSize: Math.max(9, size * 0.4),
         letterSpacing: '0.02em',
       }}
@@ -66,7 +66,7 @@ const StatusPill = ({ status, size = 'sm' }) => {
   const px = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs';
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md ${px} font-medium`}
-      style={{ background: s.color + '22', color: s.color }}>
+      style={{ background: colorAlpha(s.color, 13), color: s.color }}>
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }}></span>
       {s.label}
     </span>
@@ -75,13 +75,13 @@ const StatusPill = ({ status, size = 'sm' }) => {
 
 // ── Type dropdown content (selector + creator) ─────────────────
 const TYPE_PICKER_ICONS  = ['film','camera','mic','video','music','play','image','monitor','smartphone','briefcase','zap','megaphone','star','layers','globe','folder','archive','clock'];
-const TYPE_PICKER_COLORS = ['#C089FF','#6CC4FF','#7DD3C0','#FF7A59','var(--warn)','#FB7185','#D4FF4F','var(--danger)','#4ADE80','#F97316','#38BDF8','#9A9AA3'];
+const TYPE_PICKER_COLORS = ['var(--resource-violet)','var(--resource-blue)','var(--resource-teal)','var(--resource-coral)','var(--warn)','var(--resource-pink)','var(--resource-green)','var(--danger)','var(--resource-green)','var(--resource-orange)','var(--info)','var(--resource-neutral)'];
 
 // ── TypeForm — formulario reutilizable para crear/editar tipos ──
 const TypeForm = ({ initial = {}, onSubmit, onCancel, submitLabel = 'Crear' }) => {
   const [label, setLabel] = useState(initial.label || '');
   const [icon,  setIcon]  = useState(initial.icon  || 'film');
-  const [color, setColor] = useState(initial.color || '#C089FF');
+  const [color, setColor] = useState(initial.color || 'var(--resource-violet)');
   const labelRef = useRef(null);
 
   useEffect(() => { setTimeout(() => labelRef.current?.focus(), 0); }, []);
@@ -126,7 +126,7 @@ const TypeForm = ({ initial = {}, onSubmit, onCancel, submitLabel = 'Crear' }) =
         </div>
       </div>
       <div className="flex items-center justify-between pt-0.5">
-        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: color + '22' }}>
+        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: colorAlpha(color, 13) }}>
           <Icon name={icon} size={12} style={{ color }} />
           <span className="text-[12px] font-medium" style={{ color }}>{label || 'Vista previa'}</span>
         </div>
@@ -227,7 +227,7 @@ const TypePill = ({ type, size = 'sm' }) => {
   const px = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs';
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md ${px} font-medium border max-w-full overflow-hidden`}
-      style={{ borderColor: t.color + '44', color: t.color, background: t.color + '11' }}>
+      style={{ borderColor: colorAlpha(t.color, 27), color: t.color, background: colorAlpha(t.color, 7) }}>
       <Icon name={t.icon} size={11} style={{ flexShrink: 0 }} />
       <span className="truncate">{t.label}</span>
     </span>
@@ -508,7 +508,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
           onClick={applyUrl}
           disabled={!urlVal.trim()}
           className="px-3 py-1.5 rounded-md text-[12px] font-semibold disabled:opacity-40"
-          style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+          style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
         >
           OK
         </button>
@@ -1232,8 +1232,8 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onNavigate, projec
                               onClick={() => toggleDeliverable(dv.id)}
                               className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors"
                               style={{
-                                background: dv.status === 'ready' ? '#7DD3C022' : '#9A9AA322',
-                                color: dv.status === 'ready' ? '#7DD3C0' : '#9A9AA3',
+                                background: dv.status === 'ready' ? 'var(--accent-soft)' : 'var(--surface-3)',
+                                color: dv.status === 'ready' ? 'var(--resource-teal)' : 'var(--resource-neutral)',
                               }}
                             >
                               {dv.status === 'ready' ? '✓ Listo' : 'Pendiente'}
@@ -2072,7 +2072,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                 onClick={onSend}
                 disabled={!newComment.trim()}
                 className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[12px] font-semibold transition disabled:opacity-40"
-                style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+                style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
               >
                 Enviar
                 <Icon name="send" size={11} />

@@ -8,7 +8,7 @@ const SEED_CLIENTS = [
     id: 'cl1',
     name: 'Volcán Activewear',
     industry: 'Moda deportiva',
-    color: '#FF7A59',
+    color: 'var(--resource-coral)',
     initials: 'VA',
     contact: { name: 'Laura Vega', email: 'laura@volcan.com', phone: '+54 11 5555-0101' },
     tags: ['premium', 'recurrente'],
@@ -19,7 +19,7 @@ const SEED_CLIENTS = [
     id: 'cl2',
     name: 'LUMEN Studio',
     industry: 'Arquitectura & Diseño',
-    color: '#7DD3C0',
+    color: 'var(--resource-teal)',
     initials: 'LS',
     contact: { name: 'Andrés Mora', email: 'andres@lumenstudio.com', phone: '+54 11 5555-0202' },
     tags: ['corporativo', 'anual'],
@@ -30,7 +30,7 @@ const SEED_CLIENTS = [
     id: 'cl3',
     name: 'RIFF Records',
     industry: 'Música & Entretenimiento',
-    color: '#C089FF',
+    color: 'var(--resource-violet)',
     initials: 'RR',
     contact: { name: 'Nicolás Palma', email: 'nico@riff.com', phone: '+54 11 5555-0303' },
     tags: ['música', 'high-profile'],
@@ -52,7 +52,7 @@ const SEED_CLIENTS = [
     id: 'cl5',
     name: 'Atelier Sur',
     industry: 'Moda & Lujo',
-    color: '#6CC4FF',
+    color: 'var(--resource-blue)',
     initials: 'AS',
     contact: { name: 'Camila Fuentes', email: 'camila@ateliersur.com', phone: '+54 11 5555-0505' },
     tags: ['lujo', 'fotografía'],
@@ -63,7 +63,7 @@ const SEED_CLIENTS = [
     id: 'cl6',
     name: 'MoveOn',
     industry: 'Fitness & Wellness',
-    color: '#FB7185',
+    color: 'var(--resource-pink)',
     initials: 'MO',
     contact: { name: 'Tomás Herrera', email: 'tomas@moveon.com', phone: '+54 11 5555-0606' },
     tags: ['fitness', 'nuevo'],
@@ -74,8 +74,8 @@ const SEED_CLIENTS = [
 
 // ── Paleta de colores para clientes ─────────────────────────────
 const CLIENT_COLORS = [
-  '#FF7A59', '#7DD3C0', '#C089FF', 'var(--warn)',
-  '#6CC4FF', '#FB7185', '#D4FF4F', 'var(--danger)',
+  'var(--resource-coral)', 'var(--resource-teal)', 'var(--resource-violet)', 'var(--warn)',
+  'var(--resource-blue)', 'var(--resource-pink)', 'var(--resource-green)', 'var(--danger)',
 ];
 
 // ── Client avatar ────────────────────────────────────────────────
@@ -84,11 +84,11 @@ const ClientAvatar = ({ client, size = 40 }) => (
     className="rounded-xl flex items-center justify-center font-display font-bold flex-shrink-0"
     style={{
       width: size, height: size,
-      background: client.color + '1a',
+      background: colorAlpha(client.color, 10),
       color: client.color,
       fontSize: Math.max(11, size * 0.33),
       letterSpacing: '-0.02em',
-      border: `1.5px solid ${client.color}44`,
+      border: `1.5px solid ${colorAlpha(client.color, 27)}`,
     }}
   >
     {client.initials}
@@ -99,7 +99,7 @@ const ClientAvatar = ({ client, size = 40 }) => (
 const IndustryBadge = ({ industry, color }) => (
   <span
     className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium"
-    style={{ background: color + '18', color: color }}
+    style={{ background: colorAlpha(color, 9), color: color }}
   >
     {industry}
   </span>
@@ -265,7 +265,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                   <span
                     key={s.id}
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium"
-                    style={{ background: s.color + '18', color: s.color }}
+                    style={{ background: colorAlpha(s.color, 9), color: s.color }}
                   >
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }}></span>
                     {s.label} · {s.count}
@@ -477,7 +477,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
           <div className="flex items-center gap-3">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-lg flex-shrink-0 transition"
-              style={{ background: color + '1a', color, border: `2px solid ${color}55`, letterSpacing: '-0.02em' }}
+              style={{ background: colorAlpha(color, 10), color, border: `2px solid ${colorAlpha(color, 33)}`, letterSpacing: '-0.02em' }}
             >
               {initials}
             </div>
@@ -548,7 +548,7 @@ const NewClientModal = ({ onCreate, onClose }) => {
             onClick={submit}
             disabled={!name.trim()}
             className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition hover:brightness-110"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
           >
             Crear cliente
           </button>
@@ -626,7 +626,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
           className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-[var(--surface-3)] transition-colors text-left"
         >
           <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-            style={{ background: c.color + '22', color: c.color, border: `1px solid ${c.color}44` }}>
+            style={{ background: colorAlpha(c.color, 13), color: c.color, border: `1px solid ${colorAlpha(c.color, 27)}` }}>
             {c.initials}
           </div>
           <div className="flex-1 min-w-0">
@@ -670,7 +670,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
       <div ref={wrapRef} onClick={openDropdown} className={wrapCls} style={wrapStyle}>
         {matched && !open && (
           <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
-            style={{ background: matched.color + '22', color: matched.color, border: `1px solid ${matched.color}44` }}>
+            style={{ background: colorAlpha(matched.color, 13), color: matched.color, border: `1px solid ${colorAlpha(matched.color, 27)}` }}>
             {matched.initials.slice(0, 1)}
           </div>
         )}
@@ -756,7 +756,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
           <button
             onClick={() => setShowNew(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold hover:brightness-110 transition"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
           >
             <Icon name="plus" size={13} strokeWidth={2.4} />
             Nuevo cliente

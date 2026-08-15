@@ -291,7 +291,7 @@ const InviteBanner = ({ invites, onAccept, onDecline }) => {
       <button
         onClick={() => onAccept(inv)}
         className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition"
-        style={{ background: 'var(--accent)', color: '#131315' }}
+        style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
       >
         Unirme
       </button>
@@ -446,7 +446,7 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, c
                 <div className="flex items-center gap-1.5 mt-1.5 px-0.5">
                   <button onClick={submit} disabled={!name.trim()}
                     className="px-2.5 py-1 rounded-md text-[12px] font-semibold disabled:opacity-40"
-                    style={{ background: 'var(--accent)', color: '#131315' }}>Crear</button>
+                    style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Crear</button>
                   <button onClick={() => { setCreating(false); setName(''); }}
                     className="px-2 py-1 rounded-md text-[12px]" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
                 </div>
@@ -526,7 +526,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
           title="Ir al inicio"
         >
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent)' }}>
-            <span className="font-display font-black text-lg" style={{ color: '#0a0a0b', letterSpacing: '-0.03em' }}>F</span>
+            <span className="font-display font-black text-lg" style={{ color: 'var(--accent-on)', letterSpacing: '-0.03em' }}>F</span>
           </div>
           {!collapsed && (
             /* whitespace-nowrap: "Studio Manager" con esa separación entre
@@ -613,7 +613,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
             {wsPeople.slice(0, 5).map(u => (
               <div key={u.id} className="relative" title={u.name}>
                 <Avatar user={u} size={26} />
-                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-2 ring-[var(--surface)]" style={{ background: '#7DD3C0' }}></span>
+                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-2 ring-[var(--surface)]" style={{ background: 'var(--resource-teal)' }}></span>
               </div>
             ))}
             {wsPeople.length === 0 && (
@@ -751,7 +751,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
   };
 
   const notifColor = (type, read) => {
-    if (type === 'approval_request') return { bg: read ? 'var(--surface-3)' : '#6CC4FF22', fg: '#6CC4FF' };
+    if (type === 'approval_request') return { bg: read ? 'var(--surface-3)' : 'var(--accent-soft)', fg: 'var(--resource-blue)' };
     return { bg: read ? 'var(--surface-3)' : 'var(--accent-soft)', fg: read ? 'var(--text-muted)' : 'var(--accent)' };
   };
 
@@ -765,7 +765,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
         {unread > 0 && (
           <span
             className="absolute top-0.5 right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full text-[10px] font-bold flex items-center justify-center"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
           >
             {unread > 9 ? '9+' : unread}
           </span>
@@ -781,7 +781,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
             <div className="flex items-center gap-2">
               <span className="font-semibold text-[13px]">Notificaciones</span>
               {unread > 0 && (
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'var(--accent)', color: '#0a0a0b' }}>{unread}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>{unread}</span>
               )}
             </div>
             {unread > 0 && (
@@ -826,7 +826,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
                               <button
                                 onClick={() => { onApproveUser && onApproveUser(n.userId, n.id); }}
                                 className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-bold transition hover:brightness-110"
-                                style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+                                style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
                               >
                                 <Icon name="check" size={11} strokeWidth={2.5} />
                                 Aprobar
@@ -1004,7 +1004,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
         <button
           onClick={() => dispatch({ type: 'show_new' })}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold transition hover:brightness-110"
-          style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+          style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
         >
           <Icon name="plus" size={13} strokeWidth={2.4} />
           Nueva tarea
@@ -1020,7 +1020,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
               key={i}
               onClick={() => dispatch({ type: 'clear_filter', key: f.key, value: f.value })}
               className="group flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium hover:brightness-125 transition"
-              style={{ background: f.color + '22', color: f.color }}
+              style={{ background: colorAlpha(f.color, 13), color: f.color }}
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: f.color }}></span>
               {f.label}
@@ -1051,7 +1051,7 @@ const FilterDropdown = ({ label, icon, filterKey, options, state, dispatch }) =>
           <Icon name={icon} size={12} />
           <span>{label}</span>
           {isActive && (
-            <span className="text-[10px] font-mono px-1 rounded" style={{ background: 'var(--accent)', color: '#0a0a0b' }}>
+            <span className="text-[10px] font-mono px-1 rounded" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>
               {active.length}
             </span>
           )}
@@ -1108,7 +1108,7 @@ const StatusStatsBar = ({ projects }) => {
       {STATUSES.filter(s => s.id !== 'archived').map(s => {
         const n = projects.filter(p => p.status === s.id).length;
         return (
-          <div key={s.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: s.color + '14' }}>
+          <div key={s.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: colorAlpha(s.color, 8) }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }}></span>
             <span className="text-[11px]" style={{ color: s.color }}>{s.label}</span>
             <span className="text-[11px] font-mono font-semibold" style={{ color: s.color }}>{n}</span>
@@ -1236,7 +1236,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
             onClick={submit}
             disabled={!title.trim() || !client.trim()}
             className="px-3 py-1.5 rounded-md text-[13px] font-semibold disabled:opacity-40 transition"
-            style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
           >
             Crear tarea
           </button>
@@ -1250,7 +1250,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
 const PendingApprovalScreen = ({ member, onSignOut }) => (
   <div className="h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
     <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--accent)', boxShadow: '0 0 40px rgba(212,255,79,0.2)' }}>
-      <span className="font-display font-black text-[26px]" style={{ color: '#0a0a0b', letterSpacing: '-0.04em' }}>F</span>
+      <span className="font-display font-black text-[26px]" style={{ color: 'var(--accent-on)', letterSpacing: '-0.04em' }}>F</span>
     </div>
     <div className="flex gap-1.5">
       {[0, 1, 2].map(i => (
@@ -1267,7 +1267,7 @@ const PendingApprovalScreen = ({ member, onSignOut }) => (
       <div className="surf-panel px-5 py-3 flex items-center gap-3">
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] flex-shrink-0"
-          style={{ background: member.color + '1a', color: member.color, border: `1.5px solid ${member.color}44` }}
+          style={{ background: colorAlpha(member.color, 10), color: member.color, border: `1.5px solid ${colorAlpha(member.color, 27)}` }}
         >
           {member.avatar
             ? <img src={member.avatar} alt={member.initials} className="w-9 h-9 rounded-full object-cover" />
@@ -1304,7 +1304,7 @@ const RejectedScreen = ({ member, onSignOut }) => (
     {member && (
       <div className="rounded-xl border px-5 py-3 flex items-center gap-3" style={{ background: 'var(--surface)', borderColor: 'var(--danger-soft-2)' }}>
         <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] flex-shrink-0"
-          style={{ background: member.color + '1a', color: member.color, border: `1.5px solid ${member.color}44` }}>
+          style={{ background: colorAlpha(member.color, 10), color: member.color, border: `1.5px solid ${colorAlpha(member.color, 27)}` }}>
           {member.initials}
         </div>
         <div>
@@ -1326,7 +1326,7 @@ const RejectedScreen = ({ member, onSignOut }) => (
 const LoadingScreen = () => (
   <div className="h-screen flex items-center justify-center flex-col gap-4" style={{ background: 'var(--bg)' }}>
     <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)' }}>
-      <span className="font-display font-black text-2xl" style={{ color: '#0a0a0b', letterSpacing: '-0.03em' }}>F</span>
+      <span className="font-display font-black text-2xl" style={{ color: 'var(--accent-on)', letterSpacing: '-0.03em' }}>F</span>
     </div>
     <div className="text-[13px] text-[var(--text-muted)] font-mono tracking-wider">Conectando con Firebase…</div>
     <div className="flex gap-1.5">
@@ -1401,7 +1401,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
           border:     active ? 'none'              : '1.5px solid var(--border-2)',
         }}
       >
-        {active && <Icon name="check" size={10} strokeWidth={3} style={{ color: '#0a0a0b' }} />}
+        {active && <Icon name="check" size={10} strokeWidth={3} style={{ color: 'var(--accent-on)' }} />}
       </div>
       <Icon name={icon} size={13} style={{ color: active ? 'var(--accent)' : 'var(--text-muted)' }} />
       <div className="flex-1 min-w-0">
@@ -1464,7 +1464,7 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
                   </div>
                   <button onClick={() => onApproveUser(u.id)}
                     className="px-3 py-1.5 rounded-md text-[12px] font-semibold hover:brightness-110 transition"
-                    style={{ background: 'var(--accent)', color: '#131315' }}>Aprobar</button>
+                    style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Aprobar</button>
                   <button onClick={() => onRejectUser(u.id)}
                     className="px-3 py-1.5 rounded-md text-[12px] font-medium"
                     style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}>Rechazar</button>

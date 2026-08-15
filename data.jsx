@@ -3,36 +3,36 @@
 // ─────────────────────────────────────────────────────────────────
 
 const USERS = [
-  { id: 'u1', name: 'Lucía Mendoza',   role: 'Director',    initials: 'LM', color: '#D4FF4F' },
-  { id: 'u2', name: 'Mateo Vargas',    role: 'Editor',      initials: 'MV', color: '#FF7A59' },
-  { id: 'u3', name: 'Sofía Reyes',     role: 'Fotógrafa',   initials: 'SR', color: '#6CC4FF' },
-  { id: 'u4', name: 'Diego Cruz',      role: 'Productor',   initials: 'DC', color: '#C089FF' },
+  { id: 'u1', name: 'Lucía Mendoza',   role: 'Director',    initials: 'LM', color: 'var(--resource-green)' },
+  { id: 'u2', name: 'Mateo Vargas',    role: 'Editor',      initials: 'MV', color: 'var(--resource-coral)' },
+  { id: 'u3', name: 'Sofía Reyes',     role: 'Fotógrafa',   initials: 'SR', color: 'var(--resource-blue)' },
+  { id: 'u4', name: 'Diego Cruz',      role: 'Productor',   initials: 'DC', color: 'var(--resource-violet)' },
   { id: 'u5', name: 'Ana Torres',      role: 'Asistente',   initials: 'AT', color: 'var(--warn)' },
 ];
 
 const PROJECT_TYPES = [
-  { id: 'reel',     label: 'Reel',              color: '#C089FF', icon: 'film' },
-  { id: 'photo',    label: 'Fotografía',        color: '#6CC4FF', icon: 'camera' },
-  { id: 'corp',     label: 'Video corporativo', color: '#7DD3C0', icon: 'briefcase' },
-  { id: 'campaign', label: 'Campaign',          color: '#FF7A59', icon: 'zap' },
+  { id: 'reel',     label: 'Reel',              color: 'var(--resource-violet)', icon: 'film' },
+  { id: 'photo',    label: 'Fotografía',        color: 'var(--resource-blue)', icon: 'camera' },
+  { id: 'corp',     label: 'Video corporativo', color: 'var(--resource-teal)', icon: 'briefcase' },
+  { id: 'campaign', label: 'Campaign',          color: 'var(--resource-coral)', icon: 'zap' },
   { id: 'bts',      label: 'BTS',               color: 'var(--warn)', icon: 'film' },
-  { id: 'podcast',  label: 'Podcast',           color: '#FB7185', icon: 'mic' },
-  { id: 'other',    label: 'Otro',              color: '#9A9AA3', icon: 'folder' },
+  { id: 'podcast',  label: 'Podcast',           color: 'var(--resource-pink)', icon: 'mic' },
+  { id: 'other',    label: 'Otro',              color: 'var(--resource-neutral)', icon: 'folder' },
 ];
 
 const STATUSES = [
-  { id: 'briefing',  label: 'Briefing',           color: '#9A9AA3' },
+  { id: 'briefing',  label: 'Briefing',           color: 'var(--resource-neutral)' },
   { id: 'producing', label: 'En producción',      color: 'var(--warn)' },
-  { id: 'editing',   label: 'Edición',            color: '#6CC4FF' },
-  { id: 'review',    label: 'Revisión cliente',   color: '#C089FF' },
-  { id: 'delivered', label: 'Entregado',          color: '#7DD3C0' },
+  { id: 'editing',   label: 'Edición',            color: 'var(--resource-blue)' },
+  { id: 'review',    label: 'Revisión cliente',   color: 'var(--resource-violet)' },
+  { id: 'delivered', label: 'Entregado',          color: 'var(--resource-teal)' },
   { id: 'archived',  label: 'Archivado',          color: '#62626B' },
 ];
 
 const PRIORITIES = [
   { id: 'high',   label: 'Alta',  color: 'var(--danger)' },
   { id: 'medium', label: 'Media', color: 'var(--warn)' },
-  { id: 'low',    label: 'Baja',  color: '#7DD3C0' },
+  { id: 'low',    label: 'Baja',  color: 'var(--resource-teal)' },
 ];
 
 // Fecha actual real
@@ -52,6 +52,10 @@ const localISO = (dt) => {
   const day = String(dt.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 };
+
+// Opacidad compatible con hex y con variables CSS. Concatenar "22" a un
+// color funcionaba con #RRGGBB, pero se rompe cuando la paleta cambia por tema.
+const colorAlpha = (color, percent) => `color-mix(in srgb, ${color} ${percent}%, transparent)`;
 
 const d = (offset) => {
   const dt = new Date(TODAY);
