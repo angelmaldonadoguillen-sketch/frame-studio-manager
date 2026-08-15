@@ -39,6 +39,8 @@
     --accent:      #d4ff4f;
     --accent-dim:  #aacf3d;
     --accent-soft: rgba(212, 255, 79, 0.14);
+    --accent-soft-weak: rgba(212, 255, 79, 0.08);
+    --accent-border: rgba(212, 255, 79, 0.40);
     --danger:        #ff453a;
     --danger-soft:   rgba(255, 69, 58, 0.10);
     --danger-soft-2: rgba(255, 69, 58, 0.20);
@@ -62,19 +64,24 @@
   html { color-scheme: var(--color-scheme); }
 
   html[data-theme="light"] {
-    --bg:        #f4f4f7;
+    --bg:        #ececf1;
     --surface:   #ffffff;
-    --surface-2: #f0f0f3;
-    --surface-3: #e5e5ea;
-    --text:       #18181b;
-    --text-dim:   rgba(24, 24, 27, 0.68);
-    --text-muted: rgba(24, 24, 27, 0.45);
+    /* Las tarjetas quedan un tono por debajo del fondo: suficiente para
+       separarlas sin convertir cada una en una caja con borde pesado. */
+    --surface-2: #e2e2e7;
+    --surface-3: #d5d5dc;
+    --text:       #151518;
+    --text-dim:   rgba(21, 21, 24, 0.72);
+    --text-muted: rgba(21, 21, 24, 0.52);
     --text-faint: rgba(24, 24, 27, 0.25);
-    --border:   rgba(60, 60, 67, 0.18);
-    --border-2: rgba(60, 60, 67, 0.30);
-    --hairline: rgba(0, 0, 0, 0.055);
-    --accent-dim:  #607c00;
-    --accent-soft: rgba(122, 158, 0, 0.14);
+    --border:   rgba(42, 42, 48, 0.22);
+    --border-2: rgba(42, 42, 48, 0.36);
+    --hairline: rgba(0, 0, 0, 0.09);
+    --accent:      #647d00;
+    --accent-dim:  #506500;
+    --accent-soft: rgba(100, 125, 0, 0.14);
+    --accent-soft-weak: rgba(100, 125, 0, 0.08);
+    --accent-border: rgba(100, 125, 0, 0.42);
     --danger:        #d92d20;
     --danger-soft:   rgba(217, 45, 32, 0.09);
     --danger-soft-2: rgba(217, 45, 32, 0.16);

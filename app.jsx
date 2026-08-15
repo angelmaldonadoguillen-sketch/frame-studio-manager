@@ -2221,6 +2221,7 @@ const App = () => {
 
   const activitySummary = (before, after) => {
     if (before.status !== after.status) return `cambió el estado a ${getStatus(after.status)?.label || after.status}`;
+    if (before.startDate !== after.startDate) return 'reprogramó la fecha de inicio';
     if (before.deadline !== after.deadline) return 'cambió la fecha límite';
     if (before.sessionDate !== after.sessionDate) return 'reprogramó la próxima fecha de trabajo';
     if (JSON.stringify(before.assignees) !== JSON.stringify(after.assignees)) return 'actualizó los responsables';

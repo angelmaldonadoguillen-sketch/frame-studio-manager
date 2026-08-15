@@ -375,7 +375,7 @@ const RoutineWidget = ({ workspaceId }) => {
                   style={{
                     paddingTop: 11, paddingBottom: 11,
                     borderBottom: isLast && !editMode ? 'none' : '1px solid var(--border)',
-                    background:  done && !editMode ? 'rgba(212,255,79,0.025)' : 'transparent',
+                    background:  done && !editMode ? 'var(--accent-soft-weak)' : 'transparent',
                     cursor:      editMode ? 'default' : 'pointer',
                   }}
                   onClick={() => !editMode && !editing && toggleCheck(task.id)}
@@ -578,8 +578,8 @@ const RoutineWidget = ({ workspaceId }) => {
                       <div
                         className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{
-                          background: perfect ? 'rgba(212,255,79,0.12)' : 'rgba(255,107,107,0.10)',
-                          border:     `1px solid ${perfect ? 'rgba(212,255,79,0.28)' : 'rgba(255,107,107,0.28)'}`,
+                          background: perfect ? 'var(--accent-soft)' : 'rgba(255,107,107,0.10)',
+                          border:     `1px solid ${perfect ? 'var(--accent-border)' : 'rgba(255,107,107,0.28)'}`,
                         }}
                       >
                         <span className="select-none" style={{ fontSize: 8, fontWeight: 700, color: perfect ? 'var(--accent)' : 'var(--danger)' }}>

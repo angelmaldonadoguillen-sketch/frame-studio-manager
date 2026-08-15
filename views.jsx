@@ -804,9 +804,9 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
                   className={`group relative border-r border-b p-1.5 min-h-[110px] transition-colors ${inMonth ? '' : 'opacity-40'}`}
                   style={{
                     background: isDragOver
-                      ? 'rgba(212,255,79,0.08)'
+                      ? 'var(--accent-soft-weak)'
                       : isToday ? 'var(--accent-soft)' : 'transparent',
-                    borderColor: isDragOver ? 'rgba(212,255,79,0.4)' : 'var(--border)',
+                    borderColor: isDragOver ? 'var(--accent-border)' : 'var(--border)',
                   }}
                   onDragOver={(e) => handleDragOver(e, iso)}
                   onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setDragOverDate(null); lastOverRef.current = null; } }}
@@ -1057,8 +1057,8 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
               style={{
                 width: 'calc(100% / 7)',
                 minWidth: 160,
-                background:   isDragOver ? 'rgba(212,255,79,0.08)' : isToday ? 'var(--accent-soft)' : 'transparent',
-                borderColor:  isDragOver ? 'rgba(212,255,79,0.4)'  : 'var(--border)',
+                background:   isDragOver ? 'var(--accent-soft-weak)' : isToday ? 'var(--accent-soft)' : 'transparent',
+                borderColor:  isDragOver ? 'var(--accent-border)'  : 'var(--border)',
               }}
               onDragOver={(e)  => handleDragOver(e, iso)}
               onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setDragOverDate(null); lastOverRef.current = null; } }}

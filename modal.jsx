@@ -1871,7 +1871,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
     <>
       <div
         className="rounded-lg border overflow-hidden transition"
-        style={{ borderColor: focused ? 'rgba(212,255,79,0.4)' : 'var(--border-2)' }}
+        style={{ borderColor: focused ? 'var(--accent-border)' : 'var(--border-2)' }}
       >
         {/* ── Toolbar ── */}
         <div className="flex items-center gap-0.5 px-2 py-1 hair" style={{ background: 'var(--surface-3)' }}>
