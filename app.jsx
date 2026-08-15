@@ -1765,20 +1765,75 @@ const App = () => {
 
   useEffect(() => {
     if (!authUser || !wsId) return;
-    const col = window.db.collection('frame_projects').where('workspaceId', '==', wsId);
+    const legacy = new Map();
+    const shared = new Map();
+    let legacyReady = false;
+    let sharedReady = false;
 
-    const unsub = col.onSnapshot((snap) => {
-      // normalizeProject garantiza la forma en el borde: de acá para adentro
-      // nadie tiene que preguntarse si tags o assignees existen.
-      const projects = snap.docs.map(d => normalizeProject({ ...d.data(), id: d.id }));
-      dispatch({ type: 'set_projects', projects });
-    }, (err) => {
-      console.error('Firestore error:', err);
-      dispatch({ type: 'set_projects', projects: [] });
-    });
+    const publish = () => {
+      if (!legacyReady && !sharedReady) return;
+      const merged = new Map(legacy);
+      shared.forEach((project, id) => {
+        if ((project.workspaceIds || []).includes(wsId)) merged.set(id, project);
+      });
+      dispatch({ type: 'set_projects', projects: [...merged.values()] });
+    };
 
-    return () => unsub();
+    // Documentos anteriores: siguen entrando por workspaceId y no se migran
+    // hasta que el usuario elige compartirlos con otro tablero.
+    const unsubLegacy = window.db.collection('frame_projects')
+      .where('workspaceId', '==', wsId)
+      .onSnapshot((snap) => {
+        legacy.clear();
+        snap.docs.forEach(d => legacy.set(d.id, normalizeProject({ ...d.data(), id: d.id })));
+        legacyReady = true;
+        publish();
+      }, (err) => {
+        console.error('[FRAME] Tareas del tablero:', err);
+        legacyReady = true;
+        publish();
+      });
+
+    // Las tareas modernas se consultan por usuario autorizado y se filtran
+    // localmente por el tablero activo. Una sola tarea puede aparecer en
+    // varios tableros sin crear copias divergentes.
+    const unsubShared = window.db.collection('frame_projects')
+      .where('viewerIds', 'array-contains', authUser.uid)
+      .onSnapshot((snap) => {
+        shared.clear();
+        snap.docs.forEach(d => shared.set(d.id, normalizeProject({ ...d.data(), id: d.id })));
+        sharedReady = true;
+        publish();
+      }, (err) => {
+        console.error('[FRAME] Tareas compartidas:', err);
+        sharedReady = true;
+        publish();
+      });
+
+    return () => { unsubLegacy(); unsubShared(); };
   }, [authUser?.uid, wsId]);
+
+  // Una referencia mínima en el tablero permite que un miembro recién
+  // incorporado descubra las tareas compartidas y se agregue a su ACL. No se
+  // copia contenido y la regla sólo permite añadir el uid propio.
+  const sharedTaskSignature = state.workspaces
+    .map(w => `${w.id}:${(w.sharedTaskIds || []).join(',')}`)
+    .join('|');
+  useEffect(() => {
+    if (!authUser?.uid || state.workspacesLoading) return;
+    const taskIds = [...new Set(state.workspaces.flatMap(w => w.sharedTaskIds || []))];
+    taskIds.forEach(projectId => {
+      window.db.collection('frame_projects').doc(projectId)
+        .update({ viewerIds: firebase.firestore.FieldValue.arrayUnion(authUser.uid) })
+        .catch(err => {
+          // Una referencia obsoleta o una tarea eliminada no debe bloquear el
+          // resto del tablero; se limpia cuando el dueño vuelva a guardar.
+          if (err?.code !== 'permission-denied' && err?.code !== 'not-found') {
+            console.error('[FRAME] Acceso a tarea compartida:', err);
+          }
+        });
+    });
+  }, [authUser?.uid, state.workspacesLoading, sharedTaskSignature]);
 
   // ── Firestore: equipo ───────────────────────────────────────
   useEffect(() => {
@@ -2118,6 +2173,10 @@ const App = () => {
   const handleDeleteProject = async (id) => {
     // 1. Grab full project data before removing from UI
     const project = state.projects.find(p => p.id === id);
+    if (project && project.workspaceId !== wsId) {
+      window.frameToast?.('Sólo el tablero principal puede eliminar esta tarea.');
+      return;
+    }
     // 2. Optimistic UI removal
     dispatch({ type: 'delete_project', id });
     const col = window.db.collection('frame_projects');
@@ -2138,6 +2197,11 @@ const App = () => {
           await Promise.all(q.docs.map(d => d.ref.delete()));
         }
       }
+      await Promise.all((project?.workspaceIds || [project?.workspaceId]).filter(Boolean).map(workspaceId =>
+        window.db.collection('frame_workspaces').doc(workspaceId).update({
+          sharedTaskIds: firebase.firestore.FieldValue.arrayRemove(id),
+        }).catch(err => console.error('[FRAME] Limpiar referencia de tarea:', err))
+      ));
     } catch (err) {
       console.error('[FRAME] Error al mover a papelera:', err);
     }
@@ -2175,6 +2239,11 @@ const App = () => {
       ...original,
       id:        newId,
       title:     original.title + ' (copia)',
+      // La copia nace independiente dentro del tablero actual; no hereda la
+      // visibilidad múltiple ni la ACL de la tarea original.
+      workspaceId: wsId,
+      workspaceIds: [wsId],
+      viewerIds: [...new Set(activeWs?.memberIds || [state.currentUserId])],
       createdAt: new Date().toISOString(),
     };
     dispatch({ type: 'duplicate_project', project: copy });
@@ -2182,62 +2251,65 @@ const App = () => {
       .catch(err => notifyWriteError(err, 'la copia de la tarea'));
   };
 
-  // ── Trasladar una tarea entre tableros ──────────────────────
-  // Es el mismo documento: sus subcolecciones y archivos siguen unidos al
-  // mismo id. Las reglas exigen pertenecer tanto al origen como al destino.
-  const handleMoveProject = async (project, targetWorkspaceId) => {
-    const target = state.workspaces.find(w => w.id === targetWorkspaceId && !w._hasPendingWrites);
-    if (!target || targetWorkspaceId === (project.workspaceId || wsId)) return;
+  // ── Mostrar una misma tarea en varios tableros ──────────────
+  // No se crean copias: workspaceId conserva el tablero principal y
+  // workspaceIds decide dónde aparece. viewerIds es la ACL materializada que
+  // Firestore y Storage pueden comprobar sin consultas dinámicas inseguras.
+  const handleSetProjectWorkspaces = async (project, requestedIds) => {
+    const originId = project.workspaceId || wsId;
+    if (originId !== wsId) throw new Error('Sólo el tablero principal puede cambiar la visibilidad.');
+
+    const available = state.workspaces.filter(w => !w._hasPendingWrites);
+    const availableIds = new Set(available.map(w => w.id));
+    const workspaceIds = [...new Set([originId, ...(requestedIds || [])])]
+      .filter(id => availableIds.has(id));
+    const selected = available.filter(w => workspaceIds.includes(w.id));
+    const viewerIds = [...new Set(selected.flatMap(w => w.memberIds || []))];
+    if (!viewerIds.includes(state.currentUserId)) viewerIds.push(state.currentUserId);
 
     try {
-      const configRoot = window.db.collection('frame_workspaces').doc(targetWorkspaceId).collection('config');
-      const [columnsSnap, typesSnap] = await Promise.all([
-        configRoot.doc('kanban_columns').get(),
-        configRoot.doc('project_types').get(),
-      ]);
-
-      const targetColumns = columnsSnap.exists
-        ? (columnsSnap.data()?.columns || [])
-        : STATUSES.filter(s => s.id !== 'archived');
-      const statusExists = targetColumns.some(c => c.id === project.status);
-      const targetStatus = statusExists
-        ? project.status
-        : (targetColumns[0]?.id || 'briefing');
-
-      // Si el tipo era personalizado, lleva su definición al destino para que
-      // no aparezca degradado como "Otro". Sólo se agrega si todavía no existe.
-      const targetTypes = typesSnap.exists ? (typesSnap.data()?.types || []) : PROJECT_TYPES;
-      if (!targetTypes.some(t => t.id === project.type)) {
-        const sourceType = state.customTypes.find(t => t.id === project.type);
-        if (sourceType) {
-          await configRoot.doc('project_types').set({ types: [...targetTypes, sourceType] });
-        }
+      // El tipo personalizado se copia como configuración visual, no como
+      // tarea. El documento y todos sus campos siguen siendo únicos.
+      const sourceType = state.customTypes.find(t => t.id === project.type);
+      if (sourceType) {
+        await Promise.all(selected.filter(w => w.id !== originId).map(async (workspace) => {
+          const ref = window.db.collection('frame_workspaces').doc(workspace.id).collection('config').doc('project_types');
+          const snap = await ref.get();
+          const types = snap.exists ? (snap.data()?.types || []) : PROJECT_TYPES;
+          if (!types.some(t => t.id === sourceType.id)) await ref.set({ types: [...types, sourceType] });
+        }));
       }
 
-      const targetMembers = new Set(target.memberIds || []);
-      const moved = {
-        workspaceId: targetWorkspaceId,
-        status: targetStatus,
-        assignees: (project.assignees || []).filter(id => targetMembers.has(id)),
-      };
-      await window.db.collection('frame_projects').doc(project.id).update(moved);
+      await window.db.collection('frame_projects').doc(project.id).update({ workspaceIds, viewerIds });
+
+      const previousIds = new Set(project.workspaceIds?.length ? project.workspaceIds : [originId]);
+      const selectedIds = new Set(workspaceIds);
+      const refBatch = window.db.batch();
+      available.forEach(workspace => {
+        if (!selectedIds.has(workspace.id) && !previousIds.has(workspace.id)) return;
+        refBatch.update(window.db.collection('frame_workspaces').doc(workspace.id), {
+          sharedTaskIds: selectedIds.has(workspace.id)
+            ? firebase.firestore.FieldValue.arrayUnion(project.id)
+            : firebase.firestore.FieldValue.arrayRemove(project.id),
+        });
+      });
+      await refBatch.commit();
 
       const actor = state.team.find(m => m.id === state.currentUserId);
+      const names = selected.map(w => w.name).join(', ');
       const event = {
         id: 'a' + Date.now() + Math.random().toString(36).slice(2, 6),
         actorId: state.currentUserId,
         actorName: actor?.name || 'Alguien',
-        summary: `trasladó la tarea a ${target.name}`,
+        summary: `actualizó los tableros visibles: ${names}`,
         at: new Date().toISOString(),
       };
       window.db.collection('frame_projects').doc(project.id).collection('activity').doc(event.id).set(event)
-        .catch(err => console.error('Task move activity:', err));
+        .catch(err => console.error('Task visibility activity:', err));
 
-      dispatch({ type: 'close_project' });
-      dispatch({ type: 'set_active_workspace', id: targetWorkspaceId });
-      window.frameToast?.(`Tarea trasladada a ${target.name}.`);
+      window.frameToast?.(`Tarea visible en ${workspaceIds.length} ${workspaceIds.length === 1 ? 'tablero' : 'tableros'}.`);
     } catch (err) {
-      notifyWriteError(err, 'el traslado de la tarea');
+      notifyWriteError(err, 'los tableros visibles de la tarea');
       throw err;
     }
   };
@@ -2249,6 +2321,12 @@ const App = () => {
     ...obj,
     startDate: obj.startDate || localISO(new Date(TODAY)),
     workspaceId: obj.workspaceId || wsId,
+    workspaceIds: Array.isArray(obj.workspaceIds) && obj.workspaceIds.length
+      ? [...new Set(obj.workspaceIds)]
+      : [obj.workspaceId || wsId],
+    viewerIds: Array.isArray(obj.viewerIds) && obj.viewerIds.length
+      ? [...new Set(obj.viewerIds)]
+      : [...new Set(activeWs?.memberIds || [state.currentUserId])],
   });
 
   // ── Crear tablero de equipo ─────────────────────────────────
@@ -2514,9 +2592,10 @@ const App = () => {
       onCreateClient={handleCreateClient}
       onClose={() => dispatch({ type: 'close_project' })}
       onUpdate={handleUpdateProject}
-      onDelete={handleDeleteProject}
-      onMoveWorkspace={handleMoveProject}
+      onDelete={openProject.workspaceId === wsId ? handleDeleteProject : undefined}
+      onSetWorkspaceVisibility={openProject.workspaceId === wsId ? handleSetProjectWorkspaces : undefined}
       workspaces={state.workspaces}
+      activeWorkspaceId={wsId}
       customTypes={state.customTypes}
       onCreateCustomType={handleCreateCustomType}
       onUpdateCustomType={handleUpdateCustomType}

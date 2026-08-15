@@ -687,6 +687,12 @@ const normalizeProject = (p) => ({
   comments:     Array.isArray(p.comments)     ? p.comments     : [],
   timeline:     Array.isArray(p.timeline)     ? p.timeline     : [],
   description:  Array.isArray(p.description)  ? p.description  : [],
+  // Compatibilidad: una tarea anterior a la visibilidad múltiple pertenece
+  // únicamente a su tablero original hasta que alguien la comparta.
+  workspaceIds: Array.isArray(p.workspaceIds)
+    ? [...new Set(p.workspaceIds.filter(Boolean))]
+    : (p.workspaceId ? [p.workspaceId] : []),
+  viewerIds:    Array.isArray(p.viewerIds) ? [...new Set(p.viewerIds.filter(Boolean))] : [],
   cover:        p.cover && typeof p.cover === 'object' ? p.cover : { type: 'color', value: 'var(--surface-2)' },
 });
 

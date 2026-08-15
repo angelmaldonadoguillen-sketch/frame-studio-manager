@@ -46,9 +46,15 @@ assert.doesNotMatch(routine, /#6CC4FF/);
 assert.match(modal, /const coverTextColor/);
 assert.match(modal, /contrastWithWhite >= contrastWithBlack/);
 assert.match(modal, /linear-gradient\(to top, rgba\(0,0,0,.76\)/);
-assert.match(modal, />Trasladar<\/span>/);
+assert.match(modal, />Tableros<\/span>/);
 assert.match(modal, /resolveThemeColor\(user\.color\)/);
 assert.match(clients, /resolveThemeColor\(client\.color\)/);
 assert.match(clients, /resolveThemeColor\(matched\.color\)/);
+assert.match(modal, /const StatusPill = \(\{ status, size = 'sm', solid = false \}\)/);
+assert.match(modal, /const TypePill = \(\{ type, size = 'sm', solid = false \}\)/);
+assert.match(modal, /const PriorityBadge = \(\{ priority, solid = false \}\)/);
+assert.match(modal, /<TypePill type=\{project\.type\} size="md" solid \/>/);
+assert.match(modal, /<StatusPill status=\{project\.status\} size="md" solid \/>/);
+assert.match(modal, /<PriorityBadge priority=\{project\.priority\} solid \/>/);
 
-console.log('theme-contract: 40 checks passed');
+console.log('theme-contract: 46 checks passed');
