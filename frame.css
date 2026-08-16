@@ -122,6 +122,19 @@
      "suaviza": dejarlo a la mitad no sirve para el motivo por el que se
      activa. Se conservan los cambios de estado, sólo desaparece la
      transición entre ellos. */
+  /* Apagón de transiciones durante el cambio de tema.
+     Un elemento que ya existe y tiene una transición sobre background-color
+     no repinta cuando el color le viene de una variable que cambia: la
+     transición no llega a dispararse y se queda con el color anterior hasta
+     recargar. Pasaba con TODAS las tarjetas (.surf-hover y .lift), así que al
+     pasar a claro el tablero quedaba oscuro.
+     Sin transición que atascar, el valor se aplica de una. Se quita al frame
+     siguiente para que los hover vuelvan a animar. */
+  html.theme-switching, html.theme-switching *,
+  html.theme-switching *::before, html.theme-switching *::after {
+    transition: none !important;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -187,7 +200,12 @@
   }
   /* Reacción al pasar el mouse: la superficie se acerca, no se ilumina el
      borde. Coherente con "la profundidad se hace con luz". */
-  .surf-hover { transition: background 280ms var(--ease), transform 280ms var(--ease); }
+  /* background-color y no el atajo 'background': al cambiar de tema, un
+     elemento que ya existía y transiciona el atajo se quedaba con el color
+     viejo hasta recargar la página. El atajo incluye background-image, que no
+     es interpolable, y eso deja la transición atascada cuando el valor viene
+     de una variable que cambia. Con la propiedad concreta sí repinta. */
+  .surf-hover { transition: background-color 280ms var(--ease), transform 280ms var(--ease); }
   .surf-hover:hover { background: var(--surface-3); }
 
   /* ── Campos de formulario ──────────────────────────────────────
@@ -269,7 +287,7 @@
   .anim-scale-in { animation: scaleIn 200ms cubic-bezier(.2,.8,.2,1) both; }
 
   /* Card hover lift */
-  .lift { transition: transform 180ms cubic-bezier(.2,.8,.2,1), border-color 180ms, background 180ms; }
+  .lift { transition: transform 180ms cubic-bezier(.2,.8,.2,1), border-color 180ms, background-color 180ms; }
   .lift:hover { transform: translateY(-2px); }
 
   /* Input reset */

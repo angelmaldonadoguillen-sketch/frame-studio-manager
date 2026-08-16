@@ -3,7 +3,40 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="dark light" />
+<meta name="theme-color" content="#131315" />
 <title>FRAME — Banco de pruebas de UI</title>
+
+<!-- El mismo arranque de tema que index.html. Sin esto el banco se dibuja
+     siempre oscuro aunque la app esté en claro, y deja de servir para lo
+     único que existe: mostrar lo mismo que la app.
+     Se usa otra clave de localStorage a propósito — probar un tema acá no
+     debería cambiarle el tema a FRAME. -->
+<script>
+  (() => {
+    const key = 'frame_theme_preview';
+    const normalize = value => value === 'light' ? 'light' : 'dark';
+    let initial = 'dark';
+    try { initial = normalize(localStorage.getItem(key)); } catch {}
+
+    window.setFrameTheme = value => {
+      const theme = normalize(value);
+      const root = document.documentElement;
+      root.classList.add('theme-switching');
+      root.dataset.theme = theme;
+      root.style.colorScheme = theme;
+      document.querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', theme === 'light' ? '#f4f4f7' : '#131315');
+      void root.offsetHeight;
+      const devolverTransiciones = () => root.classList.remove('theme-switching');
+      requestAnimationFrame(devolverTransiciones);
+      setTimeout(devolverTransiciones, 120);
+      try { localStorage.setItem(key, theme); } catch {}
+      return theme;
+    };
+    window.setFrameTheme(initial);
+  })();
+</script>
 
 <!--
   Banco de pruebas: carga los componentes REALES de FRAME con datos falsos,
@@ -63,7 +96,10 @@
   /* Sólo lo propio del banco, que no forma parte de la app. */
   .harness-bar{
     position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:10px;
-    padding:10px 18px; background:rgba(28,28,30,.8); backdrop-filter:blur(20px) saturate(180%);
+    /* Sale de la paleta y no de un rgba fijo: con el fondo oscuro escrito a
+       mano, la barra quedaba negra sobre el modo claro. */
+    padding:10px 18px; background:color-mix(in srgb, var(--surface-2) 80%, transparent);
+    backdrop-filter:blur(20px) saturate(180%);
     border-bottom:.5px solid var(--border); font-size:var(--t-11); color:var(--text-muted);
   }
   .harness-bar b{color:var(--text-dim); font-weight:600}
@@ -159,11 +195,24 @@
       // el checklist. El banco mostraba la interfaz pero no reaccionaba.
       const [data, setData] = React.useState(PROJECTS);
       const upd = (p) => setData(d => d.map(x => x.id === p.id ? p : x));
+
+      // Ahora que FRAME tiene dos temas, el banco tiene que poder mostrar los
+      // dos: un componente puede leerse bien en oscuro y perderse en claro.
+      const [tema, setTema] = React.useState(() => document.documentElement.dataset.theme || 'dark');
+      const alternarTema = () => setTema(window.setFrameTheme(tema === 'dark' ? 'light' : 'dark'));
+
       return (
       <div>
         <div className="harness-bar">
           <b>Banco de pruebas</b>
           <span>· componentes reales · datos falsos · sin Firestore</span>
+          <button
+            onClick={alternarTema}
+            style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 6,
+                     background: 'var(--surface-2)', color: 'var(--text)', fontSize: 12 }}
+          >
+            {tema === 'dark' ? 'Modo oscuro' : 'Modo claro'}
+          </button>
         </div>
 
         <div className="harness-sec">

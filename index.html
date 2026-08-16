@@ -16,10 +16,22 @@
 
     window.setFrameTheme = value => {
       const theme = normalize(value);
+      // Sin esto, todo lo que transiciona background-color se queda con el
+      // color del tema anterior hasta recargar (ver frame.css).
+      document.documentElement.classList.add('theme-switching');
       document.documentElement.dataset.theme = theme;
       document.documentElement.style.colorScheme = theme;
       document.querySelector('meta[name="theme-color"]')
         ?.setAttribute('content', theme === 'light' ? '#f4f4f7' : '#131315');
+      // Se fuerza el recálculo antes de devolver las transiciones.
+      void document.documentElement.offsetHeight;
+      // Con respaldo por temporizador: requestAnimationFrame no se ejecuta
+      // mientras la pestaña está oculta, y sin esto las transiciones
+      // quedarían apagadas hasta que alguien vuelva a mirarla.
+      const devolverTransiciones = () =>
+        document.documentElement.classList.remove('theme-switching');
+      requestAnimationFrame(devolverTransiciones);
+      setTimeout(devolverTransiciones, 120);
       try { localStorage.setItem(key, theme); } catch {}
       return theme;
     };
