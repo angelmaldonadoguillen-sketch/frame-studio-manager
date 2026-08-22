@@ -1560,9 +1560,10 @@ const EmptyState = ({ message = 'No hay tareas que coincidan con tus filtros' })
 );
 
 // ── TRASH SECTION ────────────────────────────────────────────────
-const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
-  const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+const TrashSection = ({ trash, onRestore, onPermanentDelete, onRestoreAll, onPermanentDeleteAll }) => {
   const [confirmId, setConfirmId] = React.useState(null); // permanent-delete confirm
+  const [confirmEmpty, setConfirmEmpty] = React.useState(false);
+  const [bulkAction, setBulkAction] = React.useState(null);
 
   const deletedAgo = (iso) => {
     const ms = Date.now() - new Date(iso).getTime();
@@ -1574,7 +1575,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
   };
 
   const daysLeft = (iso) => {
-    const remaining = FIVE_DAYS_MS - (Date.now() - new Date(iso).getTime());
+    const remaining = TRASH_RETENTION_MS - (Date.now() - new Date(iso).getTime());
     return Math.max(0, Math.ceil(remaining / 86400000));
   };
 
@@ -1584,21 +1585,44 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-app flex items-center gap-3">
+      <div className="px-6 py-4 border-b border-app flex items-center gap-3 flex-wrap">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-3)' }}>
           <Icon name="trash" size={15} className="text-[var(--text-muted)]" />
         </div>
         <div>
           <h2 className="font-display font-bold text-[17px]" style={{ letterSpacing: '-0.01em' }}>Papelera de reciclaje</h2>
           <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Las tareas se eliminan permanentemente a los <strong className="text-[var(--text-dim)]">5 días</strong>
+            Las tareas se eliminan permanentemente a los <strong className="text-[var(--text-dim)]">{TRASH_RETENTION_DAYS} días</strong>
           </p>
         </div>
-        {trash.length > 0 && (
-          <span className="ml-auto text-[11px] font-mono px-2 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+        {trash.length > 0 && <div className="ml-auto flex items-center gap-2">
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
             {trash.length} {trash.length === 1 ? 'tarea' : 'tareas'}
           </span>
-        )}
+          <button
+            disabled={!!bulkAction}
+            onClick={async () => { setBulkAction('restore'); await onRestoreAll(); setBulkAction(null); }}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-semibold disabled:opacity-50"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          >
+            {bulkAction === 'restore' ? 'Restaurando…' : 'Restaurar todo'}
+          </button>
+          {confirmEmpty ? <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold" style={{ color: 'var(--danger)' }}>¿Vaciar definitivamente?</span>
+            <button
+              disabled={!!bulkAction}
+              onClick={async () => { setBulkAction('empty'); await onPermanentDeleteAll(); setBulkAction(null); setConfirmEmpty(false); }}
+              className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-50"
+              style={{ background: 'var(--danger)', color: '#fff' }}
+            >Sí, vaciar</button>
+            <button onClick={() => setConfirmEmpty(false)} className="px-2 py-1.5 text-[11px] text-[var(--text-muted)]">Cancelar</button>
+          </div> : <button
+            disabled={!!bulkAction}
+            onClick={() => setConfirmEmpty(true)}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-semibold border disabled:opacity-50"
+            style={{ color: 'var(--danger)', borderColor: 'var(--danger-soft-2)' }}
+          >Vaciar papelera</button>}
+        </div>}
       </div>
 
       {/* Content */}
@@ -1670,7 +1694,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete }) => {
                       <div
                         className="h-full rounded-full transition"
                         style={{
-                          width: `${(dl / 5) * 100}%`,
+                          width: `${(dl / TRASH_RETENTION_DAYS) * 100}%`,
                           background: purgeSoon ? 'var(--danger)' : 'var(--text-muted)',
                         }}
                       />

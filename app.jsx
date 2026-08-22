@@ -159,6 +159,15 @@ function reducer(state, action) {
     case 'set_trash':          return { ...state, trash: action.trash, trashLoading: false };
     case 'remove_from_trash':  return { ...state, trash: state.trash.filter(t => t.id !== action.id) };
     case 'restore_project':    return { ...state, projects: [action.project, ...state.projects], trash: state.trash.filter(t => t.id !== action.project.id) };
+    case 'restore_projects': {
+      const restoredIds = new Set(action.projects.map(project => project.id));
+      return {
+        ...state,
+        projects: [...action.projects, ...state.projects.filter(project => !restoredIds.has(project.id))],
+        trash: state.trash.filter(item => !restoredIds.has(item.id)),
+      };
+    }
+    case 'clear_trash': return { ...state, trash: [] };
     case 'duplicate_project':  return { ...state, projects: [action.project, ...state.projects] };
     // ── Clientes ──
     case 'set_clients':   return { ...state, clients: action.clients, clientsLoading: false };
@@ -2221,14 +2230,14 @@ const App = () => {
   // ── Firestore: papelera de reciclaje ──────────────────────────
   useEffect(() => {
     if (!authUser || !wsId) return;
-    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
     const col = window.db.collection('frame_trash').where('workspaceId', '==', wsId);
     const unsub = col.onSnapshot(async (snap) => {
       const now = Date.now();
-      // Auto-purge items older than 5 days
+      // Respaldo en cliente. La función programada hace la purga aunque nadie
+      // abra FRAME; este paso mantiene el comportamiento si aún no se desplegó.
       const expired = snap.docs.filter(d => {
         const deletedAt = d.data().deletedAt;
-        return deletedAt && (now - new Date(deletedAt).getTime()) > FIVE_DAYS_MS;
+        return deletedAt && (now - new Date(deletedAt).getTime()) > TRASH_RETENTION_MS;
       });
       if (expired.length > 0) {
         await Promise.all(expired.map(d => d.ref.delete()));
@@ -2236,7 +2245,7 @@ const App = () => {
       const remaining = snap.docs
         .filter(d => {
           const deletedAt = d.data().deletedAt;
-          return deletedAt && (now - new Date(deletedAt).getTime()) <= FIVE_DAYS_MS;
+          return deletedAt && (now - new Date(deletedAt).getTime()) <= TRASH_RETENTION_MS;
         })
         .map(d => normalizeProject({ ...d.data(), id: d.id }));
       dispatch({ type: 'set_trash', trash: remaining });
@@ -2396,27 +2405,68 @@ const App = () => {
     }
   };
 
-  const handleRestoreProject = async (item) => {
-    // Strip deletedAt before restoring
+  const restoreTrashItem = async (item) => {
     const { deletedAt, ...project } = item;
-    // Optimistic: add back to projects, remove from trash
-    dispatch({ type: 'restore_project', project });
+    const batch = window.db.batch();
+    batch.set(window.db.collection('frame_projects').doc(project.id), project);
+    batch.delete(window.db.collection('frame_trash').doc(item.id));
+    await batch.commit();
+
+    // Al eliminar se quitaron estas referencias. Sin restaurarlas, la tarea
+    // compartida volvía sólo a su tablero principal.
+    await Promise.all((project.workspaceIds || [project.workspaceId]).filter(Boolean).map(workspaceId =>
+      window.db.collection('frame_workspaces').doc(workspaceId).update({
+        sharedTaskIds: firebase.firestore.FieldValue.arrayUnion(project.id),
+      }).catch(err => console.error('[FRAME] Restaurar referencia compartida:', err))
+    ));
+    return project;
+  };
+
+  const handleRestoreProject = async (item) => {
     try {
-      await window.db.collection('frame_projects').doc(project.id).set(project);
-      await window.db.collection('frame_trash').doc(item.id).delete();
-      console.log('[FRAME] Proyecto restaurado:', item.id);
+      const project = await restoreTrashItem(item);
+      dispatch({ type: 'restore_project', project });
+      window.frameToast?.('Tarea restaurada.');
     } catch (err) {
-      console.error('[FRAME] Error al restaurar proyecto:', err);
+      notifyWriteError(err, 'la restauración de la tarea');
     }
   };
 
   const handlePermanentDelete = async (id) => {
-    dispatch({ type: 'remove_from_trash', id });
     try {
       await window.db.collection('frame_trash').doc(id).delete();
-      console.log('[FRAME] Proyecto eliminado permanentemente:', id);
+      dispatch({ type: 'remove_from_trash', id });
+      window.frameToast?.('Tarea eliminada permanentemente.');
     } catch (err) {
-      console.error('[FRAME] Error al eliminar permanentemente:', err);
+      notifyWriteError(err, 'la eliminación permanente');
+    }
+  };
+
+  const handleRestoreAllTrash = async () => {
+    const restored = [];
+    let failed = 0;
+    for (const item of state.trash) {
+      try { restored.push(await restoreTrashItem(item)); }
+      catch (err) { failed += 1; console.error('[FRAME] Restaurar todo:', item.id, err); }
+    }
+    if (restored.length) dispatch({ type: 'restore_projects', projects: restored });
+    if (failed) window.frameToast?.(`${restored.length} restauradas; ${failed} no se pudieron restaurar.`);
+    else window.frameToast?.(`${restored.length} ${restored.length === 1 ? 'tarea restaurada' : 'tareas restauradas'}.`);
+  };
+
+  const handlePermanentDeleteAll = async () => {
+    const results = await Promise.allSettled(state.trash.map(item =>
+      window.db.collection('frame_trash').doc(item.id).delete()
+    ));
+    const deletedIds = state.trash.filter((_, index) => results[index].status === 'fulfilled').map(item => item.id);
+    const failed = results.length - deletedIds.length;
+    if (!failed) dispatch({ type: 'clear_trash' });
+    else deletedIds.forEach(id => dispatch({ type: 'remove_from_trash', id }));
+    if (failed) window.frameToast?.(`${deletedIds.length} eliminadas; ${failed} no se pudieron eliminar.`);
+    else window.frameToast?.('Papelera vaciada permanentemente.');
+    if (failed) {
+      const firstError = results.find(result => result.status === 'rejected')?.reason;
+      console.error('[FRAME] Vaciar papelera:', firstError);
     }
   };
 
@@ -2897,6 +2947,8 @@ const App = () => {
           trash={state.trash}
           onRestore={handleRestoreProject}
           onPermanentDelete={handlePermanentDelete}
+          onRestoreAll={handleRestoreAllTrash}
+          onPermanentDeleteAll={handlePermanentDeleteAll}
         />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
