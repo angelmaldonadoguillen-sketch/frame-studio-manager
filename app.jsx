@@ -2900,6 +2900,7 @@ const App = () => {
       onUpdateCustomType={handleUpdateCustomType}
       onDeleteCustomType={handleDeleteCustomType}
       workspaceKind={activeWs?.kind || 'personal'}
+      clientPortalToken={state.clients.find(client => client.name.toLowerCase() === String(openProject.client || '').toLowerCase())?.portalToken || ''}
     />
   );
 
