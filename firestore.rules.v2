@@ -370,7 +370,7 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/frame_client_portals/$(token)).data;
         }
         function validComment() {
-          return request.resource.data.keys().hasOnly(['id', 'projectId', 'authorType', 'authorName', 'text', 'at', 'attachmentUrl', 'attachmentName'])
+          return request.resource.data.keys().hasOnly(['id', 'projectId', 'authorType', 'authorName', 'text', 'at', 'editedAt', 'attachmentUrl', 'attachmentName'])
                  && request.resource.data.id == commentId
                  && request.resource.data.projectId is string
                  && request.resource.data.projectId in portal().taskIds
@@ -380,6 +380,7 @@ service cloud.firestore {
                  && request.resource.data.authorName.size() <= 80
                  && request.resource.data.text is string
                  && request.resource.data.text.size() <= 2000
+                 && (!request.resource.data.keys().hasAny(['editedAt']) || (request.resource.data.editedAt is string && request.resource.data.editedAt.size() > 0))
                  && (!request.resource.data.keys().hasAny(['attachmentUrl', 'attachmentName']) || (
                    request.resource.data.keys().hasAll(['attachmentUrl', 'attachmentName'])
                    && request.resource.data.attachmentUrl is string
@@ -394,13 +395,19 @@ service cloud.firestore {
                  && request.resource.data.at is string;
         }
         allow read: if portal().published == true || isMember(portal().workspaceId);
-        allow create: if validComment() && (
+        allow create: if validComment()
+                      && !request.resource.data.keys().hasAny(['editedAt'])
+                      && (
           (portal().published == true
            && request.resource.data.authorType == 'client'
            && request.resource.data.authorName == portal().clientName)
           || (isMember(portal().workspaceId) && request.resource.data.authorType == 'studio')
         );
-        allow update: if false;
+        allow update: if isMember(portal().workspaceId)
+                      && validComment()
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt'])
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.keys().hasAll(['editedAt']);
         allow delete: if isMember(portal().workspaceId);
       }
     }

@@ -2240,6 +2240,9 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   const [uploading, setUploading] = useState(false);
   const [attachment, setAttachment] = useState(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [editingId, setEditingId] = useState('');
+  const [editingText, setEditingText] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState('');
   const imageRef = useRef(null);
   const emojis = ['👍', '❤️', '✨', '🔥', '👏', '😊', '😂', '🎉', '✅', '👀', '🙏', '💡'];
   const initialsFor = value => String(value || '?').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
@@ -2299,6 +2302,24 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
     finally { setSending(false); }
   };
 
+  const saveEdit = async (commentId) => {
+    const cleanText = editingText.trim().slice(0, 2000);
+    if (!cleanText) return;
+    try {
+      await window.db.collection('frame_client_portals').doc(portalToken).collection('comments').doc(commentId)
+        .update({ text: cleanText, editedAt: new Date().toISOString() });
+      setEditingId('');
+      setEditingText('');
+    } catch { window.frameToast?.('No se pudo editar el comentario.'); }
+  };
+
+  const deleteComment = async (commentId) => {
+    try {
+      await window.db.collection('frame_client_portals').doc(portalToken).collection('comments').doc(commentId).delete();
+      setConfirmDeleteId('');
+    } catch { window.frameToast?.('No se pudo eliminar el comentario.'); }
+  };
+
   const composerAvatar = authorType === 'studio' ? authorAvatar : '';
 
   return <div className="p-5 md:p-7 max-w-[900px]">
@@ -2306,9 +2327,15 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
       {comments.length === 0 && <div className="text-[12px] py-8" style={{ color: 'var(--text-muted)' }}>No hay mensajes todavía.</div>}
       {comments.map(comment => <div key={comment.id} className="flex gap-3 group">
         {avatarFor(comment) ? <img src={avatarFor(comment)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0" style={comment.authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{comment.authorType === 'client' ? (clientInitials || initialsFor(comment.authorName)) : initialsFor(comment.authorName)}</div>}
-        <div className="min-w-0 pt-0.5">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"><span className="text-[12px] font-semibold">{comment.authorName}</span><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{relativeTime(comment.at)}</span></div>
-          {comment.text && <div className="text-[13px] leading-5 pretty whitespace-pre-wrap mt-0.5">{comment.text}</div>}
+        <div className="min-w-0 flex-1 pt-0.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"><span className="text-[12px] font-semibold">{comment.authorName}</span><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{relativeTime(comment.at)}{comment.editedAt ? ' · editado' : ''}</span></div>
+            {authorType === 'studio' && <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              {comment.authorType === 'studio' && comment.text && <button onClick={() => { setEditingId(comment.id); setEditingText(comment.text); setConfirmDeleteId(''); }} className="p-1 rounded hover:bg-[var(--surface-2)]" title="Editar comentario"><Icon name="edit" size={12} /></button>}
+              {confirmDeleteId === comment.id ? <><button onClick={() => deleteComment(comment.id)} className="px-1.5 py-1 rounded text-[10px]" style={{ color: 'var(--danger)' }}>Eliminar</button><button onClick={() => setConfirmDeleteId('')} className="px-1.5 py-1 rounded text-[10px]" style={{ color: 'var(--text-muted)' }}>Cancelar</button></> : <button onClick={() => { setConfirmDeleteId(comment.id); setEditingId(''); }} className="p-1 rounded hover:bg-[var(--surface-2)]" title="Eliminar comentario"><Icon name="trash" size={12} /></button>}
+            </div>}
+          </div>
+          {editingId === comment.id ? <div className="mt-1.5"><textarea autoFocus value={editingText} onChange={event => setEditingText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); saveEdit(comment.id); } if (event.key === 'Escape') setEditingId(''); }} maxLength={2000} rows={2} className="w-full px-2 py-1.5 text-[13px] field resize-none" /><div className="flex justify-end gap-2 mt-1"><button onClick={() => setEditingId('')} className="text-[10px] px-2 py-1" style={{ color: 'var(--text-muted)' }}>Cancelar</button><button onClick={() => saveEdit(comment.id)} disabled={!editingText.trim()} className="text-[10px] px-2 py-1 rounded disabled:opacity-40" style={{ background: 'var(--text)', color: 'var(--bg)' }}>Guardar</button></div></div> : comment.text && <div className="text-[13px] leading-5 pretty whitespace-pre-wrap mt-0.5">{comment.text}</div>}
           {comment.attachmentUrl && <a href={comment.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-2"><img src={comment.attachmentUrl} alt={comment.attachmentName || 'Imagen adjunta'} className="max-w-[360px] max-h-64 rounded-lg object-cover border border-app" /><span className="block mt-1 text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{comment.attachmentName}</span></a>}
         </div>
       </div>)}
