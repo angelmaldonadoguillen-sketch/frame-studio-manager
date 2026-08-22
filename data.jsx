@@ -726,8 +726,6 @@ const normalizeProject = (p) => ({
   // Compatibilidad: las tareas anteriores al portal nacen visibles. Sólo un
   // false guardado explícitamente las excluye del seguimiento del cliente.
   clientVisible: p.clientVisible !== false,
-  clientImage: typeof p.clientImage === 'string' ? p.clientImage : '',
-  clientUrl: typeof p.clientUrl === 'string' ? p.clientUrl : '',
   cover:        p.cover && typeof p.cover === 'object' ? p.cover : { type: 'color', value: 'var(--surface-2)' },
 });
 
