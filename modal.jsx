@@ -1287,7 +1287,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
 
                 {/* Recursos */}
                 <section>
-                  <SectionTitle icon="upload">Recursos</SectionTitle>
+                  <SectionTitle icon="upload" right={project.deliverables.length ? `${project.deliverables.length}` : ''}>Recursos</SectionTitle>
                   <div className="space-y-1.5">
                     {project.deliverables.map(dv => (
                       <div key={dv.id} className="group field border-app surface-2 overflow-hidden">
@@ -1337,27 +1337,23 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                           </div>
                         ) : (
                           /* ── Modo normal ── */
-                          <div className="flex items-center gap-3 py-2 px-3">
-                            <Icon name={dv.kind === 'video' ? 'film' : dv.kind === 'photos' ? 'camera' : dv.kind === 'file' ? 'paperclip' : 'mic'} size={14} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                          <div className="flex items-center gap-3 py-2.5 px-3">
+                            {dv.kind === 'photos' && dv.url ? (
+                              <img src={dv.url} alt="" className="w-12 h-12 rounded-md object-cover border border-app flex-shrink-0" />
+                            ) : (
+                              <span className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}>
+                                <Icon name={dv.kind === 'video' ? 'external' : dv.kind === 'file' ? 'paperclip' : 'mic'} size={15} />
+                              </span>
+                            )}
                             <div className="flex-1 min-w-0">
                               <div
                                 onClick={() => startEditDv(dv)}
                                 className="text-[13px] cursor-text truncate hover:text-white transition-colors"
                                 title="Clic para editar"
                               >{dv.name}</div>
-                              {dv.url && (
-                                <a
-                                  href={dv.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1 text-[11px] font-mono truncate max-w-full hover:underline"
-                                  style={{ color: 'var(--accent)' }}
-                                >
-                                  <Icon name="link" size={10} />
-                                  {dv.url.replace(/^https?:\/\//, '').slice(0, 40)}{dv.url.replace(/^https?:\/\//, '').length > 40 ? '…' : ''}
-                                </a>
-                              )}
+                              <div className="text-[10px] mt-0.5 uppercase tracking-wide truncate" style={{ color: 'var(--text-muted)' }}>
+                                {dv.kind === 'photos' ? 'Imagen' : dv.kind === 'file' ? (dv.name.split('.').pop() || 'Archivo') : 'Enlace externo'}
+                              </div>
                             </div>
                             {dv.kind === 'photos' && dv.url && (
                               <button
@@ -1370,8 +1366,13 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                                 title="Usar esta imagen como portada de la tarea"
                               >
                                 <Icon name="image" size={12} />
-                                <span className="hidden sm:inline">Usar como portada</span>
+                                <span className="hidden md:inline">Portada</span>
                               </button>
+                            )}
+                            {dv.url && (
+                              <a href={dv.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex-shrink-0 p-1.5 rounded-md hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }} title="Abrir recurso">
+                                <Icon name="external" size={13} />
+                              </a>
                             )}
                             <button
                               onClick={() => toggleDeliverable(dv.id)}
@@ -1381,7 +1382,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                                 color: dv.status === 'ready' ? 'var(--resource-teal)' : 'var(--resource-neutral)',
                               }}
                             >
-                              {dv.status === 'ready' ? '✓ Listo' : 'Pendiente'}
+                              {dv.status === 'ready' ? 'Compartido' : 'Privado'}
                             </button>
                             <button onClick={() => removeDeliverable(dv.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity flex-shrink-0">
                               <Icon name="trash" size={13} />
@@ -1554,6 +1555,7 @@ const ChecklistAdd = ({ onAdd }) => {
 
 // ── Deliverable add ─────────────────────────────────────────────
 const DeliverableAdd = ({ onAdd, projectId }) => {
+  const [linkOpen, setLinkOpen] = useState(false);
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -1571,6 +1573,7 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
     onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: linkName.trim() || fallbackName, kind: 'video', status: 'pending', url: cleanUrl });
     setLinkName('');
     setLinkUrl('');
+    setLinkOpen(false);
   };
 
   const uploadFile = async (event, expectedKind) => {
@@ -1601,40 +1604,23 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
   };
 
   return (
-    <div className="mt-4 space-y-4">
-      <div className="field p-3" style={{ background: 'var(--surface-2)' }}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[12px] font-semibold"><Icon name="image" size={14} /> Imagen</div>
-            <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>JPG, PNG, WebP, GIF</div>
-          </div>
-          <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading} className="w-full sm:w-auto flex-shrink-0 px-3 py-2 rounded-md text-[12px] font-medium hover:opacity-90 disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Seleccionar imagen</button>
-        </div>
-        <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => uploadFile(event, 'photos')} disabled={uploading} />
+    <div className="mt-3 space-y-2">
+      <div className="grid grid-cols-3 gap-2">
+        <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading} className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-[var(--border-2)] text-[12px] font-medium hover:bg-[var(--surface-2)] hover:border-[var(--text-muted)] disabled:opacity-40"><Icon name="image" size={13} /> Imagen</button>
+        <button type="button" onClick={() => documentRef.current?.click()} disabled={uploading} className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-[var(--border-2)] text-[12px] font-medium hover:bg-[var(--surface-2)] hover:border-[var(--text-muted)] disabled:opacity-40"><Icon name="paperclip" size={13} /> Archivo</button>
+        <button type="button" onClick={() => setLinkOpen(open => !open)} className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-[var(--border-2)] text-[12px] font-medium hover:bg-[var(--surface-2)] hover:border-[var(--text-muted)]"><Icon name="link" size={13} /> Enlace</button>
       </div>
+      <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => uploadFile(event, 'photos')} disabled={uploading} />
+      <input ref={documentRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" className="hidden" onChange={(event) => uploadFile(event, 'file')} disabled={uploading} />
+      {uploading && <div className="text-[11px] text-center py-1" style={{ color: 'var(--accent)' }}>Subiendo archivo…</div>}
 
-      <div className="field p-3" style={{ background: 'var(--surface-2)' }}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[12px] font-semibold"><Icon name="paperclip" size={14} /> Archivo</div>
-            <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>PDF, DOCX, XLSX, PPTX, TXT, CSV, ZIP</div>
-          </div>
-          <button type="button" onClick={() => documentRef.current?.click()} disabled={uploading} className="w-full sm:w-auto flex-shrink-0 px-3 py-2 rounded-md text-[12px] font-medium border border-app hover:bg-[var(--surface-3)] disabled:opacity-40">Seleccionar archivo</button>
-        </div>
-        <input ref={documentRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" className="hidden" onChange={(event) => uploadFile(event, 'file')} disabled={uploading} />
-      </div>
-
-      {uploading && <div className="text-[11px] text-center" style={{ color: 'var(--accent)' }}>Subiendo archivo…</div>}
-
-      <div className="field p-3" style={{ background: 'var(--surface-2)' }}>
-        <div className="flex items-center gap-2 text-[12px] font-semibold"><Icon name="link" size={14} /> Enlace externo</div>
-        <div className="text-[10px] mt-1 mb-3" style={{ color: 'var(--text-muted)' }}>Drive, Dropbox, YouTube, Vimeo…</div>
+      {linkOpen && <div className="field p-3 anim-fade-in" style={{ background: 'var(--surface-2)' }}>
         <div className="grid sm:grid-cols-[minmax(120px,.6fr)_minmax(180px,1.4fr)_auto] gap-2">
           <input value={linkName} onChange={(event) => setLinkName(event.target.value)} placeholder="Nombre (opcional)" className="field min-w-0 px-2.5 py-2 text-[12px]" />
           <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submitLink(); }} placeholder="https://drive.google.com/…" className="field min-w-0 px-2.5 py-2 text-[12px]" />
           <button onClick={submitLink} disabled={!linkUrl.trim()} className="px-3 py-2 text-[12px] font-semibold rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Agregar enlace</button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };
