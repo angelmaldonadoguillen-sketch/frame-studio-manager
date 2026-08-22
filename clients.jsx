@@ -449,12 +449,12 @@ const ClientDetail = ({ client, projects, columns = [], onClose, onUpdate, onDel
                         </div>
                         <StatusPill status={p.status} />
                         <button
-                          onClick={() => onTogglePortalTask(p, !p.clientVisible)}
+                          onClick={() => onTogglePortalTask(p, p.clientVisible === false)}
                           className="px-2 py-1 rounded-md text-[10px] font-semibold flex-shrink-0"
-                          style={{ background: p.clientVisible ? 'var(--accent)' : 'var(--surface-3)', color: p.clientVisible ? 'var(--accent-on)' : 'var(--text-muted)' }}
-                          title={p.clientVisible ? 'Ocultar del portal' : 'Mostrar en el portal'}
+                          style={{ background: p.clientVisible !== false ? 'var(--accent)' : 'var(--surface-3)', color: p.clientVisible !== false ? 'var(--accent-on)' : 'var(--text-muted)' }}
+                          title={p.clientVisible !== false ? 'Ocultar del portal' : 'Mostrar en el portal'}
                         >
-                          {p.clientVisible ? 'Visible' : 'Oculta'}
+                          {p.clientVisible !== false ? 'Visible' : 'Oculta'}
                         </button>
                       </div>
                     );
