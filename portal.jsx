@@ -60,6 +60,7 @@ const ClientPortal = ({ token }) => {
   const [loading, setLoading] = React.useState(true);
   const [unavailable, setUnavailable] = React.useState(false);
   const [calendarDate, setCalendarDate] = React.useState(() => new Date(TODAY));
+  const calendarScrollRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!/^[a-f0-9]{48}$/.test(token || '')) { setUnavailable(true); setLoading(false); return; }
@@ -70,6 +71,26 @@ const ClientPortal = ({ token }) => {
     }, () => { setUnavailable(true); setLoading(false); });
     return () => unsub();
   }, [token]);
+
+  // Trackpad y Shift+rueda: el calendario es más ancho que el teléfono o una
+  // ventana estrecha, pero algunos navegadores consumen deltaX antes de mover
+  // un overflow anidado. El listener no pasivo sólo intercepta el gesto
+  // claramente horizontal y conserva el scroll vertical de la página.
+  React.useEffect(() => {
+    const calendar = calendarScrollRef.current;
+    if (!calendar) return;
+    const onWheel = event => {
+      const horizontalGesture = Math.abs(event.deltaX) > Math.abs(event.deltaY) * 0.75;
+      if (!horizontalGesture && !event.shiftKey) return;
+      const rawDelta = horizontalGesture ? event.deltaX : event.deltaY;
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? calendar.clientWidth : 1;
+      const before = calendar.scrollLeft;
+      calendar.scrollLeft += rawDelta * scale;
+      if (calendar.scrollLeft !== before) event.preventDefault();
+    };
+    calendar.addEventListener('wheel', onWheel, { passive: false });
+    return () => calendar.removeEventListener('wheel', onWheel);
+  }, [portal]);
 
   if (loading) return <LoadingScreen />;
   if (unavailable || !portal) return (
@@ -138,7 +159,7 @@ const ClientPortal = ({ token }) => {
             <div className="px-4 sm:px-5 py-4 border-b border-app font-display text-xl font-bold capitalize">
               {calendarDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
             </div>
-            <div className="overflow-x-auto">
+            <div ref={calendarScrollRef} className="portal-calendar-scroll overflow-x-auto" style={{ overscrollBehaviorX: 'contain' }}>
               <div className="portal-calendar" role="grid" aria-label="Calendario mensual del trabajo">
                 {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => <div key={day} className="portal-calendar-weekday">{day}</div>)}
                 {calendarDays.map(date => {
