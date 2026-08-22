@@ -2233,10 +2233,9 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
   );
 };
 
-const SharedClientComments = ({ portalToken, projectId, authorType, authorName = '', authorAvatar = '', studioAvatar = '' }) => {
+const SharedClientComments = ({ portalToken, projectId, authorType, authorName = '', authorAvatar = '', studioAvatar = '', clientInitials = '', clientColor = '' }) => {
   const [comments, setComments] = useState([]);
   const [text, setText] = useState('');
-  const [name, setName] = useState(() => authorName || localStorage.getItem('frame_client_comment_name') || 'Cliente');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [attachment, setAttachment] = useState(null);
@@ -2245,6 +2244,7 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   const emojis = ['👍', '❤️', '✨', '🔥', '👏', '😊', '😂', '🎉', '✅', '👀', '🙏', '💡'];
   const initialsFor = value => String(value || '?').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
   const avatarFor = comment => comment.authorType === 'studio' ? (studioAvatar || authorAvatar) : '';
+  const clientAvatarStyle = { background: resolveThemeColor(clientColor || 'var(--resource-blue)'), color: 'var(--resource-on)' };
 
   useEffect(() => {
     if (!portalToken || !projectId) return;
@@ -2282,7 +2282,7 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
 
   const send = async () => {
     const cleanText = text.trim();
-    const cleanName = (authorName || name).trim().slice(0, 80);
+    const cleanName = (authorName || (authorType === 'client' ? 'Cliente' : 'Estudio')).trim().slice(0, 80);
     if ((!cleanText && !attachment) || !cleanName || sending || uploading) return;
     setSending(true);
     const id = 'pc' + Date.now() + Math.random().toString(36).slice(2, 8);
@@ -2293,7 +2293,6 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
         comment.attachmentName = attachment.name;
       }
       await window.db.collection('frame_client_portals').doc(portalToken).collection('comments').doc(id).set(comment);
-      if (authorType === 'client') localStorage.setItem('frame_client_comment_name', cleanName);
       setText('');
       setAttachment(null);
     } catch { window.frameToast?.('No se pudo enviar el comentario. Revisá la conexión.'); }
@@ -2306,7 +2305,7 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
     <div className="space-y-5 max-h-[52vh] overflow-y-auto pr-2">
       {comments.length === 0 && <div className="text-[12px] py-8" style={{ color: 'var(--text-muted)' }}>No hay mensajes todavía.</div>}
       {comments.map(comment => <div key={comment.id} className="flex gap-3 group">
-        {avatarFor(comment) ? <img src={avatarFor(comment)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0" style={{ background: comment.authorType === 'client' ? 'var(--resource-blue)' : 'var(--surface-3)', color: '#fff' }}>{initialsFor(comment.authorName)}</div>}
+        {avatarFor(comment) ? <img src={avatarFor(comment)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0" style={comment.authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{comment.authorType === 'client' ? (clientInitials || initialsFor(comment.authorName)) : initialsFor(comment.authorName)}</div>}
         <div className="min-w-0 pt-0.5">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"><span className="text-[12px] font-semibold">{comment.authorName}</span><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{relativeTime(comment.at)}</span></div>
           {comment.text && <div className="text-[13px] leading-5 pretty whitespace-pre-wrap mt-0.5">{comment.text}</div>}
@@ -2316,19 +2315,18 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
     </div>
 
     <div className="mt-7 pt-4 border-t border-app">
-      {authorType === 'client' && <input value={name} onChange={event => setName(event.target.value)} maxLength={80} className="w-full max-w-[240px] px-0 py-1 text-[11px] mb-3 bg-transparent border-b border-[var(--border-2)]" placeholder="Tu nombre" />}
       {attachment && <div className="mb-3 ml-11 inline-flex items-center gap-2 p-2 rounded-lg border border-app" style={{ background: 'var(--surface-2)' }}><img src={attachment.url} alt="Vista previa" className="w-14 h-14 rounded-md object-cover" /><span className="max-w-[180px] truncate text-[11px]">{attachment.name}</span><button onClick={() => setAttachment(null)} aria-label="Quitar imagen" className="p-1 rounded hover:bg-[var(--surface-3)]"><Icon name="x" size={12} /></button></div>}
       <div className="relative flex gap-3 items-start">
-        {composerAvatar ? <img src={composerAvatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-0.5" style={{ background: authorType === 'client' ? 'var(--resource-blue)' : 'var(--surface-3)', color: '#fff' }}>{initialsFor(authorType === 'client' ? name : authorName)}</div>}
+        {composerAvatar ? <img src={composerAvatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-0.5" style={authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{authorType === 'client' ? (clientInitials || initialsFor(authorName)) : initialsFor(authorName)}</div>}
         <div className="flex-1 min-w-0 border-b border-[var(--border-2)] focus-within:border-[var(--text-muted)] transition-colors">
           <textarea value={text} onChange={event => setText(event.target.value)} onPaste={onPaste} maxLength={2000} rows={1} className="w-full px-0 py-1.5 text-[13px] resize-none bg-transparent min-h-[36px]" placeholder="Agregar un comentario…" />
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center gap-1">
-              <button onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}><Icon name="paperclip" size={16} /></button>
-              <button onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)] text-[17px] leading-none" style={{ color: 'var(--text-dim)' }}>☺</button>
+              <button onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" className="w-7 h-7 rounded flex items-center justify-center hover:bg-[var(--surface-2)] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></button>
+              <button onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" className="w-7 h-7 rounded flex items-center justify-center hover:bg-[var(--surface-2)]" style={{ color: 'var(--text-dim)' }}><Icon name="smile" size={15} /></button>
               {uploading && <span className="text-[10px] ml-1" style={{ color: 'var(--accent)' }}>Subiendo…</span>}
             </div>
-            <button onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} aria-label="Enviar comentario" className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--text)', color: 'var(--bg)' }}><Icon name="send" size={14} /></button>
+            <button onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} aria-label="Enviar comentario" className="w-7 h-7 rounded flex items-center justify-center hover:bg-[var(--surface-2)] disabled:opacity-25" style={{ color: 'var(--text-dim)' }}><Icon name="send" size={15} /></button>
           </div>
           <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; uploadImage(file); }} />
         </div>

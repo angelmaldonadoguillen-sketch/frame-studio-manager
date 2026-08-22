@@ -24,7 +24,7 @@ check(rules.includes('match /frame_client_portals/{token}'), 'las reglas deben c
 check(rules.includes('allow get: if resource.data.published == true'), 'sólo un portal publicado debe ser legible');
 check(rules.includes('allow list: if false'), 'nadie debe enumerar portales');
 check(rules.includes('data.tasks.size() <= 100'), 'la proyección debe tener un límite');
-check(rules.includes("data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'studioAvatar', 'published', 'updatedAt', 'taskIds', 'tasks'])"), 'el documento público debe rechazar campos privados');
+check(rules.includes("data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'clientInitials', 'clientColor', 'studioName', 'studioAvatar', 'published', 'updatedAt', 'taskIds', 'tasks'])"), 'el documento público debe rechazar campos privados');
 check(portal.includes('Calendario mensual del trabajo'), 'el portal debe mostrar un calendario accesible');
 check(portal.includes('calendarDays.map'), 'el calendario debe renderizar su cuadrícula mensual');
 check(portal.includes('moveMonth(-1)'), 'el cliente debe poder navegar al mes anterior');
@@ -57,6 +57,11 @@ check(!portal.includes('openTask.checklist'), 'el cliente no debe ver el checkli
 check(fs.readFileSync('modal.jsx', 'utf8').includes("collection('comments')"), 'los comentarios deben sincronizarse en tiempo real');
 check(rules.includes('match /comments/{commentId}'), 'las reglas deben cubrir comentarios del portal');
 check(rules.includes("request.resource.data.authorType == 'client'"), 'el visitante sólo debe escribir como cliente');
+check(rules.includes('request.resource.data.authorName == portal().clientName'), 'el visitante debe escribir con la identidad del perfil del cliente');
+check(portal.includes('clientInitials={portal.clientInitials'), 'el chat público debe usar el avatar definido del cliente');
+check(!fs.readFileSync('modal.jsx', 'utf8').includes('placeholder="Tu nombre"'), 'el portal no debe pedir un nombre dentro del chat');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="smile" size={15}'), 'los iconos del compositor deben compartir escala');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="send" size={15}'), 'el envío debe usar un icono minimalista');
 check(rules.includes('request.resource.data.text.size() <= 2000'), 'los comentarios deben tener límite de tamaño');
 check(rules.includes("'attachmentUrl', 'attachmentName'"), 'los comentarios deben admitir una imagen compartida');
 check(rules.includes("attachmentUrl.matches('https://firebasestorage.googleapis.com/.*')"), 'la imagen del chat debe venir del almacenamiento controlado');
