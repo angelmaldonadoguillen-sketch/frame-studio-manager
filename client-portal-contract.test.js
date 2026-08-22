@@ -41,11 +41,18 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes('Chat con el cliente'), 'el 
 check(fs.readFileSync('modal.jsx', 'utf8').includes('El cliente y el equipo ven esta misma conversación.'), 'la tarjeta debe explicar que el chat es compartido');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Usar como portada'), 'una imagen entregable debe poder usarse como portada');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-expanded={activityOpen}'), 'la actividad debe ser desplegable y accesible');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Adjuntar imagen'), 'los entregables deben separar la carga de imágenes');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Adjuntar archivo'), 'los entregables deben separar la carga de documentos');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Para videos, audio, Drive'), 'video y audio deben orientarse al campo de enlace');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('onPaste={onPaste}'), 'el chat debe aceptar imágenes pegadas');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Agregar emoji'), 'el chat debe ofrecer emojis');
 check(!portal.includes('openTask.checklist'), 'el cliente no debe ver el checklist interno');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("collection('comments')"), 'los comentarios deben sincronizarse en tiempo real');
 check(rules.includes('match /comments/{commentId}'), 'las reglas deben cubrir comentarios del portal');
 check(rules.includes("request.resource.data.authorType == 'client'"), 'el visitante sólo debe escribir como cliente');
 check(rules.includes('request.resource.data.text.size() <= 2000'), 'los comentarios deben tener límite de tamaño');
+check(rules.includes("'attachmentUrl', 'attachmentName'"), 'los comentarios deben admitir una imagen compartida');
+check(rules.includes("attachmentUrl.matches('https://firebasestorage.googleapis.com/.*')"), 'la imagen del chat debe venir del almacenamiento controlado');
 check(rules.includes('allow update: if false'), 'los comentarios compartidos deben ser inmutables');
 check(rules.includes('request.resource.data.projectId in portal().taskIds'), 'sólo se debe comentar una tarea publicada');
 check(portal.includes('const calendarScrollRef = React.useRef(null)'), 'el calendario debe controlar su contenedor desplazable');

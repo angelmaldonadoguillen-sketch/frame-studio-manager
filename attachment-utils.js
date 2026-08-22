@@ -6,6 +6,15 @@
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
   const MAX_DELIVERABLE_BYTES = 25 * 1024 * 1024;
   const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+  const ALLOWED_DOCUMENT_TYPES = new Set([
+    'application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain', 'text/csv', 'application/zip', 'application/x-zip-compressed',
+  ]);
 
   const validateImageFile = (file) => {
     if (!file) return { ok: false, message: 'No se seleccionó ningún archivo.' };
@@ -24,9 +33,8 @@
   const validateDeliverableFile = (file) => {
     if (!file) return { ok: false, message: 'No se seleccionó ningún archivo.' };
     const type = String(file.type || '').toLowerCase();
-    const allowed = type === 'application/pdf' || type.startsWith('image/')
-      || type.startsWith('video/') || type.startsWith('audio/');
-    if (!allowed) return { ok: false, message: 'Permitimos imágenes, video, audio o PDF.' };
+    const allowed = ALLOWED_IMAGE_TYPES.has(type) || ALLOWED_DOCUMENT_TYPES.has(type);
+    if (!allowed) return { ok: false, message: 'Adjuntá una imagen, PDF, documento de Office, TXT, CSV o ZIP. Para video y audio usá un enlace.' };
     if (!Number.isFinite(file.size) || file.size <= 0) return { ok: false, message: 'El archivo está vacío o no se puede leer.' };
     if (file.size > MAX_DELIVERABLE_BYTES) return { ok: false, message: 'El archivo supera el límite de 25 MB.' };
     return { ok: true };

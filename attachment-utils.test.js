@@ -5,9 +5,10 @@ assert.equal(A.validateImageFile({ type: 'image/png', size: 42 }).ok, true);
 assert.match(A.validateImageFile({ type: 'application/pdf', size: 42 }).message, /JPG/);
 assert.match(A.validateImageFile({ type: 'image/jpeg', size: A.MAX_IMAGE_BYTES + 1 }).message, /10 MB/);
 assert.equal(A.validateDeliverableFile({ type: 'application/pdf', size: 42 }).ok, true);
-assert.equal(A.validateDeliverableFile({ type: 'video/mp4', size: 42 }).ok, true);
-assert.match(A.validateDeliverableFile({ type: 'application/zip', size: 42 }).message, /Permitimos/);
-assert.match(A.validateDeliverableFile({ type: 'audio/mpeg', size: A.MAX_DELIVERABLE_BYTES + 1 }).message, /25 MB/);
+assert.equal(A.validateDeliverableFile({ type: 'application/zip', size: 42 }).ok, true);
+assert.equal(A.validateDeliverableFile({ type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 42 }).ok, true);
+assert.match(A.validateDeliverableFile({ type: 'video/mp4', size: 42 }).message, /enlace/);
+assert.match(A.validateDeliverableFile({ type: 'audio/mpeg', size: 42 }).message, /enlace/);
 assert.equal(A.validateImageUrl('https://example.com/a.png'), true);
 assert.equal(A.validateImageUrl('javascript:alert(1)'), false);
 assert.equal(A.normalizeRemoteImageUrl('https://img.example/a.jpg'), 'https://img.example/a.jpg');
@@ -43,7 +44,7 @@ async function run() {
   const stalledTask = { on() {}, cancel() { canceled = true; } };
   await assert.rejects(A.waitForUpload(stalledTask, { timeoutMs: 5 }), err => err.code === 'storage/timeout');
   assert.equal(canceled, true);
-  console.log('attachment-utils: 21 checks passed');
+  console.log('attachment-utils: 22 checks passed');
 }
 
 run().catch(err => { console.error(err); process.exitCode = 1; });
