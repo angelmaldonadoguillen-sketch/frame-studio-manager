@@ -573,7 +573,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisibility, workspaces = [], activeWorkspaceId, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], kanbanColumns = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal' }) => {
+const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisibility, workspaces = [], activeWorkspaceId, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], kanbanColumns = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal', clientPortalToken = '' }) => {
   const collaborationEnabled = workspaceKind === 'team';
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
@@ -1279,6 +1279,29 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                     <ChecklistAdd onAdd={addCheck} />
                   </div>
                 </section>
+
+                {/* Deliverables */}
+                <section>
+                  <SectionTitle icon="globe">Información para el cliente</SectionTitle>
+                  <div className="surf p-3 space-y-3">
+                    <div className="relative overflow-hidden rounded-lg" style={{ minHeight: 92, background: 'var(--surface-3)' }}>
+                      {project.clientImage ? <img src={project.clientImage} alt="Referencia para el cliente" className="w-full h-32 object-cover" /> : <div className="h-24 flex items-center justify-center text-[11px]" style={{ color: 'var(--text-muted)' }}>Sin imagen de referencia</div>}
+                      <CoverEditor cover={project.clientImage ? { type: 'image', value: project.clientImage } : { type: 'color', value: '#1a1a1f' }} onChange={cover => upd({ clientImage: cover.type === 'image' ? cover.value : '' })} projectId={project.id} />
+                    </div>
+                    <div className="flex items-center gap-2 field px-3 py-2">
+                      <Icon name="link" size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                      <InlineEdit value={project.clientUrl || ''} onChange={value => upd({ clientUrl: value })} placeholder="URL que verá el cliente…" className="flex-1 min-w-0 text-[12px] font-mono" />
+                    </div>
+                    <div className="text-[10px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>La miniatura y el enlace sólo aparecen en el portal de este cliente.</div>
+                  </div>
+                </section>
+
+                {clientPortalToken && (
+                  <section>
+                    <SectionTitle icon="message">Conversación con el cliente</SectionTitle>
+                    <SharedClientComments portalToken={clientPortalToken} projectId={project.id} authorType="studio" authorName={resolveUser(currentUserId)?.name || 'Estudio'} />
+                  </section>
+                )}
 
                 {/* Deliverables */}
                 <section>
@@ -2211,6 +2234,43 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
   );
 };
 
+const SharedClientComments = ({ portalToken, projectId, authorType, authorName = '' }) => {
+  const [comments, setComments] = useState([]);
+  const [text, setText] = useState('');
+  const [name, setName] = useState(() => authorName || localStorage.getItem('frame_client_comment_name') || 'Cliente');
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!portalToken || !projectId) return;
+    const unsub = window.db.collection('frame_client_portals').doc(portalToken).collection('comments')
+      .onSnapshot(snap => setComments(snap.docs.map(doc => doc.data()).filter(item => item.projectId === projectId).sort((a, b) => String(a.at).localeCompare(String(b.at)))), () => setComments([]));
+    return () => unsub();
+  }, [portalToken, projectId]);
+
+  const send = async () => {
+    const cleanText = text.trim();
+    const cleanName = (authorName || name).trim().slice(0, 80);
+    if (!cleanText || !cleanName || sending) return;
+    setSending(true);
+    const id = 'pc' + Date.now() + Math.random().toString(36).slice(2, 8);
+    try {
+      await window.db.collection('frame_client_portals').doc(portalToken).collection('comments').doc(id).set({ id, projectId, authorType, authorName: cleanName, text: cleanText.slice(0, 2000), at: new Date().toISOString() });
+      if (authorType === 'client') localStorage.setItem('frame_client_comment_name', cleanName);
+      setText('');
+    } catch { window.frameToast?.('No se pudo enviar el comentario. Revisá la conexión.'); }
+    finally { setSending(false); }
+  };
+
+  return <div className="surf p-4">
+    <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
+      {comments.length === 0 && <div className="text-[11px] text-center py-4" style={{ color: 'var(--text-muted)' }}>Todavía no hay comentarios compartidos.</div>}
+      {comments.map(comment => <div key={comment.id} className="flex gap-2.5"><div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: comment.authorType === 'client' ? 'var(--resource-blue)' : 'var(--accent)', color: comment.authorType === 'client' ? '#fff' : 'var(--accent-on)' }}>{comment.authorName.slice(0, 2).toUpperCase()}</div><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="text-[11px] font-semibold">{comment.authorName}</span><span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{comment.authorType === 'client' ? 'Cliente' : 'Estudio'} · {relativeTime(comment.at)}</span></div><div className="text-[12px] leading-relaxed pretty">{comment.text}</div></div></div>)}
+    </div>
+    {authorType === 'client' && <input value={name} onChange={event => setName(event.target.value)} maxLength={80} className="field w-full px-3 py-2 text-[11px] mb-2" placeholder="Tu nombre" />}
+    <div className="flex gap-2"><textarea value={text} onChange={event => setText(event.target.value)} maxLength={2000} rows={2} className="field flex-1 px-3 py-2 text-[12px] resize-none" placeholder="Escribí un comentario…" /><button onClick={send} disabled={!text.trim() || sending} className="self-end p-2.5 rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}><Icon name="send" size={13} /></button></div>
+  </div>;
+};
+
 // Sin uso: el editor de descripción trae su propia barra de formato (TB).
 // Se deja porque el nombre accesible tiene que venir de quien lo usa — un
 // icono dinámico no puede describirse a sí mismo.
@@ -2224,5 +2284,5 @@ const FormatBtn = ({ icon, onClick, label }) => (
 Object.assign(window, {
   Avatar, AvatarStack, StatusPill, TypePill, PriorityBadge, Cover,
   ProjectModal, Dropdown, MenuItem, renderWithMentions,
-  InlineEdit, TagAdd,
+  InlineEdit, TagAdd, SharedClientComments,
 });

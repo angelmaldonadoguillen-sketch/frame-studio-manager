@@ -333,8 +333,8 @@ service cloud.firestore {
     match /frame_client_portals/{token} {
       function validPortal(data) {
         return token.size() == 48
-               && data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'tasks'])
-               && data.keys().hasAll(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'tasks'])
+               && data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'taskIds', 'tasks'])
+               && data.keys().hasAll(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'taskIds', 'tasks'])
                && data.workspaceId is string
                && data.clientId is string
                && data.clientName is string
@@ -343,6 +343,8 @@ service cloud.firestore {
                && data.studioName.size() <= 200
                && data.published is bool
                && data.updatedAt is string
+               && data.taskIds is list
+               && data.taskIds.size() <= 100
                && data.tasks is list
                && data.tasks.size() <= 100;
       }
@@ -355,6 +357,33 @@ service cloud.firestore {
                     && request.resource.data.clientId == resource.data.clientId
                     && validPortal(request.resource.data);
       allow delete: if memberOfExisting();
+
+      match /comments/{commentId} {
+        function portal() {
+          return get(/databases/$(database)/documents/frame_client_portals/$(token)).data;
+        }
+        function validComment() {
+          return request.resource.data.keys().hasOnly(['id', 'projectId', 'authorType', 'authorName', 'text', 'at'])
+                 && request.resource.data.id == commentId
+                 && request.resource.data.projectId is string
+                 && request.resource.data.projectId in portal().taskIds
+                 && request.resource.data.authorType in ['client', 'studio']
+                 && request.resource.data.authorName is string
+                 && request.resource.data.authorName.size() > 0
+                 && request.resource.data.authorName.size() <= 80
+                 && request.resource.data.text is string
+                 && request.resource.data.text.size() > 0
+                 && request.resource.data.text.size() <= 2000
+                 && request.resource.data.at is string;
+        }
+        allow read: if portal().published == true || isMember(portal().workspaceId);
+        allow create: if validComment() && (
+          (portal().published == true && request.resource.data.authorType == 'client')
+          || (isMember(portal().workspaceId) && request.resource.data.authorType == 'studio')
+        );
+        allow update: if false;
+        allow delete: if isMember(portal().workspaceId);
+      }
     }
 
     match /frame_trash/{doc} {

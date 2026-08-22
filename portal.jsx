@@ -34,6 +34,8 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
         startDate: String(project.startDate || ''),
         deadline: String(project.deadline || ''),
         progress: checklist.length ? Math.round((completed / checklist.length) * 100) : (isClosed(project) ? 100 : 0),
+        image: /^https:\/\//i.test(String(project.clientImage || '')) ? String(project.clientImage) : '',
+        url: /^https:\/\//i.test(String(project.clientUrl || '')) ? String(project.clientUrl) : '',
         checklist: checklist.map(item => ({ text: String(item.text || ''), done: item.done === true })).slice(0, 50),
         deliverables: (project.deliverables || []).filter(item => item.status === 'ready').map(item => ({
           name: String(item.name || 'Entregable'),
@@ -51,6 +53,7 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
     studioName: String(workspace?.name || 'FRAME Studio'),
     published: published === true,
     updatedAt: new Date().toISOString(),
+    taskIds: published ? visible.slice(0, 100).map(task => task.id) : [],
     tasks: published ? visible.slice(0, 100) : [],
   };
 };
@@ -60,6 +63,7 @@ const ClientPortal = ({ token }) => {
   const [loading, setLoading] = React.useState(true);
   const [unavailable, setUnavailable] = React.useState(false);
   const [calendarDate, setCalendarDate] = React.useState(() => new Date(TODAY));
+  const [openTask, setOpenTask] = React.useState(null);
   const calendarScrollRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -174,9 +178,10 @@ const ClientPortal = ({ token }) => {
                     <div key={iso} className="portal-calendar-day" data-outside={!inMonth || undefined} data-today={today || undefined} role="gridcell">
                       <div className="flex items-center justify-between mb-2"><span className="text-[11px] tnum font-semibold" style={{ color: today ? 'var(--accent)' : inMonth ? 'var(--text-dim)' : 'var(--text-faint)' }}>{date.getDate()}</span>{today && <span className="text-[9px] font-bold">HOY</span>}</div>
                       <div className="space-y-1.5">{dayTasks.map(task => (
-                        <article key={task.id} className="portal-calendar-task" title={`${task.title} · ${task.status}`}>
+                        <article key={task.id} className="portal-calendar-task cursor-pointer" title={`${task.title} · ${task.status}`} onClick={() => setOpenTask(task)}>
+                          {task.image && <img src={task.image} alt="" className="portal-calendar-thumb" />}
                           <div className="text-[10px] font-semibold truncate">{task.title}</div>
-                          <div className="flex items-center justify-between gap-1 mt-1"><span className="text-[9px] truncate" style={{ color: 'var(--text-muted)' }}>{task.status}</span><span className="text-[9px] tnum flex-shrink-0">{task.progress}%</span></div>
+                          <div className="flex items-center justify-between gap-1 mt-1"><span className="text-[9px] truncate" style={{ color: 'var(--text-muted)' }}>{task.status}</span><span className="flex items-center gap-1"><span className="text-[9px] tnum flex-shrink-0">{task.progress}%</span>{task.url && <Icon name="link" size={9} />}</span></div>
                           <div className="h-0.5 rounded-full overflow-hidden mt-1.5" style={{ background: 'var(--surface-3)' }}><div className="h-full" style={{ width: `${task.progress}%`, background: task.progress >= 100 ? 'var(--resource-green)' : 'var(--accent)' }} /></div>
                           {task.deadline && <div className="text-[9px] tnum truncate mt-1.5" style={{ color: 'var(--text-faint)' }}>Entrega {fmtDate(task.deadline)}</div>}
                         </article>
@@ -191,6 +196,20 @@ const ClientPortal = ({ token }) => {
           {tasks.length === 0 && <div className="mt-4 surf p-8 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>El estudio todavía no publicó tareas en este seguimiento.</div>}
         </section>
       </main>
+      {openTask && (
+        <div className="fixed inset-0 z-50 backdrop flex items-center justify-center p-4" onClick={() => setOpenTask(null)}>
+          <div className="surf-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
+            {openTask.image && <img src={openTask.image} alt="Referencia de la tarea" className="w-full h-56 object-cover" />}
+            <div className="p-5 sm:p-7">
+              <div className="flex items-start justify-between gap-4"><div><div className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>{openTask.type} · {openTask.status}</div><h2 className="font-display text-2xl font-bold pretty">{openTask.title}</h2></div><button onClick={() => setOpenTask(null)} className="p-2 rounded-md hover:bg-[var(--surface-3)]"><Icon name="x" size={15} /></button></div>
+              <div className="grid grid-cols-2 gap-3 my-5"><div className="surf p-3"><div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Inicio</div><div className="font-semibold tnum">{fmtDate(openTask.startDate)}</div></div><div className="surf p-3"><div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Entrega</div><div className="font-semibold tnum">{fmtDate(openTask.deadline)}</div></div></div>
+              {openTask.url && <a href={openTask.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-[12px] font-semibold mb-5" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}><Icon name="external" size={13} />Abrir enlace compartido</a>}
+              {openTask.checklist?.length > 0 && <section className="mb-6"><h3 className="text-[11px] uppercase tracking-[0.16em] mb-3" style={{ color: 'var(--text-muted)' }}>Avance</h3><div className="space-y-2">{openTask.checklist.map((item, index) => <div key={index} className="flex items-center gap-2 text-[12px]"><span className={`check ${item.done ? 'on' : ''}`}>{item.done && <Icon name="check" size={9} />}</span><span style={{ color: item.done ? 'var(--text-muted)' : 'var(--text)' }}>{item.text}</span></div>)}</div></section>}
+              <SharedClientComments portalToken={token} projectId={openTask.id} authorType="client" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
