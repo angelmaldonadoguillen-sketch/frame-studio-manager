@@ -134,6 +134,9 @@ function reducer(state, action) {
         clients: [],  clientsLoading: true,
         trash: [],    trashLoading: true,
         kanbanColumns: [],
+        // Los valores pertenecen al tablero anterior. Conservar un cliente,
+        // tag o estado inexistente hacía que el tablero nuevo pareciera vacío.
+        filters: freshFilters(), search: '', sidebarFilter: 'all',
         openProjectId: null, openClientId: null,
       };
     }
@@ -1264,10 +1267,11 @@ const applyFilters = (state) => {
 };
 
 // ── Stats bar (kanban) ──────────────────────────────────────────
-const StatusStatsBar = ({ projects }) => {
+const StatusStatsBar = ({ projects, columns = [] }) => {
+  const statuses = columns.length ? columns : STATUSES.filter(s => s.id !== 'archived');
   return (
     <div className="flex items-center gap-1 px-5 py-2 border-b border-app overflow-x-auto" style={{ background: 'var(--surface)' }}>
-      {STATUSES.filter(s => s.id !== 'archived').map(s => {
+      {statuses.map(s => {
         const n = projects.filter(p => p.status === s.id).length;
         return (
           <div key={s.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: colorAlpha(resolveThemeColor(s.color), 8) }}>
@@ -1282,10 +1286,12 @@ const StatusStatsBar = ({ projects }) => {
 };
 
 // ── New project quick form ──────────────────────────────────────
-const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, customTypes = [] }) => {
+const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, customTypes = [], columns = [] }) => {
+  const availableTypes = customTypes.length ? customTypes : PROJECT_TYPES;
+  const initialStatus = columns[0]?.id || 'briefing';
   const [title, setTitle] = useState('');
   const [client, setClient] = useState('');
-  const [type, setType] = useState('reel');
+  const [type, setType] = useState(availableTypes[0]?.id || 'other');
   const [priority, setPriority] = useState('medium');
   const [deadline, setDeadline] = useState(() => {
     const dt = new Date(TODAY); dt.setDate(dt.getDate() + 14);
@@ -1300,7 +1306,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
       title: title.trim(),
       client: client.trim(),
       type,
-      status: 'briefing',
+      status: initialStatus,
       priority,
       assignees: [],
       startDate: localISO(new Date(TODAY)),
@@ -1364,7 +1370,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
                 className="w-full px-3 py-2.5 rounded-md text-[13px] surface-2 border border-app appearance-none cursor-pointer"
                 style={{ colorScheme: 'var(--color-scheme)' }}
               >
-                {[...PROJECT_TYPES, ...customTypes].map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                {availableTypes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
             </div>
             <div>
@@ -2119,7 +2125,9 @@ const App = () => {
     const today = localISO(new Date());
     const storageKey = `frame_carryover_${wsId}_${today}`;
     if (localStorage.getItem(storageKey)) return; // Ya corrió hoy
-    localStorage.setItem(storageKey, '1');
+    // "pending" evita ejecuciones paralelas, pero se borra si Firestore
+    // falla para que la automatización pueda reintentarse ese mismo día.
+    localStorage.setItem(storageKey, 'pending');
 
     const toUpdate = state.projects.filter(p => {
       // Solo con checklist parcial (tiene ítems y al menos uno sin completar)
@@ -2127,22 +2135,31 @@ const App = () => {
       // No archivar ni entregados
       if (isClosed(p)) return false;
       // La fecha de sesión o deadline tiene que ser pasada
-      const refDate = p.sessionDate || p.deadline;
+      const refDate = p.startDate || p.sessionDate || p.deadline;
       return refDate && refDate < today;
     });
 
-    if (toUpdate.length === 0) return;
+    if (toUpdate.length === 0) {
+      localStorage.setItem(storageKey, 'done');
+      return;
+    }
 
     const batch = window.db.batch();
     toUpdate.forEach(p => {
       // La fecha límite es un compromiso; sólo se mueve la próxima fecha de trabajo.
-      const updated = { ...p, sessionDate: today };
+      const updated = { ...p, startDate: today, sessionDate: today };
       dispatch({ type: 'update_project', project: updated });
-      batch.update(window.db.collection('frame_projects').doc(p.id), { sessionDate: today });
+      batch.update(window.db.collection('frame_projects').doc(p.id), { startDate: today, sessionDate: today });
     });
     batch.commit()
-      .then(() => console.log(`[FRAME] CarryOver: ${toUpdate.length} proyecto(s) movido(s) a hoy`))
-      .catch(err => console.error('[FRAME] CarryOver batch error:', err));
+      .then(() => {
+        localStorage.setItem(storageKey, 'done');
+        console.log(`[FRAME] CarryOver: ${toUpdate.length} proyecto(s) movido(s) a hoy`);
+      })
+      .catch(err => {
+        localStorage.removeItem(storageKey);
+        console.error('[FRAME] CarryOver batch error:', err);
+      });
   }, [state.carryOverProjects, state.loading, state.projects.length, wsId]);
 
   // ── Firestore: columnas Kanban ─────────────────────────────
@@ -2253,6 +2270,10 @@ const App = () => {
       .catch(err => console.error('Error al editar tipo:', err));
   };
   const handleDeleteCustomType = (id) => {
+    if (state.projects.some(project => project.type === id)) {
+      window.frameToast?.('Mové las tareas de este tipo antes de eliminarlo.');
+      return;
+    }
     window.FRAME_CUSTOM_TYPES = (window.FRAME_CUSTOM_TYPES || []).filter(t => t.id !== id);
     dispatch({ type: 'delete_custom_type', id });
     window.db.collection('frame_workspaces').doc(wsId).collection('config').doc('project_types').get()
@@ -2439,12 +2460,33 @@ const App = () => {
       // El tipo personalizado se copia como configuración visual, no como
       // tarea. El documento y todos sus campos siguen siendo únicos.
       const sourceType = state.customTypes.find(t => t.id === project.type);
+      const sourceStatus = state.kanbanColumns.find(column => column.id === project.status);
       if (sourceType) {
         await Promise.all(selected.filter(w => w.id !== originId).map(async (workspace) => {
           const ref = window.db.collection('frame_workspaces').doc(workspace.id).collection('config').doc('project_types');
           const snap = await ref.get();
           const types = snap.exists ? (snap.data()?.types || []) : PROJECT_TYPES;
           if (!types.some(t => t.id === sourceType.id)) await ref.set({ types: [...types, sourceType] });
+        }));
+      }
+      // Una tarea compartida debe tener una columna donde aparecer. Se copia
+      // sólo si falta; nunca se reemplaza la configuración del tablero destino.
+      if (sourceStatus) {
+        await Promise.all(selected.filter(w => w.id !== originId).map(async (workspace) => {
+          const ref = window.db.collection('frame_workspaces').doc(workspace.id).collection('config').doc('kanban_columns');
+          const snap = await ref.get();
+          const columns = snap.exists
+            ? (snap.data()?.columns || [])
+            : STATUSES.filter(status => status.id !== 'archived').map(status => ({
+                id: status.id,
+                label: status.label,
+                color: status.color,
+                isDone: !!status.isDone,
+                requiresChecklist: !!status.requiresChecklist,
+              }));
+          if (!columns.some(column => column.id === sourceStatus.id)) {
+            await ref.set({ columns: [...columns, sourceStatus] });
+          }
         }));
       }
 
@@ -2765,6 +2807,7 @@ const App = () => {
       workspaces={state.workspaces}
       activeWorkspaceId={wsId}
       customTypes={state.customTypes}
+      kanbanColumns={state.kanbanColumns}
       onCreateCustomType={handleCreateCustomType}
       onUpdateCustomType={handleUpdateCustomType}
       onDeleteCustomType={handleDeleteCustomType}
@@ -2805,6 +2848,7 @@ const App = () => {
         <ClientsSection
           clients={state.clients}
           projects={state.projects}
+          columns={state.kanbanColumns}
           onCreateClient={handleCreateClient}
           onUpdateClient={handleUpdateClient}
           onDeleteClient={handleDeleteClient}
@@ -2868,7 +2912,7 @@ const App = () => {
             onRejectUser={handleRejectUser}
             onPinView={handlePinView}
           />
-          {state.view === 'kanban' && <StatusStatsBar projects={filtered} />}
+          {state.view === 'kanban' && <StatusStatsBar projects={filtered} columns={state.kanbanColumns} />}
 
           <div className="flex-1 overflow-hidden">
             {filtered.length === 0 && state.view !== 'kanban' && state.view !== 'calendar' && state.view !== 'gallery' ? (
@@ -2877,6 +2921,7 @@ const App = () => {
               <>
                 {state.view === 'kanban'   && <KanbanView
                   projects={filtered}
+                  allProjects={state.projects}
                   onOpenProject={(id) => dispatch({ type: 'open_project', id })}
                   onUpdateProject={handleUpdateProject}
                   onDeleteProject={handleDeleteProject}
@@ -2909,6 +2954,7 @@ const App = () => {
           clients={state.clients}
           onCreateClient={handleCreateClient}
           customTypes={state.customTypes}
+          columns={state.kanbanColumns}
         />
       )}
 
