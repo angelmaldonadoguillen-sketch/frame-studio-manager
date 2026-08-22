@@ -406,7 +406,7 @@ const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agreg
 // ── KANBAN VIEW ─────────────────────────────────────────────────
 const CARD_LIMIT = 5; // tarjetas visibles por defecto en cada columna
 
-const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject, onDuplicateProject, onToggleFavorite, onQuickCreate, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
+const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateProject, onDeleteProject, onDuplicateProject, onToggleFavorite, onQuickCreate, columns, onUpdateColumn, onDeleteColumn, onAddColumn, onReorderColumns, previewFields = {} }) => {
   const [draggingId,    setDraggingId]    = useState(null);   // card drag
   const [draggingColId, setDraggingColId] = useState(null);   // column drag
   const [dragOverCol,   setDragOverCol]   = useState(null);
@@ -455,7 +455,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
     if (!draggingId) return;
     const p = projects.find(x => x.id === draggingId);
     const target = baseCols.find(c => c.id === statusId);
-    const atLimit = target?.wipLimit && projects.filter(x => x.status === statusId).length >= target.wipLimit;
+    const atLimit = target?.wipLimit && allProjects.filter(x => x.status === statusId).length >= target.wipLimit;
     if (p && p.status !== statusId && atLimit) {
       window.frameToast?.(`Límite de ${target.wipLimit} tareas alcanzado en ${target.label}. Terminá o mové una antes.`);
     } else if (p && p.status !== statusId) onUpdateProject({ ...p, status: statusId });
@@ -487,6 +487,7 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
 
         {baseCols.map(s => {
           const items           = projects.filter(p => p.status === s.id);
+          const totalItems      = allProjects.filter(p => p.status === s.id);
           const isCardOver      = dragOverCol === s.id && !!draggingId && !draggingColId;
           const isColOver       = dragOverCol === s.id && !!draggingColId && draggingColId !== s.id;
           const isBeingDragged  = draggingColId === s.id;
@@ -538,13 +539,13 @@ const KanbanView = ({ projects, onOpenProject, onUpdateProject, onDeleteProject,
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }}></span>
                   <span className="text-[12px] font-semibold">{s.label}</span>
                   <span className="text-[11px] font-mono px-1.5 rounded" style={{ background: 'var(--surface-2)', color: s.wipLimit && items.length >= s.wipLimit ? 'var(--warn)' : 'var(--text-muted)' }}>
-                    {items.length}{s.wipLimit ? `/${s.wipLimit}` : ''}
+                    {items.length}{items.length !== totalItems.length ? ` de ${totalItems.length}` : ''}{s.wipLimit ? `/${s.wipLimit}` : ''}
                   </span>
                 </div>
                 {onUpdateColumn && (
                   <ColMenuBtn
                     col={s}
-                    projectCount={items.length}
+                    projectCount={totalItems.length}
                     onUpdate={onUpdateColumn}
                     onDelete={onDeleteColumn}
                   />

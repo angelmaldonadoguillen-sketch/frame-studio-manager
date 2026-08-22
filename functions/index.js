@@ -23,6 +23,13 @@ exports.carryOverIncompleteTasks = onSchedule({
   for (const workspace of workspaces.docs) {
     const settings = await workspace.ref.collection('config').doc('display_settings').get();
     if (!settings.data()?.carryOverProjects) continue;
+    const columnConfig = await workspace.ref.collection('config').doc('kanban_columns').get();
+    const columns = columnConfig.data()?.columns || [];
+    const completedStatuses = new Set(
+      columns.filter(column => column.isDone).map(column => column.id)
+    );
+    // Compatibilidad con configuraciones anteriores a los comportamientos.
+    if (!columns.some(column => typeof column.isDone === 'boolean')) completedStatuses.add('delivered');
 
     const tasks = await db.collection('frame_projects')
       .where('workspaceId', '==', workspace.id).get();
@@ -33,10 +40,11 @@ exports.carryOverIncompleteTasks = onSchedule({
       const data = task.data();
       const checklist = Array.isArray(data.checklist) ? data.checklist : [];
       const incomplete = checklist.length > 0 && checklist.some(item => !item.done);
-      const refDate = data.sessionDate || data.deadline;
-      if (!incomplete || !refDate || refDate >= today || ['delivered', 'archived'].includes(data.status)) continue;
+      const refDate = data.startDate || data.sessionDate || data.deadline;
+      if (!incomplete || !refDate || refDate >= today || data.status === 'archived' || completedStatuses.has(data.status)) continue;
 
       batch.update(task.ref, {
+        startDate: today,
         sessionDate: today,
         carryOverAt: FieldValue.serverTimestamp(),
       });

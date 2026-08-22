@@ -195,7 +195,7 @@ const ClientCard = ({ client, projects, onClick }) => {
 };
 
 // ── Client detail panel ──────────────────────────────────────────
-const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
+const ClientDetail = ({ client, projects, columns = [], onClose, onUpdate, onDelete }) => {
   const [confirmDel, setConfirmDel] = useState(false);
   if (!client) return null;
 
@@ -210,7 +210,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
   const removeTag  = (t) => upd({ tags: client.tags.filter(x => x !== t) });
 
   // Status breakdown
-  const byStatus = STATUSES.filter(s => s.id !== 'archived').map(s => ({
+  const byStatus = (columns.length ? columns : STATUSES.filter(s => s.id !== 'archived')).map(s => ({
     ...s,
     count: cp.filter(p => p.status === s.id).length,
   })).filter(s => s.count > 0);
@@ -758,7 +758,7 @@ const ClientAutocomplete = ({ value, onChange, clients = [], onCreateClient, fie
 };
 
 // ── Clients section (main) ───────────────────────────────────────
-const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onDeleteClient, openClientId, onOpenClient, onCloseClient }) => {
+const ClientsSection = ({ clients, projects, columns = [], onCreateClient, onUpdateClient, onDeleteClient, openClientId, onOpenClient, onCloseClient }) => {
   const [search, setSearch]   = useState('');
   const [showNew, setShowNew] = useState(false);
 
@@ -869,6 +869,7 @@ const ClientsSection = ({ clients, projects, onCreateClient, onUpdateClient, onD
         <ClientDetail
           client={openClient}
           projects={projects}
+          columns={columns}
           onClose={onCloseClient}
           onUpdate={onUpdateClient}
           onDelete={onDeleteClient}

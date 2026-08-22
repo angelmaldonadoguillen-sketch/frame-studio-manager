@@ -573,13 +573,14 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
 };
 
 // ── PROJECT MODAL ───────────────────────────────────────────────
-const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisibility, workspaces = [], activeWorkspaceId, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal' }) => {
+const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisibility, workspaces = [], activeWorkspaceId, onNavigate, projects = [], currentUserId, team = [], clients = [], onCreateClient, customTypes = [], kanbanColumns = [], onCreateCustomType, onUpdateCustomType, onDeleteCustomType, workspaceKind = 'personal' }) => {
   const collaborationEnabled = workspaceKind === 'team';
   // Lookup que prioriza el equipo real de Firestore sobre los datos seed
   const resolveUser = (id) => team.find(m => m.id === id) || getUser(id);
   // Cuando Firestore ya cargó los tipos (customTypes.length > 0) los usa directamente;
   // si aún está cargando, muestra los predefinidos como fallback
   const allTypes = customTypes.length > 0 ? customTypes : PROJECT_TYPES;
+  const allStatuses = kanbanColumns.length > 0 ? kanbanColumns : STATUSES.filter(status => status.id !== 'archived');
   const [tab, setTab]                         = useState('overview'); // overview | comments
   const [newComment, setNewComment]           = useState('');
   const [comments, setComments]               = useState(() => project?.comments || []);
@@ -1043,7 +1044,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
 
             <PropRow icon="dot" label="Estado">
               <Dropdown trigger={<button className="text-left -mx-2 px-2 py-1 rounded hover:bg-[var(--surface-2)] w-full"><StatusPill status={project.status} /></button>}>
-                {(close) => STATUSES.map(s => (
+                {(close) => allStatuses.map(s => (
                   <MenuItem key={s.id} onClick={() => {
                     if (collaborationEnabled && s.id !== project.status && window.pushNotif) {
                       const changer = resolveUser(currentUserId);
