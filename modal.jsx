@@ -1285,9 +1285,9 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                   </div>
                 </section>
 
-                {/* Deliverables */}
+                {/* Recursos */}
                 <section>
-                  <SectionTitle icon="upload">Entregables</SectionTitle>
+                  <SectionTitle icon="upload">Recursos</SectionTitle>
                   <div className="space-y-1.5">
                     {project.deliverables.map(dv => (
                       <div key={dv.id} className="group field border-app surface-2 overflow-hidden">
@@ -1554,7 +1554,6 @@ const ChecklistAdd = ({ onAdd }) => {
 
 // ── Deliverable add ─────────────────────────────────────────────
 const DeliverableAdd = ({ onAdd, projectId }) => {
-  const [open, setOpen] = useState(false);
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -1572,7 +1571,6 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
     onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: linkName.trim() || fallbackName, kind: 'video', status: 'pending', url: cleanUrl });
     setLinkName('');
     setLinkUrl('');
-    setOpen(false);
   };
 
   const uploadFile = async (event, expectedKind) => {
@@ -1596,45 +1594,46 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
       const url = await snapshot.ref.getDownloadURL();
       onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: file.name, kind: expectedKind, status: 'pending', url, storagePath, contentType: file.type, size: file.size });
       window.frameToast?.(expectedKind === 'photos' ? 'Imagen adjuntada.' : 'Archivo adjuntado.');
-      setOpen(false);
     } catch (err) {
       console.error('Deliverable upload:', err);
       window.frameToast?.(FrameAttachments.storageErrorMessage(err));
     } finally { setUploading(false); }
   };
 
-  if (!open) return (
-    <button type="button" onClick={() => setOpen(true)} className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-[var(--border-2)] text-[12px] font-medium hover:bg-[var(--surface-2)] transition-colors" style={{ color: 'var(--text-dim)' }}>
-      <Icon name="plus" size={13} /> Agregar entregable
-    </button>
-  );
-
   return (
-    <div className="mt-2 p-3 field space-y-3" style={{ background: 'var(--surface-2)' }}>
-      <div className="grid sm:grid-cols-2 gap-2">
-        <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading} className="flex items-center gap-3 p-3 rounded-md border border-app text-left hover:bg-[var(--surface-3)] disabled:opacity-40">
-          <span className="p-2 rounded-md" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><Icon name="image" size={15} /></span>
-          <span><strong className="block text-[12px]">Adjuntar imagen</strong><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>JPG, PNG, WebP o GIF</span></span>
-        </button>
-        <button type="button" onClick={() => documentRef.current?.click()} disabled={uploading} className="flex items-center gap-3 p-3 rounded-md border border-app text-left hover:bg-[var(--surface-3)] disabled:opacity-40">
-          <span className="p-2 rounded-md" style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></span>
-          <span><strong className="block text-[12px]">Adjuntar archivo</strong><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>PDF, Word, Excel, ZIP…</span></span>
-        </button>
+    <div className="mt-4 space-y-4">
+      <div className="field p-3" style={{ background: 'var(--surface-2)' }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[12px] font-semibold"><Icon name="image" size={14} /> Imagen</div>
+            <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>JPG, PNG, WebP, GIF</div>
+          </div>
+          <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading} className="w-full sm:w-auto flex-shrink-0 px-3 py-2 rounded-md text-[12px] font-medium hover:opacity-90 disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Seleccionar imagen</button>
+        </div>
         <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => uploadFile(event, 'photos')} disabled={uploading} />
+      </div>
+
+      <div className="field p-3" style={{ background: 'var(--surface-2)' }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[12px] font-semibold"><Icon name="paperclip" size={14} /> Archivo</div>
+            <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>PDF, DOCX, XLSX, PPTX, TXT, CSV, ZIP</div>
+          </div>
+          <button type="button" onClick={() => documentRef.current?.click()} disabled={uploading} className="w-full sm:w-auto flex-shrink-0 px-3 py-2 rounded-md text-[12px] font-medium border border-app hover:bg-[var(--surface-3)] disabled:opacity-40">Seleccionar archivo</button>
+        </div>
         <input ref={documentRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" className="hidden" onChange={(event) => uploadFile(event, 'file')} disabled={uploading} />
       </div>
+
       {uploading && <div className="text-[11px] text-center" style={{ color: 'var(--accent)' }}>Subiendo archivo…</div>}
-      <div className="pt-3 border-t border-app">
-        <div className="text-[11px] font-semibold mb-1">Agregar enlace</div>
-        <div className="text-[10px] mb-2" style={{ color: 'var(--text-muted)' }}>Para videos, audio, Drive, Dropbox u otros recursos externos.</div>
+
+      <div className="field p-3" style={{ background: 'var(--surface-2)' }}>
+        <div className="flex items-center gap-2 text-[12px] font-semibold"><Icon name="link" size={14} /> Enlace externo</div>
+        <div className="text-[10px] mt-1 mb-3" style={{ color: 'var(--text-muted)' }}>Drive, Dropbox, YouTube, Vimeo…</div>
         <div className="grid sm:grid-cols-[minmax(120px,.6fr)_minmax(180px,1.4fr)_auto] gap-2">
           <input value={linkName} onChange={(event) => setLinkName(event.target.value)} placeholder="Nombre (opcional)" className="field min-w-0 px-2.5 py-2 text-[12px]" />
           <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submitLink(); }} placeholder="https://drive.google.com/…" className="field min-w-0 px-2.5 py-2 text-[12px]" />
           <button onClick={submitLink} disabled={!linkUrl.trim()} className="px-3 py-2 text-[12px] font-semibold rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Agregar enlace</button>
         </div>
-      </div>
-      <div className="flex justify-end gap-2 pt-1">
-        <button onClick={() => { setOpen(false); setLinkName(''); setLinkUrl(''); }} className="px-3 py-1.5 text-[12px] rounded-md" style={{ color: 'var(--text-muted)' }}>Cerrar</button>
       </div>
     </div>
   );
