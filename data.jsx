@@ -632,6 +632,7 @@ const memberCard = (m) => ({
   name:     m?.name     || '',
   initials: m?.initials || (m?.name || '?').slice(0, 2).toUpperCase(),
   color:    m?.color    || '#9A9AA3',
+  avatar:   m?.avatar   || '',
   role:     m?.role     || 'Colaborador',
   email:    m?.email    || '',
 });
