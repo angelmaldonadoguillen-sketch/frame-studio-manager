@@ -415,6 +415,28 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
   const [expandedCols,  setExpandedCols]  = useState({});     // colId → true cuando está expandida
   // Ref to throttle dragOver: only call setState when the hovered column actually changes
   const lastOverRef = useRef(null);
+  const boardScrollRef = useRef(null);
+
+  // Los trackpads envían el gesto lateral como wheel.deltaX. Las columnas
+  // tienen su propio overflow vertical y algunos navegadores consumen ahí el
+  // evento antes de desplazar el contenedor exterior. El listener no pasivo
+  // mueve sólo gestos claramente horizontales (o Shift + rueda), por lo que
+  // el scroll vertical de las tarjetas permanece intacto.
+  useEffect(() => {
+    const board = boardScrollRef.current;
+    if (!board) return;
+    const onWheel = (event) => {
+      const horizontalGesture = Math.abs(event.deltaX) > Math.abs(event.deltaY) * 0.75;
+      if (!horizontalGesture && !event.shiftKey) return;
+      const rawDelta = horizontalGesture ? event.deltaX : event.deltaY;
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? board.clientWidth : 1;
+      const before = board.scrollLeft;
+      board.scrollLeft += rawDelta * scale;
+      if (board.scrollLeft !== before) event.preventDefault();
+    };
+    board.addEventListener('wheel', onWheel, { passive: false });
+    return () => board.removeEventListener('wheel', onWheel);
+  }, []);
 
   const toggleExpand = (colId) =>
     setExpandedCols(prev => ({ ...prev, [colId]: !prev[colId] }));
@@ -482,7 +504,11 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
   };
 
   return (
-    <div className="h-full overflow-x-auto p-4" style={{ overflowY: 'visible' }}>
+    <div
+      ref={boardScrollRef}
+      className="h-full overflow-x-auto p-4"
+      style={{ overflowY: 'visible', overscrollBehaviorX: 'contain' }}
+    >
       <div className="flex gap-3 h-full" style={{ minWidth: 'fit-content' }}>
 
         {baseCols.map(s => {
