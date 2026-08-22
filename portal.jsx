@@ -59,6 +59,7 @@ const ClientPortal = ({ token }) => {
   const [portal, setPortal] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [unavailable, setUnavailable] = React.useState(false);
+  const [calendarDate, setCalendarDate] = React.useState(() => new Date(TODAY));
 
   React.useEffect(() => {
     if (!/^[a-f0-9]{48}$/.test(token || '')) { setUnavailable(true); setLoading(false); return; }
@@ -84,6 +85,22 @@ const ClientPortal = ({ token }) => {
   const tasks = portal.tasks || [];
   const completed = tasks.filter(task => task.progress >= 100 || ['delivered', 'archived'].includes(task.statusId)).length;
   const overall = tasks.length ? Math.round(tasks.reduce((sum, task) => sum + Number(task.progress || 0), 0) / tasks.length) : 0;
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+  const first = new Date(year, month, 1);
+  const gridStart = new Date(year, month, 1 - ((first.getDay() + 6) % 7));
+  const calendarDays = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    return date;
+  });
+  const tasksByDate = tasks.reduce((map, task) => {
+    const date = task.startDate || task.deadline;
+    if (!date) return map;
+    (map[date] ||= []).push(task);
+    return map;
+  }, {});
+  const moveMonth = delta => setCalendarDate(new Date(year, month + delta, 1));
 
   return (
     <div className="min-h-screen overflow-y-auto" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
@@ -108,19 +125,46 @@ const ClientPortal = ({ token }) => {
         </div>
 
         <section>
-          <div className="flex items-center justify-between mb-4"><h2 className="font-display text-lg font-bold">Calendario de trabajo</h2><span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{tasks.length} visibles</span></div>
-          {tasks.length === 0 ? <div className="surf p-8 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>El estudio todavía no publicó tareas en este seguimiento.</div> : (
-            <div className="space-y-3">{tasks.map(task => (
-              <article key={task.id} className="surf p-4 sm:p-5">
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                  <div className="flex-1 min-w-0"><div className="flex flex-wrap items-center gap-2 mb-2"><span className="text-[10px] font-semibold px-2 py-1 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}>{task.type}</span><span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{task.status}</span></div><h3 className="font-display text-[17px] font-semibold pretty">{task.title}</h3></div>
-                  <div className="sm:text-right flex-shrink-0"><div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Entrega prevista</div><div className="font-semibold tnum">{task.deadline ? fmtDate(task.deadline) : 'Por definir'}</div></div>
-                </div>
-                <div className="flex items-center gap-3 mt-4"><div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}><div className="h-full rounded-full" style={{ width: `${task.progress}%`, background: task.progress >= 100 ? 'var(--resource-green)' : 'var(--accent)' }} /></div><span className="text-[11px] font-semibold tnum">{task.progress}%</span></div>
-                {task.deliverables?.length > 0 && <div className="flex flex-wrap gap-2 mt-4">{task.deliverables.map((item, index) => item.url ? <a key={index} href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}><Icon name="download" size={11} />{item.name}</a> : <span key={index} className="text-[11px] px-2.5 py-1.5 rounded-md" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>{item.name}</span>)}</div>}
-              </article>
-            ))}</div>
-          )}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div><h2 className="font-display text-lg font-bold">Calendario de trabajo</h2><div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{tasks.length} tareas visibles</div></div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => moveMonth(-1)} className="p-2 rounded-md hover:bg-[var(--surface-2)]" aria-label="Mes anterior"><Icon name="chevronLeft" size={14} /></button>
+              <button onClick={() => setCalendarDate(new Date(TODAY))} className="px-3 py-1.5 rounded-md text-[11px] font-semibold hover:bg-[var(--surface-2)]">Hoy</button>
+              <button onClick={() => moveMonth(1)} className="p-2 rounded-md hover:bg-[var(--surface-2)]" aria-label="Mes siguiente"><Icon name="chevronRight" size={14} /></button>
+            </div>
+          </div>
+
+          <div className="surf-panel overflow-hidden">
+            <div className="px-4 sm:px-5 py-4 border-b border-app font-display text-xl font-bold capitalize">
+              {calendarDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+            </div>
+            <div className="overflow-x-auto">
+              <div className="portal-calendar" role="grid" aria-label="Calendario mensual del trabajo">
+                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => <div key={day} className="portal-calendar-weekday">{day}</div>)}
+                {calendarDays.map(date => {
+                  const iso = localISO(date);
+                  const dayTasks = tasksByDate[iso] || [];
+                  const inMonth = date.getMonth() === month;
+                  const today = iso === localISO(new Date(TODAY));
+                  return (
+                    <div key={iso} className="portal-calendar-day" data-outside={!inMonth || undefined} data-today={today || undefined} role="gridcell">
+                      <div className="flex items-center justify-between mb-2"><span className="text-[11px] tnum font-semibold" style={{ color: today ? 'var(--accent)' : inMonth ? 'var(--text-dim)' : 'var(--text-faint)' }}>{date.getDate()}</span>{today && <span className="text-[9px] font-bold">HOY</span>}</div>
+                      <div className="space-y-1.5">{dayTasks.map(task => (
+                        <article key={task.id} className="portal-calendar-task" title={`${task.title} · ${task.status}`}>
+                          <div className="text-[10px] font-semibold truncate">{task.title}</div>
+                          <div className="flex items-center justify-between gap-1 mt-1"><span className="text-[9px] truncate" style={{ color: 'var(--text-muted)' }}>{task.status}</span><span className="text-[9px] tnum flex-shrink-0">{task.progress}%</span></div>
+                          <div className="h-0.5 rounded-full overflow-hidden mt-1.5" style={{ background: 'var(--surface-3)' }}><div className="h-full" style={{ width: `${task.progress}%`, background: task.progress >= 100 ? 'var(--resource-green)' : 'var(--accent)' }} /></div>
+                          {task.deadline && <div className="text-[9px] tnum truncate mt-1.5" style={{ color: 'var(--text-faint)' }}>Entrega {fmtDate(task.deadline)}</div>}
+                        </article>
+                      ))}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {tasks.length === 0 && <div className="mt-4 surf p-8 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>El estudio todavía no publicó tareas en este seguimiento.</div>}
         </section>
       </main>
     </div>

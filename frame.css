@@ -349,6 +349,41 @@
     overflow-wrap: anywhere;
     word-break: normal;
   }
+
+  /* Portal de cliente: el calendario conserva siete columnas legibles. En
+     teléfonos se desplaza dentro de su propia caja, sin ensanchar la página. */
+  .portal-calendar {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(104px, 1fr));
+    min-width: 728px;
+  }
+  .portal-calendar-weekday {
+    padding: 9px 10px;
+    border-right: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text-muted);
+    font-size: var(--t-10);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .portal-calendar-day {
+    min-width: 0;
+    min-height: 132px;
+    padding: 8px;
+    border-right: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
+    background: var(--surface);
+  }
+  .portal-calendar-day[data-outside] { background: var(--bg); opacity: 0.48; }
+  .portal-calendar-day[data-today] { background: var(--accent-soft-weak); }
+  .portal-calendar-task {
+    min-width: 0;
+    padding: 7px;
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,.06);
+  }
   .frame-card-actions { margin-left: auto; }
 
   @container (max-width: 179px) {

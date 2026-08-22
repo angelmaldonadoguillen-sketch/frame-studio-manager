@@ -25,5 +25,11 @@ check(rules.includes('allow get: if resource.data.published == true'), 'sólo un
 check(rules.includes('allow list: if false'), 'nadie debe enumerar portales');
 check(rules.includes('data.tasks.size() <= 100'), 'la proyección debe tener un límite');
 check(rules.includes("data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'tasks'])"), 'el documento público debe rechazar campos privados');
+check(portal.includes('Calendario mensual del trabajo'), 'el portal debe mostrar un calendario accesible');
+check(portal.includes('calendarDays.map'), 'el calendario debe renderizar su cuadrícula mensual');
+check(portal.includes('moveMonth(-1)'), 'el cliente debe poder navegar al mes anterior');
+check(portal.includes('moveMonth(1)'), 'el cliente debe poder navegar al mes siguiente');
+check(portal.includes('tasksByDate[iso]'), 'las tareas deben ubicarse por fecha en el calendario');
+check(fs.readFileSync('frame.css', 'utf8').includes('grid-template-columns: repeat(7'), 'el calendario debe conservar siete días');
 
 console.log(`client-portal-contract: ${checks} checks passed`);
