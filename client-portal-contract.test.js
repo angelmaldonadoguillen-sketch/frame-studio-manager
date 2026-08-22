@@ -41,11 +41,13 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes('Chat con el cliente'), 'el 
 check(fs.readFileSync('modal.jsx', 'utf8').includes('El cliente y el equipo ven esta misma conversación.'), 'la tarjeta debe explicar que el chat es compartido');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Usar como portada'), 'una imagen entregable debe poder usarse como portada');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-expanded={activityOpen}'), 'la actividad debe ser desplegable y accesible');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Adjuntar imagen'), 'los entregables deben separar la carga de imágenes');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Adjuntar archivo'), 'los entregables deben separar la carga de documentos');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Para videos, audio, Drive'), 'video y audio deben orientarse al campo de enlace');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Seleccionar imagen'), 'los recursos deben separar la carga de imágenes');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Seleccionar archivo'), 'los recursos deben separar la carga de documentos');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Drive, Dropbox, YouTube, Vimeo'), 'el campo de enlace debe mostrar ejemplos concisos');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('onPaste={onPaste}'), 'el chat debe aceptar imágenes pegadas');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Agregar emoji'), 'el chat debe ofrecer emojis');
+check(!fs.readFileSync('modal.jsx', 'utf8').includes('Agregar entregable'), 'los recursos no deben esconderse dentro de un formulario de entregable');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Enlace externo'), 'el enlace debe ser un campo independiente');
 check(!portal.includes('openTask.checklist'), 'el cliente no debe ver el checklist interno');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("collection('comments')"), 'los comentarios deben sincronizarse en tiempo real');
 check(rules.includes('match /comments/{commentId}'), 'las reglas deben cubrir comentarios del portal');
