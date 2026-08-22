@@ -354,8 +354,8 @@
      teléfonos se desplaza dentro de su propia caja, sin ensanchar la página. */
   .portal-calendar {
     display: grid;
-    grid-template-columns: repeat(7, minmax(104px, 1fr));
-    min-width: 728px;
+    grid-template-columns: repeat(7, minmax(150px, 1fr));
+    min-width: 1050px;
   }
   .portal-calendar-scroll {
     width: 100%;
@@ -382,8 +382,8 @@
   }
   .portal-calendar-day {
     min-width: 0;
-    min-height: 132px;
-    padding: 8px;
+    min-height: 172px;
+    padding: 10px;
     border-right: 0.5px solid var(--border);
     border-bottom: 0.5px solid var(--border);
     background: var(--surface);
@@ -392,7 +392,7 @@
   .portal-calendar-day[data-today] { background: var(--accent-soft-weak); }
   .portal-calendar-task {
     min-width: 0;
-    padding: 7px;
+    padding: 9px;
     border-radius: var(--r-sm);
     background: var(--surface-2);
     box-shadow: inset 0 0.5px 0 rgba(255,255,255,.06);
