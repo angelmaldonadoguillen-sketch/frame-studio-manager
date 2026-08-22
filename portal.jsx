@@ -129,7 +129,7 @@ const ClientPortal = ({ token }) => {
     // página que no podía scrollear.
     <div className="h-screen overflow-y-auto overscroll-contain portal-page-scroll" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <header className="px-5 sm:px-8 py-5 border-b border-app" style={{ background: 'var(--surface)' }}>
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center font-display font-bold" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>F</div>
             <div className="min-w-0"><div className="font-semibold truncate">{portal.studioName}</div><div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Seguimiento compartido</div></div>
@@ -138,8 +138,8 @@ const ClientPortal = ({ token }) => {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-5 sm:px-8 py-8 sm:py-12">
-        <div className="mb-10">
+      <main className="max-w-[1440px] mx-auto px-5 sm:px-8 py-8 sm:py-12">
+        <div className="mb-10 max-w-5xl">
           <div className="text-[11px] uppercase tracking-[0.18em] mb-2" style={{ color: 'var(--text-muted)' }}>Progreso para</div>
           <h1 className="font-display text-3xl sm:text-5xl font-bold balance mb-6">{portal.clientName}</h1>
           <div className="surf-panel p-5 sm:p-6">

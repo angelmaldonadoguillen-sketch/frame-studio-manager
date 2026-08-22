@@ -30,7 +30,8 @@ check(portal.includes('calendarDays.map'), 'el calendario debe renderizar su cua
 check(portal.includes('moveMonth(-1)'), 'el cliente debe poder navegar al mes anterior');
 check(portal.includes('moveMonth(1)'), 'el cliente debe poder navegar al mes siguiente');
 check(portal.includes('tasksByDate[iso]'), 'las tareas deben ubicarse por fecha en el calendario');
-check(fs.readFileSync('frame.css', 'utf8').includes('grid-template-columns: repeat(7'), 'el calendario debe conservar siete días');
+check(fs.readFileSync('frame.css', 'utf8').includes('grid-template-columns: repeat(7, minmax(150px, 1fr))'), 'el calendario debe conservar siete días con columnas legibles');
+check(portal.includes('max-w-[1440px]'), 'el portal debe aprovechar pantallas amplias');
 check(portal.includes('const calendarScrollRef = React.useRef(null)'), 'el calendario debe controlar su contenedor desplazable');
 check(portal.includes("addEventListener('wheel', onWheel, { passive: false })"), 'el trackpad debe activar desplazamiento horizontal');
 check(portal.includes('calendar.scrollLeft += rawDelta * scale'), 'el gesto debe mover el calendario');
