@@ -47,7 +47,7 @@ const ICONS = {
   listBullets: <><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></>,
   message: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>,
   send: <><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></>,
-  smile: <><path d="M7 9h.01M17 9h.01"/><path d="M7.5 14c1.2 1.4 2.7 2.1 4.5 2.1s3.3-.7 4.5-2.1"/></>,
+  smile: <><circle cx="8" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="9" r="1" fill="currentColor" stroke="none"/><path d="M7.5 14c1.2 1.4 2.7 2.1 4.5 2.1s3.3-.7 4.5-2.1"/></>,
   clock: <><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></>,
   flag: <><path d="M4 22V4M4 4l16 4-4 4 4 4H4"/></>,
   folder: <><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2"/></>,
