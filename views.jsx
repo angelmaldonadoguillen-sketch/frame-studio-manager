@@ -919,6 +919,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
 // y la tarjeta se adapta a cualquier ancho de columna sin aplastar nada.
 const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDragEnd, dragging, onToggleFavorite, onDelete, onDuplicate, previewFields: pf = {} }) => {
   const [confirmDel, setConfirmDel] = React.useState(false);
+  const [actionsOpen, setActionsOpen] = React.useState(false);
   const t        = getType(project.type);
   const st       = getStatus(project.status);
   const days     = daysUntil(project.deadline);
@@ -936,13 +937,13 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`group cursor-pointer surf surf-hover overflow-hidden select-none lift ${dragging ? 'dragging' : ''}`}
+      className={`frame-fluid-card group cursor-pointer surf surf-hover overflow-hidden select-none lift ${dragging ? 'dragging' : ''}`}
     >
       <div className="p-2.5 flex flex-col gap-1.5">
 
         {/* Fila tipo + urgencia + botones de acción */}
-        <div className="flex items-start justify-between gap-1">
-          <div className="flex items-center gap-1 flex-wrap">
+        <div className="frame-card-head flex items-start justify-between gap-1 min-w-0">
+          <div className="frame-card-badges flex items-center gap-1 min-w-0">
             {pf.tipo !== false && <TypePill type={project.type} />}
             {pf.prioridad !== false && urgent && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URG</span>
@@ -953,7 +954,7 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
           </div>
 
           {/* Botones — visibles en hover */}
-          <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div className="frame-card-actions flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             {!confirmDel ? (
               <>
                 {onToggleFavorite && (
@@ -993,16 +994,62 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
               </div>
             )}
           </div>
+
+          {/* En columnas estrechas las acciones se condensan en un solo
+              control. El panel vive dentro de la tarjeta para que nunca
+              desborde la celda del calendario. */}
+          <div className="frame-card-actions-compact flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => { setActionsOpen(v => !v); setConfirmDel(false); }}
+              className="p-1 rounded transition-colors hover:bg-[var(--surface-3)]"
+              style={{ color: project.favorite ? 'var(--warn)' : 'var(--text-muted)' }}
+              aria-label="Acciones de la tarjeta"
+              aria-expanded={actionsOpen}
+            >
+              <Icon name="more" size={13} />
+            </button>
+          </div>
         </div>
 
+        {actionsOpen && (
+          <div className="frame-card-action-panel flex items-center gap-1 p-1 rounded-md" style={{ background: 'var(--surface-3)' }} onClick={(e) => e.stopPropagation()}>
+            {!confirmDel ? (
+              <>
+                {onToggleFavorite && (
+                  <button onClick={() => { onToggleFavorite(project.id); setActionsOpen(false); }} className="frame-card-action-button" title={project.favorite ? 'Quitar favorito' : 'Favorito'}>
+                    <Icon name="star" size={11} fill={project.favorite ? 'currentColor' : 'none'} />
+                    <span>{project.favorite ? 'Quitar' : 'Favorito'}</span>
+                  </button>
+                )}
+                {onDuplicate && (
+                  <button onClick={() => { onDuplicate(project.id); setActionsOpen(false); }} className="frame-card-action-button" title="Duplicar">
+                    <Icon name="copy" size={11} /><span>Duplicar</span>
+                  </button>
+                )}
+                {onDelete && (
+                  <button onClick={() => setConfirmDel(true)} className="frame-card-action-button" style={{ color: 'var(--danger)' }} title="Eliminar">
+                    <Icon name="trash" size={11} /><span>Eliminar</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center gap-1 min-w-0 w-full">
+                <span className="text-[10px] font-semibold truncate mr-auto" style={{ color: 'var(--danger)' }}>¿Eliminar?</span>
+                <button onClick={() => onDelete(project.id)} className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>Sí</button>
+                <button onClick={() => setConfirmDel(false)} className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ color: 'var(--text-dim)', background: 'var(--surface-2)' }}>No</button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Título — wrappea libremente */}
-        <div className="font-display font-semibold text-[13px] leading-snug pretty" style={{ color: 'var(--text)' }}>
+        <div className="frame-card-title font-display font-semibold text-[13px] leading-snug pretty min-w-0" style={{ color: 'var(--text)' }}>
           {project.title}
         </div>
 
         {/* Cliente */}
         {pf.cliente !== false && project.client && (
-          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{project.client}</div>
+          <div className="text-[11px] truncate min-w-0" style={{ color: 'var(--text-muted)' }}>{project.client}</div>
         )}
 
         {/* Estado */}
