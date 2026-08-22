@@ -326,6 +326,37 @@ service cloud.firestore {
       allow update:       if memberOfExisting() && memberOfIncoming();
     }
 
+    // ── Portales de cliente ─────────────────────────────────────
+    // El id aleatorio funciona como capacidad de lectura. El visitante sólo
+    // puede pedir un documento exacto y publicado; nunca listar portales ni
+    // consultar las tareas internas del estudio.
+    match /frame_client_portals/{token} {
+      function validPortal(data) {
+        return token.size() == 48
+               && data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'tasks'])
+               && data.keys().hasAll(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'tasks'])
+               && data.workspaceId is string
+               && data.clientId is string
+               && data.clientName is string
+               && data.clientName.size() <= 200
+               && data.studioName is string
+               && data.studioName.size() <= 200
+               && data.published is bool
+               && data.updatedAt is string
+               && data.tasks is list
+               && data.tasks.size() <= 100;
+      }
+
+      allow get: if resource.data.published == true;
+      allow list: if false;
+      allow create: if memberOfIncoming() && validPortal(request.resource.data);
+      allow update: if memberOfExisting() && memberOfIncoming()
+                    && request.resource.data.workspaceId == resource.data.workspaceId
+                    && request.resource.data.clientId == resource.data.clientId
+                    && validPortal(request.resource.data);
+      allow delete: if memberOfExisting();
+    }
+
     match /frame_trash/{doc} {
       allow read, delete: if memberOfExisting();
       allow create:       if memberOfIncoming();
