@@ -2319,7 +2319,7 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
       <div className="relative flex gap-3 items-start">
         {composerAvatar ? <img src={composerAvatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-0.5" style={authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{authorType === 'client' ? (clientInitials || initialsFor(authorName)) : initialsFor(authorName)}</div>}
         <div className="flex-1 min-w-0 border-b border-[var(--border-2)] focus-within:border-[var(--text-muted)] transition-colors">
-          <textarea value={text} onChange={event => setText(event.target.value)} onPaste={onPaste} maxLength={2000} rows={1} className="w-full px-0 py-1.5 text-[13px] resize-none bg-transparent min-h-[36px]" placeholder="Agregar un comentario…" />
+          <textarea value={text} onChange={event => setText(event.target.value)} onPaste={onPaste} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); } }} maxLength={2000} rows={1} className="w-full px-0 py-1.5 text-[13px] resize-none bg-transparent min-h-[36px]" placeholder="Agregar un comentario…" />
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center gap-1">
               <button onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" className="w-7 h-7 rounded flex items-center justify-center hover:bg-[var(--surface-2)] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></button>
