@@ -13,12 +13,13 @@ check(index.includes('src="portal.jsx"'), 'el portal debe cargarse antes de mont
 check(app.includes('portalToken ? <ClientPortal'), 'el enlace debe abrir el portal sin entrar al gestor');
 check(portal.includes('crypto.getRandomValues'), 'el token debe usar entropía criptográfica');
 check(portal.includes("filter(project => String(project.client"), 'el portal debe limitarse al cliente correcto');
-check(portal.includes('project.clientVisible === true'), 'cada tarea debe requerir publicación explícita');
+check(portal.includes('project.clientVisible !== false'), 'las tareas del cliente deben publicarse salvo exclusión explícita');
+check(fs.readFileSync('data.jsx', 'utf8').includes('clientVisible: p.clientVisible !== false'), 'los documentos anteriores deben ser visibles por compatibilidad');
 check(!portal.includes('comments:'), 'la proyección no debe exponer comentarios internos');
 check(!portal.includes('budget:'), 'la proyección no debe exponer presupuesto');
 check(!portal.includes('assignees:'), 'la proyección no debe exponer responsables');
 check(clients.includes('Publicar portal'), 'el perfil debe permitir publicar el portal');
-check(clients.includes("p.clientVisible ? 'Visible' : 'Oculta'"), 'cada tarea debe mostrar su visibilidad');
+check(clients.includes("p.clientVisible !== false ? 'Visible' : 'Oculta'"), 'cada tarea debe mostrar su visibilidad');
 check(rules.includes('match /frame_client_portals/{token}'), 'las reglas deben cubrir la colección nueva');
 check(rules.includes('allow get: if resource.data.published == true'), 'sólo un portal publicado debe ser legible');
 check(rules.includes('allow list: if false'), 'nadie debe enumerar portales');

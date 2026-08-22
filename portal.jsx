@@ -19,7 +19,9 @@ const clientPortalUrl = (token) => {
 const buildClientPortalDocument = (client, projects, workspace, published = client.portalPublished === true) => {
   const name = String(client.name || '').trim().toLowerCase();
   const visible = (projects || [])
-    .filter(project => String(project.client || '').trim().toLowerCase() === name && project.clientVisible === true)
+    // Visible por defecto: al publicar un cliente entran todas sus tareas.
+    // Sólo se excluye una cuando el creativo lo decide explícitamente.
+    .filter(project => String(project.client || '').trim().toLowerCase() === name && project.clientVisible !== false)
     .map(project => {
       const checklist = project.checklist || [];
       const completed = checklist.filter(item => item.done).length;

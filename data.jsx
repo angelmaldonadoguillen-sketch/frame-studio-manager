@@ -723,7 +723,9 @@ const normalizeProject = (p) => ({
     ? [...new Set(p.workspaceIds.filter(Boolean))]
     : (p.workspaceId ? [p.workspaceId] : []),
   viewerIds:    Array.isArray(p.viewerIds) ? [...new Set(p.viewerIds.filter(Boolean))] : [],
-  clientVisible: p.clientVisible === true,
+  // Compatibilidad: las tareas anteriores al portal nacen visibles. Sólo un
+  // false guardado explícitamente las excluye del seguimiento del cliente.
+  clientVisible: p.clientVisible !== false,
   cover:        p.cover && typeof p.cover === 'object' ? p.cover : { type: 'color', value: 'var(--surface-2)' },
 });
 
