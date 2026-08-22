@@ -333,12 +333,14 @@ service cloud.firestore {
     match /frame_client_portals/{token} {
       function validPortal(data) {
         return token.size() == 48
-               && data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'studioAvatar', 'published', 'updatedAt', 'taskIds', 'tasks'])
+               && data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'clientInitials', 'clientColor', 'studioName', 'studioAvatar', 'published', 'updatedAt', 'taskIds', 'tasks'])
                && data.keys().hasAll(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'taskIds', 'tasks'])
                && data.workspaceId is string
                && data.clientId is string
                && data.clientName is string
                && data.clientName.size() <= 200
+               && (!data.keys().hasAny(['clientInitials']) || (data.clientInitials is string && data.clientInitials.size() > 0 && data.clientInitials.size() <= 4))
+               && (!data.keys().hasAny(['clientColor']) || (data.clientColor is string && data.clientColor.size() > 0 && data.clientColor.size() <= 64))
                && data.studioName is string
                && data.studioName.size() <= 200
                && (!data.keys().hasAny(['studioAvatar']) || (
@@ -393,7 +395,9 @@ service cloud.firestore {
         }
         allow read: if portal().published == true || isMember(portal().workspaceId);
         allow create: if validComment() && (
-          (portal().published == true && request.resource.data.authorType == 'client')
+          (portal().published == true
+           && request.resource.data.authorType == 'client'
+           && request.resource.data.authorName == portal().clientName)
           || (isMember(portal().workspaceId) && request.resource.data.authorType == 'studio')
         );
         allow update: if false;
