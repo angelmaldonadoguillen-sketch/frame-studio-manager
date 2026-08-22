@@ -61,6 +61,8 @@ check(rules.includes('request.resource.data.authorName == portal().clientName'),
 check(portal.includes('clientInitials={portal.clientInitials'), 'el chat público debe usar el avatar definido del cliente');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('placeholder="Tu nombre"'), 'el portal no debe pedir un nombre dentro del chat');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="smile" size={17}'), 'la sonrisa sin círculo debe compensar ópticamente su menor superficie');
+check(fs.readFileSync('icons.jsx', 'utf8').includes('<circle cx="8" cy="9" r="1" fill="currentColor" stroke="none"/>'), 'la sonrisa debe tener ojos legibles sin recuperar el contorno circular');
+check(!fs.readFileSync('icons.jsx', 'utf8').includes('smile: <><circle cx="12" cy="12"'), 'la sonrisa no debe volver a encerrarse en un círculo');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="send" size={16}'), 'el envío debe usar un icono minimalista proporcionado');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-label="Adjuntar imagen"'), 'el clip debe tener un nombre accesible');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-pressed={emojiOpen}'), 'el selector de emojis debe exponer su estado');
