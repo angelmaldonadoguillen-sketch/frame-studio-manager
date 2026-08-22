@@ -31,5 +31,11 @@ check(portal.includes('moveMonth(-1)'), 'el cliente debe poder navegar al mes an
 check(portal.includes('moveMonth(1)'), 'el cliente debe poder navegar al mes siguiente');
 check(portal.includes('tasksByDate[iso]'), 'las tareas deben ubicarse por fecha en el calendario');
 check(fs.readFileSync('frame.css', 'utf8').includes('grid-template-columns: repeat(7'), 'el calendario debe conservar siete días');
+check(portal.includes('const calendarScrollRef = React.useRef(null)'), 'el calendario debe controlar su contenedor desplazable');
+check(portal.includes("addEventListener('wheel', onWheel, { passive: false })"), 'el trackpad debe activar desplazamiento horizontal');
+check(portal.includes('calendar.scrollLeft += rawDelta * scale'), 'el gesto debe mover el calendario');
+check(portal.includes('horizontalGesture ? event.deltaX : event.deltaY'), 'debe aceptar trackpad y Shift+rueda');
+check(portal.includes("removeEventListener('wheel', onWheel)"), 'el listener debe limpiarse al desmontar');
+check(fs.readFileSync('frame.css', 'utf8').includes('touch-action: pan-x pan-y'), 'el gesto táctil debe permanecer habilitado');
 
 console.log(`client-portal-contract: ${checks} checks passed`);
