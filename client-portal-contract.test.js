@@ -37,7 +37,10 @@ check(portal.includes('setOpenTask(task)'), 'la tarjeta del calendario debe abri
 check(portal.includes('Recursos compartidos'), 'el detalle debe reutilizar los entregables normales');
 check(portal.includes('<SharedClientComments'), 'el detalle público debe incluir conversación');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('Información para el cliente'), 'la tarjeta creativa no debe tener un bloque público pegado');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Conversación con el cliente'), 'la conversación debe aparecer en la tarjeta creativa');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Chat con el cliente'), 'el chat compartido debe aparecer como pestaña en la tarjeta creativa');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('El cliente y el equipo ven esta misma conversación.'), 'la tarjeta debe explicar que el chat es compartido');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Usar como portada'), 'una imagen entregable debe poder usarse como portada');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-expanded={activityOpen}'), 'la actividad debe ser desplegable y accesible');
 check(!portal.includes('openTask.checklist'), 'el cliente no debe ver el checklist interno');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("collection('comments')"), 'los comentarios deben sincronizarse en tiempo real');
 check(rules.includes('match /comments/{commentId}'), 'las reglas deben cubrir comentarios del portal');
