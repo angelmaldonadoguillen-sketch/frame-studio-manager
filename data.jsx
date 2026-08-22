@@ -35,6 +35,9 @@ const PRIORITIES = [
   { id: 'low',    label: 'Baja',  color: 'var(--resource-teal)' },
 ];
 
+const TRASH_RETENTION_DAYS = 10;
+const TRASH_RETENTION_MS = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
 // Fecha actual real.
 // Era `const` fijado al cargar la página. FRAME se deja abierto todo el día,
 // así que después de medianoche "hoy" seguía siendo el día anterior: lo vencido,
@@ -743,6 +746,7 @@ const normalizeMember = (m) => ({
 
 Object.assign(window, {
   USERS, PROJECT_TYPES, STATUSES, PRIORITIES, SEED_PROJECTS, COVER_IMAGES,
+  TRASH_RETENTION_DAYS, TRASH_RETENTION_MS,
   TODAY, d,
   getUser, getType, getStatus, getPrio,
   resolveThemeColor,

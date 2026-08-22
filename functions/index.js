@@ -63,3 +63,24 @@ exports.carryOverIncompleteTasks = onSchedule({
   }
   await Promise.all(batches);
 });
+
+// La purga no depende de que alguien abra la aplicación. deletedAt se guarda
+// como ISO, cuyo orden lexicográfico coincide con el cronológico.
+exports.purgeExpiredTrash = onSchedule({
+  schedule: '20 0 * * *',
+  timeZone: 'America/Tegucigalpa',
+  region: 'us-central1',
+}, async () => {
+  const cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+  while (true) {
+    const expired = await db.collection('frame_trash')
+      .where('deletedAt', '<=', cutoff)
+      .limit(400)
+      .get();
+    if (expired.empty) break;
+    const batch = db.batch();
+    expired.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    if (expired.size < 400) break;
+  }
+});
