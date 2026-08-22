@@ -62,6 +62,7 @@ check(portal.includes('clientInitials={portal.clientInitials'), 'el chat públic
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('placeholder="Tu nombre"'), 'el portal no debe pedir un nombre dentro del chat');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="smile" size={15}'), 'los iconos del compositor deben compartir escala');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="send" size={15}'), 'el envío debe usar un icono minimalista');
+check(fs.readFileSync('modal.jsx', 'utf8').includes("event.key === 'Enter' && !event.shiftKey"), 'Enter debe enviar y Shift+Enter debe conservar el salto de línea');
 check(rules.includes('request.resource.data.text.size() <= 2000'), 'los comentarios deben tener límite de tamaño');
 check(rules.includes("'attachmentUrl', 'attachmentName'"), 'los comentarios deben admitir una imagen compartida');
 check(rules.includes("attachmentUrl.matches('https://firebasestorage.googleapis.com/.*')"), 'la imagen del chat debe venir del almacenamiento controlado');
