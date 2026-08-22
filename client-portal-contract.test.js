@@ -37,5 +37,8 @@ check(portal.includes('calendar.scrollLeft += rawDelta * scale'), 'el gesto debe
 check(portal.includes('horizontalGesture ? event.deltaX : event.deltaY'), 'debe aceptar trackpad y Shift+rueda');
 check(portal.includes("removeEventListener('wheel', onWheel)"), 'el listener debe limpiarse al desmontar');
 check(fs.readFileSync('frame.css', 'utf8').includes('touch-action: pan-x pan-y'), 'el gesto táctil debe permanecer habilitado');
+check(portal.includes('h-screen overflow-y-auto'), 'el portal debe crear su propio viewport vertical desplazable');
+check(portal.includes('portal-page-scroll'), 'el scroll vertical debe tener una regla específica');
+check(fs.readFileSync('frame.css', 'utf8').includes('overscroll-behavior-y: contain'), 'el scroll vertical debe permanecer contenido en el portal');
 
 console.log(`client-portal-contract: ${checks} checks passed`);
