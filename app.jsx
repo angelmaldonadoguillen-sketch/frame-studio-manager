@@ -1984,6 +1984,18 @@ const App = () => {
     return () => { unsubLegacy(); unsubShared(); };
   }, [authUser?.uid, wsId]);
 
+  // El portal guarda una proyección deliberadamente pequeña. Se regenera
+  // cuando cambian tareas o clientes, sin abrir nunca frame_projects al
+  // visitante externo.
+  useEffect(() => {
+    if (!authUser || !activeWsReady) return;
+    state.clients.filter(client => client.portalPublished && client.portalToken).forEach(client => {
+      const document = buildClientPortalDocument(client, state.projects, activeWs, true);
+      window.db.collection('frame_client_portals').doc(client.portalToken).set(document)
+        .catch(err => console.error('[FRAME] Sincronizar portal:', err));
+    });
+  }, [authUser?.uid, activeWsReady, activeWs?.name, state.clients, state.projects]);
+
   // Una referencia mínima en el tablero permite que un miembro recién
   // incorporado descubra las tareas compartidas y se agregue a su ACL. No se
   // copia contenido y la regla sólo permite añadir el uid propio.
@@ -2785,6 +2797,12 @@ const App = () => {
   };
 
   const handleDeleteClient = (id) => {
+    const client = state.clients.find(item => item.id === id);
+    if (client?.portalToken) {
+      window.db.collection('frame_client_portals').doc(client.portalToken)
+        .set(buildClientPortalDocument(client, [], activeWs, false))
+        .catch(err => console.error('[FRAME] Desactivar portal eliminado:', err));
+    }
     dispatch({ type: 'delete_client', id });
     window.db.collection('frame_clients').doc(id).delete()
       .catch(err => console.error('Error al eliminar cliente:', err));
@@ -2800,6 +2818,26 @@ const App = () => {
     dispatch({ type: 'create_client', client });
     window.db.collection('frame_clients').doc(client.id).set(stampWs(client))
       .catch(err => console.error('Error al crear cliente:', err));
+  };
+
+  const handleSetClientPortal = async (client, published) => {
+    const portalToken = client.portalToken || createClientPortalToken();
+    const updated = { ...client, portalToken, portalPublished: published === true };
+    try {
+      await window.db.collection('frame_clients').doc(client.id).set(stampWs(updated));
+      await window.db.collection('frame_client_portals').doc(portalToken)
+        .set(buildClientPortalDocument({ ...updated, workspaceId: wsId }, state.projects, activeWs, published));
+      dispatch({ type: 'update_client', client: updated });
+      window.frameToast?.(published ? 'Portal del cliente publicado.' : 'Portal del cliente desactivado.');
+      return updated;
+    } catch (err) {
+      notifyWriteError(err, 'el portal del cliente');
+      throw err;
+    }
+  };
+
+  const handleToggleClientPortalTask = (project, visible) => {
+    handleUpdateProject({ ...project, clientVisible: visible === true });
   };
 
   // Va acá arriba y no junto al return: es un hook, y después de la primera
@@ -2902,6 +2940,8 @@ const App = () => {
           onCreateClient={handleCreateClient}
           onUpdateClient={handleUpdateClient}
           onDeleteClient={handleDeleteClient}
+          onSetClientPortal={handleSetClientPortal}
+          onTogglePortalTask={handleToggleClientPortalTask}
           openClientId={state.openClientId}
           onOpenClient={(id) => dispatch({ type: 'open_client', id })}
           onCloseClient={() => dispatch({ type: 'close_client' })}
@@ -3016,4 +3056,5 @@ const App = () => {
   );
 };
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+const portalToken = new URLSearchParams(window.location.search).get('portal');
+ReactDOM.createRoot(document.getElementById('root')).render(portalToken ? <ClientPortal token={portalToken} /> : <App />);

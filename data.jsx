@@ -723,6 +723,7 @@ const normalizeProject = (p) => ({
     ? [...new Set(p.workspaceIds.filter(Boolean))]
     : (p.workspaceId ? [p.workspaceId] : []),
   viewerIds:    Array.isArray(p.viewerIds) ? [...new Set(p.viewerIds.filter(Boolean))] : [],
+  clientVisible: p.clientVisible === true,
   cover:        p.cover && typeof p.cover === 'object' ? p.cover : { type: 'color', value: 'var(--surface-2)' },
 });
 
@@ -732,6 +733,8 @@ const normalizeClient = (c) => ({
   industry: c.industry ?? 'Sin categoría',
   tags:     Array.isArray(c.tags) ? c.tags : [],
   notes:    c.notes    ?? '',
+  portalToken: typeof c.portalToken === 'string' ? c.portalToken : '',
+  portalPublished: c.portalPublished === true,
   contact:  c.contact && typeof c.contact === 'object' ? c.contact : { name: '—', email: '—', phone: '—' },
 });
 
