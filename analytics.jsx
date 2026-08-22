@@ -9,7 +9,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
   // así que una tarea entregada seguía sumando carga, presupuesto y vencidos.
   const reportable = projects.filter(p => p.status !== 'archived');
   const active     = reportable.filter(p => !isClosed(p));
-  const delivered  = reportable.filter(p => p.status === 'delivered');
+  const delivered  = reportable.filter(p => isCompletionStatus(p.status));
   const urgent     = active.filter(needsAttention);
 
   const totalBudget  = active.reduce((sum, p) => sum + (p.budget || 0), 0);
@@ -22,7 +22,10 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
 
   // ── Estado de proyectos ──────────────────────────────────────
   // Usa los statuses reales del workflow (sin archived)
-  const statusGroups = STATUSES.filter(s => s.id !== 'archived').map(s => ({
+  const workflowStatuses = (window.FRAME_KANBAN_COLUMNS || []).length
+    ? window.FRAME_KANBAN_COLUMNS
+    : STATUSES.filter(s => s.id !== 'archived');
+  const statusGroups = workflowStatuses.map(s => ({
     ...s,
     color: resolveThemeColor(s.color),
     count: reportable.filter(p => p.status === s.id).length,
@@ -141,7 +144,7 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
             icon="check"
             label="Tasa de entrega"
             value={`${deliveryRate}%`}
-            sub={`${delivered.length} entregado${delivered.length !== 1 ? 's' : ''} de ${reportable.length}`}
+            sub={`${delivered.length} completada${delivered.length !== 1 ? 's' : ''} de ${reportable.length}`}
             color="var(--resource-violet)"
           />
           <KpiCard

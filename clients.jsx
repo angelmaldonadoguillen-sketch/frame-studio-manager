@@ -80,7 +80,7 @@ const CLIENT_COLORS = [
 
 // Progreso operativo mensual del cliente. La fecha de inicio es la misma que
 // ubica la tarea en el calendario; una tarea archivada no forma parte del
-// trabajo del mes y una entregada cuenta como completada.
+// trabajo del mes y una columna marcada como final cuenta como completada.
 const clientMonthlyProgress = (projects, clientName, today = TODAY) => {
   const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const normalizedName = String(clientName || '').trim().toLowerCase();
@@ -89,7 +89,7 @@ const clientMonthlyProgress = (projects, clientName, today = TODAY) => {
     && project.status !== 'archived'
     && String(project.startDate || '').startsWith(monthKey)
   );
-  const completed = monthly.filter(project => project.status === 'delivered').length;
+  const completed = monthly.filter(project => isCompletionStatus(project.status)).length;
   return {
     total: monthly.length,
     completed,
@@ -132,7 +132,7 @@ const ClientCard = ({ client, projects, onClick }) => {
   const clientColor = resolveThemeColor(client.color);
   const cp = projects.filter(p => p.client.toLowerCase() === client.name.toLowerCase());
   const totalBudget = cp.reduce((s, p) => s + (p.budget || 0), 0);
-  const active = cp.filter(p => p.status !== 'delivered' && p.status !== 'archived').length;
+  const active = cp.filter(p => !isClosed(p)).length;
 
   return (
     <div
@@ -201,7 +201,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
 
   const cp = projects.filter(p => p.client.toLowerCase() === client.name.toLowerCase());
   const totalBudget = cp.reduce((s, p) => s + (p.budget || 0), 0);
-  const inProgress  = cp.filter(p => p.status !== 'delivered' && p.status !== 'archived').length;
+  const inProgress  = cp.filter(p => !isClosed(p)).length;
   const clientColor = resolveThemeColor(client.color);
   const monthlyProgress = clientMonthlyProgress(projects, client.name);
 
@@ -292,7 +292,7 @@ const ClientDetail = ({ client, projects, onClose, onUpdate, onDelete }) => {
                   </div>
                   <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-dim)' }}>
                     {monthlyProgress.total > 0
-                      ? `${monthlyProgress.completed} de ${monthlyProgress.total} tareas entregadas`
+                      ? `${monthlyProgress.completed} de ${monthlyProgress.total} tareas completadas`
                       : 'Sin tareas iniciadas este mes'}
                   </div>
                 </div>

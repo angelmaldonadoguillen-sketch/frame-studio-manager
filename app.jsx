@@ -496,7 +496,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
     favorites: state.projects.filter(p => p.favorite).length,
     mine:      state.projects.filter(p => p.assignees.includes(state.currentUserId) && p.status !== 'archived').length,
     urgent:    state.projects.filter(needsAttention).length,
-    delivered: state.projects.filter(p => p.status === 'delivered').length,
+    delivered: state.projects.filter(p => isCompletionStatus(p.status)).length,
     archived:  state.projects.filter(p => p.status === 'archived').length,
     trash:     state.trash.length,
   };
@@ -566,7 +566,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
         {/* Rojo sólo cuando de verdad hay algo por vencer. Encendido siempre,
             el color no avisaba nada: era parte del decorado. */}
         <NavItem collapsed={collapsed} icon="alert"   label="Fechas límite urgentes" count={counts.urgent}              active={sf === 'urgent'}    accent={counts.urgent > 0} onClick={() => setFilter('urgent')} />
-        <NavItem collapsed={collapsed} icon="check"   label="Entregados"         count={counts.delivered}              active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
+        <NavItem collapsed={collapsed} icon="check"   label="Completadas"        count={counts.delivered}              active={sf === 'delivered'} onClick={() => setFilter('delivered')} />
         <NavItem collapsed={collapsed} icon="trash"   label="Papelera"           count={counts.trash || undefined}     active={sf === 'trash'}     onClick={() => setFilter('trash')} />
 
         {collapsed
@@ -1237,7 +1237,7 @@ const applyFilters = (state) => {
     if (state.sidebarFilter === 'favorites' && !p.favorite) return false;
     if (state.sidebarFilter === 'mine' && !p.assignees.includes(state.currentUserId)) return false;
     if (state.sidebarFilter === 'urgent' && !needsAttention(p)) return false;
-    if (state.sidebarFilter === 'delivered' && p.status !== 'delivered') return false;
+    if (state.sidebarFilter === 'delivered' && !isCompletionStatus(p.status)) return false;
     if (state.sidebarFilter === 'archived'  && p.status !== 'archived')  return false;
     // En vista 'all' ocultar archivados salvo que se filtren explícitamente por estado
     if (state.sidebarFilter === 'all' && p.status === 'archived' && !state.filters.status.includes('archived')) return false;
@@ -1252,7 +1252,7 @@ const applyFilters = (state) => {
     if (state.filters.assignee.length && !p.assignees.some(a => state.filters.assignee.includes(a)))            return false;
     if (state.filters.client.length   && !state.filters.client.includes(p.client))                              return false;
     if (state.filters.tags.length     && !state.filters.tags.some(tag => (p.tags || []).includes(tag)))          return false;
-    const closed = p.status === 'delivered' || p.status === 'archived';
+    const closed = isClosed(p);
     if (!dateFilterMatches(p.startDate, state.filters.startDate, 'startDate'))                                   return false;
     // Dentro del campo se mantiene la lógica O: una entregada no coincide con
     // "Vencidas", pero sí con "Este mes" cuando ambos están seleccionados.
@@ -2125,7 +2125,7 @@ const App = () => {
       // Solo con checklist parcial (tiene ítems y al menos uno sin completar)
       if (!p.checklist?.length || progressOf(p) >= 100) return false;
       // No archivar ni entregados
-      if (p.status === 'delivered' || p.status === 'archived') return false;
+      if (isClosed(p)) return false;
       // La fecha de sesión o deadline tiene que ser pasada
       const refDate = p.sessionDate || p.deadline;
       return refDate && refDate < today;
@@ -2154,15 +2154,23 @@ const App = () => {
         // Primera vez: sembrar con columnas por defecto
         const defaults = STATUSES
           .filter(s => s.id !== 'archived')
-          .map(s => ({ id: s.id, label: s.label, color: s.color }));
+          .map(s => ({ id: s.id, label: s.label, color: s.color, isDone: !!s.isDone, requiresChecklist: !!s.requiresChecklist }));
+        window.FRAME_KANBAN_COLUMNS = defaults;
         ref.set({ columns: defaults });
         dispatch({ type: 'set_columns', columns: defaults });
       } else {
-        dispatch({ type: 'set_columns', columns: snap.data().columns || [] });
+        const columns = (snap.data().columns || []).map(column => ({
+          ...column,
+          isDone: typeof column.isDone === 'boolean' ? column.isDone : column.id === 'delivered',
+          requiresChecklist: typeof column.requiresChecklist === 'boolean' ? column.requiresChecklist : column.id === 'delivered',
+        }));
+        window.FRAME_KANBAN_COLUMNS = columns;
+        dispatch({ type: 'set_columns', columns });
       }
     }, (err) => {
       console.error('Kanban columns error:', err);
-      const defaults = STATUSES.filter(s => s.id !== 'archived').map(s => ({ id: s.id, label: s.label, color: s.color }));
+      const defaults = STATUSES.filter(s => s.id !== 'archived').map(s => ({ id: s.id, label: s.label, color: s.color, isDone: !!s.isDone, requiresChecklist: !!s.requiresChecklist }));
+      window.FRAME_KANBAN_COLUMNS = defaults;
       dispatch({ type: 'set_columns', columns: defaults });
     });
     return () => unsub();
@@ -2262,20 +2270,24 @@ const App = () => {
 
   const handleUpdateColumn = (col) => {
     const updated = state.kanbanColumns.map(c => c.id === col.id ? col : c);
+    window.FRAME_KANBAN_COLUMNS = updated;
     dispatch({ type: 'update_column', column: col });
     saveColumns(updated);
   };
   const handleAddColumn = (col) => {
     const updated = [...state.kanbanColumns, col];
+    window.FRAME_KANBAN_COLUMNS = updated;
     dispatch({ type: 'add_column', column: col });
     saveColumns(updated);
   };
   const handleDeleteColumn = (id) => {
     const updated = state.kanbanColumns.filter(c => c.id !== id);
+    window.FRAME_KANBAN_COLUMNS = updated;
     dispatch({ type: 'delete_column', id });
     saveColumns(updated);
   };
   const handleReorderColumns = (newOrder) => {
+    window.FRAME_KANBAN_COLUMNS = newOrder;
     dispatch({ type: 'set_columns', columns: newOrder });
     saveColumns(newOrder);
   };
@@ -2528,10 +2540,10 @@ const App = () => {
 
   const handleUpdateProject = (project) => {
     const prev = state.projects.find(p => p.id === project.id);
-    // A task with a checklist cannot be delivered until it is complete.
-    if (prev && project.status === 'delivered' && prev.status !== 'delivered'
+    // La restricción pertenece a la columna de destino, no a un id fijo.
+    if (prev && requiresChecklistForStatus(project.status) && prev.status !== project.status
       && project.checklist?.length && progressOf(project) < 100) {
-      window.frameToast?.('Completá el checklist antes de entregar la tarea.');
+      window.frameToast?.(`Completá el checklist antes de mover la tarea a ${getStatus(project.status).label}.`);
       return;
     }
     dispatch({ type: 'update_project', project }); // optimista: la UI ya lo refleja

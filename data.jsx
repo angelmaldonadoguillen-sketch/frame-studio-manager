@@ -25,7 +25,7 @@ const STATUSES = [
   { id: 'producing', label: 'En producción',      color: 'var(--warn)' },
   { id: 'editing',   label: 'Edición',            color: 'var(--resource-blue)' },
   { id: 'review',    label: 'Revisión cliente',   color: 'var(--resource-violet)' },
-  { id: 'delivered', label: 'Entregado',          color: 'var(--resource-teal)' },
+  { id: 'delivered', label: 'Entregado',          color: 'var(--resource-teal)', isDone: true, requiresChecklist: true },
   { id: 'archived',  label: 'Archivado',          color: '#62626B' },
 ];
 
@@ -453,7 +453,11 @@ const getUser   = (id) => {
 };
 // FRAME_CUSTOM_TYPES tiene prioridad — puede sobreescribir color/label de tipos default
 const getType   = (id) => themed((window.FRAME_CUSTOM_TYPES || []).find(t => t.id === id) || PROJECT_TYPES.find(t => t.id === id) || PROJECT_TYPES[PROJECT_TYPES.length - 1]);
-const getStatus = (id) => themed(STATUSES.find(s => s.id === id) || STATUSES[0]);
+const getStatus = (id) => themed(
+  (window.FRAME_KANBAN_COLUMNS || []).find(s => s.id === id)
+  || STATUSES.find(s => s.id === id)
+  || STATUSES[0]
+);
 const getPrio   = (id) => themed(PRIORITIES.find(p => p.id === id) || PRIORITIES[0]);
 
 const fmtMoney = (n, c = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(n);
@@ -646,8 +650,25 @@ const workspaceMembers = (ws) => {
 // contaba en "Deadlines urgentes".
 const URGENT_DAYS = 3;
 
+const workflowColumn = (status) =>
+  (window.FRAME_KANBAN_COLUMNS || []).find(column => column.id === status);
+
+// Las columnas son editables, así que el cierre es comportamiento y no nombre.
+// Los flags indefinidos conservan compatibilidad con tableros anteriores.
+const isCompletionStatus = (status) => {
+  const column = workflowColumn(status);
+  return typeof column?.isDone === 'boolean' ? column.isDone : status === 'delivered';
+};
+
+const requiresChecklistForStatus = (status) => {
+  const column = workflowColumn(status);
+  return typeof column?.requiresChecklist === 'boolean'
+    ? column.requiresChecklist
+    : status === 'delivered';
+};
+
 const isClosed = (project) =>
-  project.status === 'delivered' || project.status === 'archived';
+  project.status === 'archived' || isCompletionStatus(project.status);
 
 const isUrgent = (project) => {
   if (isClosed(project)) return false;

@@ -844,7 +844,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
 
   const progress = progressOf(project);
   const days = daysUntil(project.deadline);
-  const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
+  const isUrgent = days >= 0 && days < 3 && !isClosed(project);
 
   return (
     <div className="fixed inset-0 z-50 backdrop flex items-stretch justify-end anim-fade-in" onClick={onClose}>
