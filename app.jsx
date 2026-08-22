@@ -1835,7 +1835,7 @@ const App = () => {
 
     const mine    = (activeWs.members || {})[authUser.uid];
     const fresh   = memberCard(me);
-    const changed = !mine || ['name', 'initials', 'color', 'role', 'email']
+    const changed = !mine || ['name', 'initials', 'color', 'avatar', 'role', 'email']
       .some(k => mine[k] !== fresh[k]);
     if (!changed) return;
 
@@ -1994,7 +1994,7 @@ const App = () => {
       window.db.collection('frame_client_portals').doc(client.portalToken).set(document)
         .catch(err => console.error('[FRAME] Sincronizar portal:', err));
     });
-  }, [authUser?.uid, activeWsReady, activeWs?.name, state.clients, state.projects]);
+  }, [authUser?.uid, activeWsReady, activeWs?.name, activeWs?.members, state.clients, state.projects]);
 
   // Una referencia mínima en el tablero permite que un miembro recién
   // incorporado descubra las tareas compartidas y se agregue a su ACL. No se

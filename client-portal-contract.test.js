@@ -24,7 +24,7 @@ check(rules.includes('match /frame_client_portals/{token}'), 'las reglas deben c
 check(rules.includes('allow get: if resource.data.published == true'), 'sólo un portal publicado debe ser legible');
 check(rules.includes('allow list: if false'), 'nadie debe enumerar portales');
 check(rules.includes('data.tasks.size() <= 100'), 'la proyección debe tener un límite');
-check(rules.includes("data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'taskIds', 'tasks'])"), 'el documento público debe rechazar campos privados');
+check(rules.includes("data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'studioAvatar', 'published', 'updatedAt', 'taskIds', 'tasks'])"), 'el documento público debe rechazar campos privados');
 check(portal.includes('Calendario mensual del trabajo'), 'el portal debe mostrar un calendario accesible');
 check(portal.includes('calendarDays.map'), 'el calendario debe renderizar su cuadrícula mensual');
 check(portal.includes('moveMonth(-1)'), 'el cliente debe poder navegar al mes anterior');
@@ -37,8 +37,11 @@ check(portal.includes('setOpenTask(task)'), 'la tarjeta del calendario debe abri
 check(portal.includes('Recursos compartidos'), 'el detalle debe reutilizar los entregables normales');
 check(portal.includes('<SharedClientComments'), 'el detalle público debe incluir conversación');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('Información para el cliente'), 'la tarjeta creativa no debe tener un bloque público pegado');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Chat con el cliente'), 'el chat compartido debe aparecer como pestaña en la tarjeta creativa');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('El cliente y el equipo ven esta misma conversación.'), 'la tarjeta debe explicar que el chat es compartido');
+check(fs.readFileSync('modal.jsx', 'utf8').includes("label:'Chat'"), 'el chat compartido debe aparecer con un nombre simple');
+check(!fs.readFileSync('modal.jsx', 'utf8').includes('El cliente y el equipo ven esta misma conversación.'), 'el chat no debe mostrar explicaciones redundantes');
+check(fs.readFileSync('data.jsx', 'utf8').includes("avatar:   m?.avatar"), 'la ficha del tablero debe conservar el avatar del perfil');
+check(portal.includes('studioAvatar:'), 'el portal debe proyectar sólo el avatar público del estudio');
+check(rules.includes("data.studioAvatar.matches('data:image/(jpeg|png|webp);base64,.*')"), 'las reglas deben limitar el formato del avatar público');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Usar esta imagen como portada'), 'una imagen entregable debe poder usarse como portada');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-expanded={activityOpen}'), 'la actividad debe ser desplegable y accesible');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="image" size={13} /> Imagen'), 'los recursos deben ofrecer una acción compacta para imágenes');

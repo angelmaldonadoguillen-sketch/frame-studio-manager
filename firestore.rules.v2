@@ -333,7 +333,7 @@ service cloud.firestore {
     match /frame_client_portals/{token} {
       function validPortal(data) {
         return token.size() == 48
-               && data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'taskIds', 'tasks'])
+               && data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'studioName', 'studioAvatar', 'published', 'updatedAt', 'taskIds', 'tasks'])
                && data.keys().hasAll(['workspaceId', 'clientId', 'clientName', 'studioName', 'published', 'updatedAt', 'taskIds', 'tasks'])
                && data.workspaceId is string
                && data.clientId is string
@@ -341,6 +341,11 @@ service cloud.firestore {
                && data.clientName.size() <= 200
                && data.studioName is string
                && data.studioName.size() <= 200
+               && (!data.keys().hasAny(['studioAvatar']) || (
+                 data.studioAvatar is string
+                 && data.studioAvatar.size() <= 350000
+                 && (data.studioAvatar == '' || data.studioAvatar.matches('data:image/(jpeg|png|webp);base64,.*'))
+               ))
                && data.published is bool
                && data.updatedAt is string
                && data.taskIds is list
