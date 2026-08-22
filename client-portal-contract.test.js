@@ -32,14 +32,13 @@ check(portal.includes('moveMonth(1)'), 'el cliente debe poder navegar al mes sig
 check(portal.includes('tasksByDate[iso]'), 'las tareas deben ubicarse por fecha en el calendario');
 check(fs.readFileSync('frame.css', 'utf8').includes('grid-template-columns: repeat(7, minmax(150px, 1fr))'), 'el calendario debe conservar siete días con columnas legibles');
 check(portal.includes('max-w-[1440px]'), 'el portal debe aprovechar pantallas amplias');
-check(portal.includes('image: /^https:'), 'la proyección debe aceptar únicamente imágenes https');
-check(portal.includes('url: /^https:'), 'la proyección debe aceptar únicamente enlaces https');
-check(portal.includes('portal-calendar-thumb'), 'la imagen debe aparecer como miniatura en el calendario');
+check(portal.includes("task.deliverables?.find(item => item.kind === 'photos'"), 'una imagen entregable debe aparecer como miniatura en el calendario');
 check(portal.includes('setOpenTask(task)'), 'la tarjeta del calendario debe abrir su detalle');
-check(portal.includes('Abrir enlace compartido'), 'el detalle debe mostrar la URL pública');
+check(portal.includes('Recursos compartidos'), 'el detalle debe reutilizar los entregables normales');
 check(portal.includes('<SharedClientComments'), 'el detalle público debe incluir conversación');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Información para el cliente'), 'la tarjeta creativa debe editar campos públicos');
+check(!fs.readFileSync('modal.jsx', 'utf8').includes('Información para el cliente'), 'la tarjeta creativa no debe tener un bloque público pegado');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Conversación con el cliente'), 'la conversación debe aparecer en la tarjeta creativa');
+check(!portal.includes('openTask.checklist'), 'el cliente no debe ver el checklist interno');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("collection('comments')"), 'los comentarios deben sincronizarse en tiempo real');
 check(rules.includes('match /comments/{commentId}'), 'las reglas deben cubrir comentarios del portal');
 check(rules.includes("request.resource.data.authorType == 'client'"), 'el visitante sólo debe escribir como cliente');

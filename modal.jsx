@@ -1280,22 +1280,6 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                   </div>
                 </section>
 
-                {/* Deliverables */}
-                <section>
-                  <SectionTitle icon="globe">Información para el cliente</SectionTitle>
-                  <div className="surf p-3 space-y-3">
-                    <div className="relative overflow-hidden rounded-lg" style={{ minHeight: 92, background: 'var(--surface-3)' }}>
-                      {project.clientImage ? <img src={project.clientImage} alt="Referencia para el cliente" className="w-full h-32 object-cover" /> : <div className="h-24 flex items-center justify-center text-[11px]" style={{ color: 'var(--text-muted)' }}>Sin imagen de referencia</div>}
-                      <CoverEditor cover={project.clientImage ? { type: 'image', value: project.clientImage } : { type: 'color', value: '#1a1a1f' }} onChange={cover => upd({ clientImage: cover.type === 'image' ? cover.value : '' })} projectId={project.id} />
-                    </div>
-                    <div className="flex items-center gap-2 field px-3 py-2">
-                      <Icon name="link" size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                      <InlineEdit value={project.clientUrl || ''} onChange={value => upd({ clientUrl: value })} placeholder="URL que verá el cliente…" className="flex-1 min-w-0 text-[12px] font-mono" />
-                    </div>
-                    <div className="text-[10px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>La miniatura y el enlace sólo aparecen en el portal de este cliente.</div>
-                  </div>
-                </section>
-
                 {clientPortalToken && (
                   <section>
                     <SectionTitle icon="message">Conversación con el cliente</SectionTitle>
