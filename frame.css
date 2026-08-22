@@ -349,33 +349,12 @@
     overflow-wrap: anywhere;
     word-break: normal;
   }
-  .frame-card-actions-compact,
-  .frame-card-action-panel { display: none; }
-  .frame-card-action-button {
-    min-width: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 4px 6px;
-    border-radius: var(--r-sm);
-    color: var(--text-dim);
-    font-size: var(--t-10);
-    white-space: nowrap;
-  }
-  .frame-card-action-button:hover { background: var(--surface-2); color: var(--text); }
-
-  @container (max-width: 229px) {
-    .frame-card-actions { display: none; }
-    .frame-card-actions-compact { display: block; }
-    .frame-card-action-panel { display: flex; }
-  }
+  .frame-card-actions { margin-left: auto; }
 
   @container (max-width: 179px) {
     .frame-fluid-card .p-2\.5 { padding: 8px; }
-    .frame-card-action-panel { flex-wrap: wrap; }
-    .frame-card-action-button { flex: 1 1 auto; padding-inline: 4px; }
-    .frame-card-action-button span { display: none; }
+    .frame-card-actions { gap: 0; }
+    .frame-card-actions button { padding: 3px; }
   }
 
   /* Modal backdrop */
