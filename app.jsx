@@ -16,6 +16,15 @@ const _pinnedView = localStorage.getItem('frame_pinned_view') || null;
 // usuario antes de usarse: si le sacaron el acceso, este id ya no sirve.
 const _savedWorkspaceId = localStorage.getItem('frame_workspace') || null;
 
+const EMPTY_FILTERS = Object.freeze({
+  status: [], type: [], assignee: [], priority: [], client: [],
+  tags: [], startDate: [], deadline: [], progress: [], attributes: [],
+});
+
+const freshFilters = () => Object.fromEntries(
+  Object.entries(EMPTY_FILTERS).map(([key, value]) => [key, [...value]])
+);
+
 // ── Initial state + reducer ─────────────────────────────────────
 const initialState = {
   // ── Tableros ──
@@ -37,13 +46,7 @@ const initialState = {
   view: _pinnedView || _savedNav.view || 'kanban', // fija > historial > default
   pinnedView: _pinnedView,          // null | 'kanban' | 'calendar' | 'gallery' | 'list'
   search: '',
-  filters: {
-    status: [],
-    type: [],
-    assignee: [],
-    priority: [],
-    client: [],
-  },
+  filters: freshFilters(),
   openProjectId: null,
   showNewProject: false,
   sidebarFilter: _savedNav.sidebarFilter || 'all',
@@ -145,7 +148,7 @@ function reducer(state, action) {
     // Vacía una clave entera. 'clear_filter' saca un valor suelto: sin
     // action.value no borra nada.
     case 'reset_filter':   return { ...state, filters: { ...state.filters, [action.key]: [] } };
-    case 'clear_all_filters': return { ...state, filters: { status: [], type: [], assignee: [], priority: [], client: [] }, search: '' };
+    case 'clear_all_filters': return { ...state, filters: freshFilters(), search: '' };
     case 'set_projects':       return { ...state, projects: action.projects, loading: false };
     case 'delete_project':     return { ...state, projects: state.projects.filter(p => p.id !== action.id), openProjectId: state.openProjectId === action.id ? null : state.openProjectId };
     case 'set_sidebar_filter': return { ...state, sidebarFilter: action.filter, section: action.filter === 'trash' ? 'trash' : 'projects' };
@@ -909,12 +912,53 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
     }
   }, [soloYo, state.filters.assignee.length]);
   const me = getUser(state.currentUserId);
+  const tagOptions = [...new Set((state.projects || []).flatMap(p => p.tags || []).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'))
+    .map(tag => ({ id: tag, label: `#${tag}`, color: 'var(--resource-blue)' }));
+  const startDateOptions = [
+    { id: 'today', label: 'Hoy' },
+    { id: 'this_week', label: 'Esta semana' },
+    { id: 'this_month', label: 'Este mes' },
+    { id: 'no_date', label: 'Sin fecha' },
+  ];
+  const deadlineOptions = [
+    { id: 'overdue', label: 'Vencidas' },
+    { id: 'today', label: 'Vencen hoy' },
+    { id: 'next_7_days', label: 'Próximos 7 días' },
+    { id: 'this_month', label: 'Este mes' },
+    { id: 'no_date', label: 'Sin fecha límite' },
+  ];
+  const progressOptions = [
+    { id: 'no_checklist', label: 'Sin checklist' },
+    { id: 'not_started', label: 'Sin iniciar' },
+    { id: 'in_progress', label: 'En progreso' },
+    { id: 'complete', label: 'Checklist completo' },
+  ];
+  const attributeOptions = [
+    { id: 'favorite', label: 'Favoritas' },
+    { id: 'unassigned', label: 'Sin responsable' },
+    { id: 'assigned', label: 'Con responsable' },
+    { id: 'has_deliverables', label: 'Con entregables' },
+    { id: 'no_deliverables', label: 'Sin entregables' },
+  ];
+  const advancedLabels = {
+    startDate: Object.fromEntries(startDateOptions.map(o => [o.id, `Inicio: ${o.label}`])),
+    deadline: Object.fromEntries(deadlineOptions.map(o => [o.id, o.label])),
+    progress: Object.fromEntries(progressOptions.map(o => [o.id, o.label])),
+    attributes: Object.fromEntries(attributeOptions.map(o => [o.id, o.label])),
+  };
   const activeFilters = [
     ...state.filters.status.map(v => ({ key: 'status', value: v, label: getStatus(v).label, color: getStatus(v).color })),
     ...state.filters.type.map(v => ({ key: 'type', value: v, label: getType(v).label, color: getType(v).color })),
     ...state.filters.assignee.map(v => ({ key: 'assignee', value: v, label: getUser(v)?.name ?? v, color: getUser(v)?.color ?? '#9A9AA3' })),
     ...state.filters.priority.map(v => ({ key: 'priority', value: v, label: getPrio(v).label, color: getPrio(v).color })),
     ...(state.filters.client || []).map(v => { const cl = (state.clients || []).find(c => c.name === v); return { key: 'client', value: v, label: v, color: cl?.color || '#9A9AA3' }; }),
+    ...(state.filters.tags || []).map(v => ({ key: 'tags', value: v, label: `#${v}`, color: 'var(--resource-blue)' })),
+    ...['startDate', 'deadline', 'progress', 'attributes'].flatMap(key =>
+      (state.filters[key] || []).map(value => ({
+        key, value, label: advancedLabels[key][value] || value, color: 'var(--resource-neutral)',
+      }))
+    ),
   ];
 
   return (
@@ -980,14 +1024,31 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
           )}
         </div>
 
-        {/* Filter dropdowns */}
-        <FilterDropdown label="Estado"    icon="dot"       filterKey="status"   options={state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES}    state={state} dispatch={dispatch} />
-        <FilterDropdown label="Tipo"      icon="film"      filterKey="type"     options={state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES}    state={state} dispatch={dispatch} />
-        <FilterDropdown label="Prioridad" icon="flag"      filterKey="priority" options={PRIORITIES}                                                              state={state} dispatch={dispatch} />
-        {!soloYo && (
-          <FilterDropdown label="Equipo"    icon="users"     filterKey="assignee" options={(wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />
-        )}
-        <FilterDropdown label="Cliente"   icon="briefcase" filterKey="client"   options={[...new Map((state.projects || []).filter(p => p.client).map(p => { const cl = (state.clients || []).find(c => c.name === p.client); return [p.client, { id: p.client, label: p.client, color: cl?.color || '#9A9AA3' }]; })).values()]} state={state} dispatch={dispatch} />
+        {/* Atajos en escritorio; el panel Más filtros contiene el juego
+            completo y queda disponible también en pantallas pequeñas. */}
+        <div className="hidden xl:flex items-center gap-1">
+          <FilterDropdown label="Estado"    icon="dot"       filterKey="status"   options={state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES} state={state} dispatch={dispatch} />
+          <FilterDropdown label="Tipo"      icon="film"      filterKey="type"     options={state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES} state={state} dispatch={dispatch} />
+          <FilterDropdown label="Prioridad" icon="flag"      filterKey="priority" options={PRIORITIES} state={state} dispatch={dispatch} />
+          {!soloYo && <FilterDropdown label="Equipo" icon="users" filterKey="assignee" options={(wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />}
+          <FilterDropdown label="Cliente" icon="briefcase" filterKey="client" options={[...new Map((state.projects || []).filter(p => p.client).map(p => { const cl = (state.clients || []).find(c => c.name === p.client); return [p.client, { id: p.client, label: p.client, color: cl?.color || '#9A9AA3' }]; })).values()]} state={state} dispatch={dispatch} />
+        </div>
+        <MoreFiltersDropdown
+          state={state}
+          dispatch={dispatch}
+          groups={[
+            { key: 'status', label: 'Estado', options: state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES },
+            { key: 'type', label: 'Tipo', options: state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES },
+            { key: 'priority', label: 'Prioridad', options: PRIORITIES },
+            ...(!soloYo ? [{ key: 'assignee', label: 'Equipo', options: (wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color })) }] : []),
+            { key: 'client', label: 'Cliente', options: [...new Map((state.projects || []).filter(p => p.client).map(p => { const cl = (state.clients || []).find(c => c.name === p.client); return [p.client, { id: p.client, label: p.client, color: cl?.color || '#9A9AA3' }]; })).values()] },
+            { key: 'tags', label: 'Tags', options: tagOptions },
+            { key: 'startDate', label: 'Fecha de inicio', options: startDateOptions },
+            { key: 'deadline', label: 'Fecha límite', options: deadlineOptions },
+            { key: 'progress', label: 'Progreso', options: progressOptions },
+            { key: 'attributes', label: 'Características', options: attributeOptions },
+          ]}
+        />
 
         <div className="flex-1"></div>
 
@@ -1077,7 +1138,98 @@ const FilterDropdown = ({ label, icon, filterKey, options, state, dispatch }) =>
   );
 };
 
+const MoreFiltersDropdown = ({ state, dispatch, groups }) => {
+  const activeCount = groups.reduce((total, group) => total + (state.filters[group.key] || []).length, 0);
+  return (
+    <Dropdown
+      width={310}
+      align="right"
+      trigger={
+        <button className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-colors border ${activeCount ? 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]/40' : 'text-[var(--text-dim)] hover:text-white border-transparent hover:bg-[var(--surface-2)]'}`}>
+          <Icon name="filter" size={12} />
+          <span>Más filtros</span>
+          {activeCount > 0 && (
+            <span className="text-[10px] font-mono px-1 rounded" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>{activeCount}</span>
+          )}
+        </button>
+      }
+    >
+      <div className="max-h-[65vh] overflow-y-auto px-1 pb-1">
+        {groups.map(group => (
+          <div key={group.key} className="py-1.5 border-b border-app last:border-b-0">
+            <div className="flex items-center justify-between px-2 py-1">
+              <span className="text-[10px] tracking-[0.16em] uppercase text-[var(--text-muted)]">{group.label}</span>
+              {(state.filters[group.key] || []).length > 0 && (
+                <button onClick={() => dispatch({ type: 'reset_filter', key: group.key })} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text)]">Limpiar</button>
+              )}
+            </div>
+            {group.options.length > 0 ? group.options.map(option => {
+              const isOn = (state.filters[group.key] || []).includes(option.id);
+              return (
+                <MenuItem key={option.id} onClick={() => dispatch({ type: 'toggle_filter', key: group.key, value: option.id })} active={isOn}>
+                  <span className={`check ${isOn ? 'on' : ''}`}>{isOn && <Icon name="check" size={10} strokeWidth={3} />}</span>
+                  {option.color && <span className="w-2 h-2 rounded-full" style={{ background: resolveThemeColor(option.color) }} />}
+                  <span className="text-[12px]">{option.label}</span>
+                </MenuItem>
+              );
+            }) : <div className="px-2 py-1.5 text-[11px] text-[var(--text-muted)]">No hay opciones todavía</div>}
+          </div>
+        ))}
+      </div>
+    </Dropdown>
+  );
+};
+
 // ── Filtering ───────────────────────────────────────────────────
+const dateFilterMatches = (iso, values, kind, closed = false) => {
+  if (!values.length) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayISO = localISO(today);
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const monthStart = `${todayISO.slice(0, 7)}-01`;
+  const monthEnd = localISO(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+  const nextSeven = new Date(today);
+  nextSeven.setDate(today.getDate() + 7);
+
+  return values.some(value => {
+    if (value === 'no_date') return !iso;
+    if (!iso) return false;
+    if (value === 'today') return iso === todayISO;
+    if (value === 'this_week') return iso >= localISO(weekStart) && iso <= localISO(weekEnd);
+    if (value === 'this_month') return iso >= monthStart && iso <= monthEnd;
+    if (kind === 'deadline' && value === 'overdue') return !closed && iso < todayISO;
+    if (kind === 'deadline' && value === 'next_7_days') return iso >= todayISO && iso <= localISO(nextSeven);
+    return false;
+  });
+};
+
+const progressFilterMatches = (project, values) => {
+  if (!values.length) return true;
+  const checklist = project.checklist || [];
+  const done = checklist.filter(item => item.done).length;
+  return values.some(value => (
+    (value === 'no_checklist' && checklist.length === 0) ||
+    (value === 'not_started' && checklist.length > 0 && done === 0) ||
+    (value === 'in_progress' && done > 0 && done < checklist.length) ||
+    (value === 'complete' && checklist.length > 0 && done === checklist.length)
+  ));
+};
+
+const attributeFilterMatches = (project, values) => {
+  if (!values.length) return true;
+  return values.some(value => (
+    (value === 'favorite' && project.favorite) ||
+    (value === 'unassigned' && !(project.assignees || []).length) ||
+    (value === 'assigned' && (project.assignees || []).length > 0) ||
+    (value === 'has_deliverables' && (project.deliverables || []).length > 0) ||
+    (value === 'no_deliverables' && !(project.deliverables || []).length)
+  ));
+};
+
 const applyFilters = (state) => {
   const q = state.search.trim().toLowerCase();
   return state.projects.filter(p => {
@@ -1090,13 +1242,23 @@ const applyFilters = (state) => {
     // En vista 'all' ocultar archivados salvo que se filtren explícitamente por estado
     if (state.sidebarFilter === 'all' && p.status === 'archived' && !state.filters.status.includes('archived')) return false;
     // ── Búsqueda ──
-    if (q && !p.title.toLowerCase().includes(q) && !p.client.toLowerCase().includes(q) && !p.tags.some(t => t.toLowerCase().includes(q))) return false;
+    const searchable = [p.title, p.client, ...(p.tags || []), JSON.stringify(p.description || []), JSON.stringify(p.checklist || []), JSON.stringify(p.deliverables || [])]
+      .join(' ').toLowerCase();
+    if (q && !searchable.includes(q)) return false;
     // ── Filtros de cabecera ──
     if (state.filters.status.length   && !state.filters.status.includes(p.status))                              return false;
     if (state.filters.type.length     && !state.filters.type.includes(p.type))                                  return false;
     if (state.filters.priority.length && !state.filters.priority.includes(p.priority))                          return false;
     if (state.filters.assignee.length && !p.assignees.some(a => state.filters.assignee.includes(a)))            return false;
     if (state.filters.client.length   && !state.filters.client.includes(p.client))                              return false;
+    if (state.filters.tags.length     && !state.filters.tags.some(tag => (p.tags || []).includes(tag)))          return false;
+    const closed = p.status === 'delivered' || p.status === 'archived';
+    if (!dateFilterMatches(p.startDate, state.filters.startDate, 'startDate'))                                   return false;
+    // Dentro del campo se mantiene la lógica O: una entregada no coincide con
+    // "Vencidas", pero sí con "Este mes" cuando ambos están seleccionados.
+    if (!dateFilterMatches(p.deadline, state.filters.deadline, 'deadline', closed))                              return false;
+    if (!progressFilterMatches(p, state.filters.progress))                                                       return false;
+    if (!attributeFilterMatches(p, state.filters.attributes))                                                   return false;
     return true;
   });
 };
@@ -1425,13 +1587,10 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
 
         {/* Apariencia local: no pertenece al tablero ni requiere Firestore. */}
         <div className="surf-panel p-5">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-4">
             <Icon name="sun" size={15} style={{ color: 'var(--accent-dim)' }} />
             <h2 className="font-display font-semibold text-[17px]">Apariencia</h2>
           </div>
-          <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
-            Elegí el tema de FRAME en este dispositivo.
-          </p>
           <ToggleRow
             active={theme === 'light'}
             onClick={toggleTheme}
@@ -1494,9 +1653,6 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
               />
             ))}
           </div>
-          <p className="text-[11px] mt-4" style={{ color: 'var(--text-muted)' }}>
-            Los cambios se aplican instantáneamente en todas las vistas y se sincronizan en la nube.
-          </p>
         </div>
 
         {/* Rutina diaria */}

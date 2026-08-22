@@ -35,8 +35,13 @@ const PRIORITIES = [
   { id: 'low',    label: 'Baja',  color: 'var(--resource-teal)' },
 ];
 
-// Fecha actual real
-const TODAY = new Date();
+// Fecha actual real.
+// Era `const` fijado al cargar la página. FRAME se deja abierto todo el día,
+// así que después de medianoche "hoy" seguía siendo el día anterior: lo vencido,
+// el resaltado del calendario y el reinicio de la rutina quedaban corridos un
+// día. Se refresca cada minuto; las 19 lecturas del código toman el valor vivo.
+let TODAY = new Date();
+setInterval(() => { TODAY = new Date(); }, 60000);
 
 // ── Fecha ISO en hora LOCAL ──────────────────────────────────────
 // toISOString() convierte a UTC antes de formatear, así que en cualquier
@@ -469,10 +474,11 @@ const daysUntil = (iso) => {
 
 const relativeTime = (isoDateTime) => {
   const dt = new Date(isoDateTime);
-  const diff = (TODAY.getTime() + (TODAY.getHours()*3600 + 12*3600)*1000 - dt.getTime()) / 1000;
-  // Use a stable "now" relative to TODAY noon
-  const ref = new Date(TODAY); ref.setHours(14, 0, 0, 0);
-  const diffSec = (ref.getTime() - dt.getTime()) / 1000;
+  if (isNaN(dt.getTime())) return '';
+  // Antes se comparaba contra un "ahora" fijo a las 14:00 del día de carga.
+  // Todo lo posterior a esa hora daba diferencia negativa y caía en 'ahora',
+  // y por la mañana inflaba las horas. Se mide contra el reloj real.
+  const diffSec = (Date.now() - dt.getTime()) / 1000;
   if (diffSec < 60) return 'ahora';
   if (diffSec < 3600) return `hace ${Math.floor(diffSec/60)} min`;
   if (diffSec < 86400) return `hace ${Math.floor(diffSec/3600)} h`;

@@ -14,6 +14,8 @@ assert.match(html, /frame_theme/);
 assert.match(html, /window\.setFrameTheme/);
 assert.match(html, /document\.documentElement\.dataset\.theme/);
 assert.match(html, /meta\[name="theme-color"\]/);
+assert.match(html, /rel="icon" type="image\/svg\+xml" href="favicon\.svg"/);
+assert.doesNotMatch(html, /d4ff4f/i);
 assert.match(css, /html\[data-theme="light"\]/);
 assert.match(css, /--color-scheme:\s*light/);
 assert.match(css, /--bg:\s*#ececf1/);
@@ -57,4 +59,4 @@ assert.match(modal, /<TypePill type=\{project\.type\} size="md" solid \/>/);
 assert.match(modal, /<StatusPill status=\{project\.status\} size="md" solid \/>/);
 assert.match(modal, /<PriorityBadge priority=\{project\.priority\} solid \/>/);
 
-console.log('theme-contract: 46 checks passed');
+console.log('theme-contract: 48 checks passed');

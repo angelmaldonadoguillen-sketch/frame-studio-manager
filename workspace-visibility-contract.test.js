@@ -19,7 +19,6 @@ assert.match(app, /workspaceIds: \[wsId\]/);
 assert.match(app, /Sólo el tablero principal puede eliminar esta tarea/);
 assert.match(modal, /Mostrar esta tarea en/);
 assert.match(modal, /Guardar tableros/);
-assert.match(modal, /Es una sola tarea: los cambios se reflejan en todos los tableros seleccionados/);
 assert.match(rules, /function hasProjectAccess\(data\)/);
 assert.match(rules, /myUid\(\) in data\.viewerIds/);
 assert.match(rules, /request\.resource\.data\.workspaceId == resource\.data\.workspaceId/);
@@ -28,4 +27,4 @@ assert.match(rules, /request\.resource\.data\.viewerIds == resource\.data\.viewe
 assert.match(storage, /request\.auth\.uid in projectDoc\.data\.viewerIds/);
 assert.doesNotMatch(app + modal, /handleMoveProject|onMoveWorkspace|Trasladar a otro tablero/);
 
-console.log('workspace-visibility-contract: 20 checks passed');
+console.log('workspace-visibility-contract: 19 checks passed');

@@ -237,6 +237,92 @@ const QuickAddSheet = ({ tipos, statusId, onCreate, onClose }) => {
   );
 };
 
+const MobileFiltersSheet = ({ state, dispatch, workspaces, activeWorkspaceId, onClose }) => {
+  const activeWs = workspaces.find(w => w.id === activeWorkspaceId);
+  const soloYo = activeWs?.kind === 'personal';
+  const members = workspaceMembers(activeWs);
+  const tags = [...new Set(state.projects.flatMap(p => p.tags || []).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'))
+    .map(tag => ({ id: tag, label: `#${tag}` }));
+  const clients = [...new Set(state.projects.map(p => p.client).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'))
+    .map(client => ({ id: client, label: client }));
+  const groups = [
+    { key: 'status', label: 'Estado', options: state.kanbanColumns.length ? state.kanbanColumns : STATUSES },
+    { key: 'type', label: 'Tipo', options: state.customTypes.length ? state.customTypes : PROJECT_TYPES },
+    { key: 'priority', label: 'Prioridad', options: PRIORITIES },
+    ...(!soloYo ? [{ key: 'assignee', label: 'Equipo', options: members.map(u => ({ id: u.id, label: u.name })) }] : []),
+    { key: 'client', label: 'Cliente', options: clients },
+    { key: 'tags', label: 'Tags', options: tags },
+    { key: 'startDate', label: 'Inicio', options: [
+      { id: 'today', label: 'Hoy' }, { id: 'this_week', label: 'Esta semana' }, { id: 'this_month', label: 'Este mes' },
+    ] },
+    { key: 'deadline', label: 'Fecha límite', options: [
+      { id: 'overdue', label: 'Vencidas' }, { id: 'today', label: 'Vencen hoy' },
+      { id: 'next_7_days', label: 'Próximos 7 días' }, { id: 'this_month', label: 'Este mes' },
+    ] },
+    { key: 'progress', label: 'Progreso', options: [
+      { id: 'no_checklist', label: 'Sin checklist' }, { id: 'not_started', label: 'Sin iniciar' },
+      { id: 'in_progress', label: 'En progreso' }, { id: 'complete', label: 'Checklist completo' },
+    ] },
+    { key: 'attributes', label: 'Características', options: [
+      { id: 'favorite', label: 'Favoritas' }, { id: 'unassigned', label: 'Sin responsable' },
+      { id: 'assigned', label: 'Con responsable' }, { id: 'has_deliverables', label: 'Con entregables' },
+      { id: 'no_deliverables', label: 'Sin entregables' },
+    ] },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
+      <div className="surf-panel anim-fade-in flex flex-col" onClick={(e) => e.stopPropagation()}
+           style={{ maxHeight: '88vh', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex items-center justify-between px-5 py-4 hair flex-shrink-0">
+          <div>
+            <div className="text-[16px] font-semibold">Filtrar tareas</div>
+            <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Combina campos para precisar resultados</div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg" aria-label="Cerrar filtros"><Icon name="x" size={17} /></button>
+        </div>
+        <div className="overflow-y-auto px-4 py-2">
+          {groups.map(group => (
+            <div key={group.key} className="py-3 hair">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] tracking-[0.14em] uppercase" style={{ color: 'var(--text-muted)' }}>{group.label}</span>
+                {(state.filters[group.key] || []).length > 0 && (
+                  <button onClick={() => dispatch({ type: 'reset_filter', key: group.key })} className="text-[11px]" style={{ color: 'var(--accent)' }}>Limpiar</button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {group.options.length ? group.options.map(option => {
+                  const selected = (state.filters[group.key] || []).includes(option.id);
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => dispatch({ type: 'toggle_filter', key: group.key, value: option.id })}
+                      className="px-3 py-1.5 rounded-full text-[12px] border transition-colors"
+                      style={{
+                        background: selected ? 'var(--accent)' : 'var(--surface-2)',
+                        color: selected ? 'var(--accent-on)' : 'var(--text-dim)',
+                        borderColor: selected ? 'var(--accent)' : 'var(--border)',
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                }) : <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No hay opciones todavía</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 p-4 hair flex-shrink-0">
+          <button onClick={() => dispatch({ type: 'clear_all_filters' })} className="px-4 py-3 rounded-xl text-[13px]" style={{ color: 'var(--text-muted)' }}>Limpiar todo</button>
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl text-[14px] font-semibold" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Ver resultados</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Aplicación móvil ─────────────────────────────────────────────
 const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
                      onQuickCreate, onSignOut, children }) => {
@@ -247,6 +333,7 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
   const [quickAdd, setQuickAdd] = React.useState(false);
   const [rutina, setRutina]     = React.useState(false);
   const [perfil, setPerfil]     = React.useState(false);
+  const [filtros, setFiltros]   = React.useState(false);
   const [cargando, setCargando] = React.useState(null);
   const [theme, setTheme]       = React.useState(() => document.documentElement.dataset.theme || 'dark');
 
@@ -270,11 +357,12 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
   // Se comparan las cadenas directamente: localISO da AAAA-MM-DD, que ordena
   // igual como texto que como fecha. Sin fecha van al final, no adelante.
   const visibles = React.useMemo(
-    () => state.projects
+    () => applyFilters({ ...state, sidebarFilter: 'all' })
       .filter(p => p.status === columna.id)
       .sort((a, b) => (a.deadline || '9999-12-31').localeCompare(b.deadline || '9999-12-31')),
-    [state.projects, columna.id]
+    [state, columna.id]
   );
+  const activeFilterCount = Object.values(state.filters).reduce((total, values) => total + values.length, 0);
 
   const me = state.team.find(m => m.id === state.currentUserId) || getUser(state.currentUserId);
 
@@ -345,6 +433,29 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
           style={{ color: 'var(--accent)' }}
         >
           Rutina
+        </button>
+      </div>
+
+      {/* Búsqueda y filtros comparten el mismo estado que escritorio. */}
+      <div className="flex items-center gap-2 px-3 py-2 hair flex-shrink-0" style={{ background: 'var(--surface)' }}>
+        <label className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-xl" style={{ background: 'var(--surface-2)' }}>
+          <Icon name="search" size={14} style={{ color: 'var(--text-muted)' }} />
+          <input
+            value={state.search}
+            onChange={(e) => dispatch({ type: 'set_search', value: e.target.value })}
+            placeholder="Buscar tareas…"
+            className="flex-1 min-w-0 text-[14px]"
+          />
+          {state.search && <button onClick={() => dispatch({ type: 'set_search', value: '' })}><Icon name="x" size={13} /></button>}
+        </label>
+        <button
+          onClick={() => setFiltros(true)}
+          className="relative w-10 h-10 rounded-xl flex items-center justify-center border"
+          style={{ background: activeFilterCount ? 'var(--accent)' : 'var(--surface-2)', color: activeFilterCount ? 'var(--accent-on)' : 'var(--text-dim)', borderColor: activeFilterCount ? 'var(--accent)' : 'var(--border)' }}
+          aria-label="Abrir filtros"
+        >
+          <Icon name="filter" size={16} />
+          {activeFilterCount > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center" style={{ background: 'var(--text)', color: 'var(--bg)' }}>{activeFilterCount}</span>}
         </button>
       </div>
 
@@ -444,6 +555,16 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
           statusId={columna.id}
           onCreate={onQuickCreate}
           onClose={() => setQuickAdd(false)}
+        />
+      )}
+
+      {filtros && (
+        <MobileFiltersSheet
+          state={state}
+          dispatch={dispatch}
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onClose={() => setFiltros(false)}
         />
       )}
 
