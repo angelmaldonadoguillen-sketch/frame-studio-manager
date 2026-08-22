@@ -25,7 +25,7 @@ const STATUSES = [
   { id: 'producing', label: 'En producción',      color: 'var(--warn)' },
   { id: 'editing',   label: 'Edición',            color: 'var(--resource-blue)' },
   { id: 'review',    label: 'Revisión cliente',   color: 'var(--resource-violet)' },
-  { id: 'delivered', label: 'Entregado',          color: 'var(--resource-teal)' },
+  { id: 'delivered', label: 'Entregado',          color: 'var(--resource-teal)', isDone: true, requiresChecklist: true },
   { id: 'archived',  label: 'Archivado',          color: '#62626B' },
 ];
 
@@ -35,8 +35,13 @@ const PRIORITIES = [
   { id: 'low',    label: 'Baja',  color: 'var(--resource-teal)' },
 ];
 
-// Fecha actual real
-const TODAY = new Date();
+// Fecha actual real.
+// Era `const` fijado al cargar la página. FRAME se deja abierto todo el día,
+// así que después de medianoche "hoy" seguía siendo el día anterior: lo vencido,
+// el resaltado del calendario y el reinicio de la rutina quedaban corridos un
+// día. Se refresca cada minuto; las 19 lecturas del código toman el valor vivo.
+let TODAY = new Date();
+setInterval(() => { TODAY = new Date(); }, 60000);
 
 // ── Fecha ISO en hora LOCAL ──────────────────────────────────────
 // toISOString() convierte a UTC antes de formatear, así que en cualquier
@@ -448,7 +453,11 @@ const getUser   = (id) => {
 };
 // FRAME_CUSTOM_TYPES tiene prioridad — puede sobreescribir color/label de tipos default
 const getType   = (id) => themed((window.FRAME_CUSTOM_TYPES || []).find(t => t.id === id) || PROJECT_TYPES.find(t => t.id === id) || PROJECT_TYPES[PROJECT_TYPES.length - 1]);
-const getStatus = (id) => themed(STATUSES.find(s => s.id === id) || STATUSES[0]);
+const getStatus = (id) => themed(
+  (window.FRAME_KANBAN_COLUMNS || []).find(s => s.id === id)
+  || STATUSES.find(s => s.id === id)
+  || STATUSES[0]
+);
 const getPrio   = (id) => themed(PRIORITIES.find(p => p.id === id) || PRIORITIES[0]);
 
 const fmtMoney = (n, c = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(n);
@@ -469,10 +478,11 @@ const daysUntil = (iso) => {
 
 const relativeTime = (isoDateTime) => {
   const dt = new Date(isoDateTime);
-  const diff = (TODAY.getTime() + (TODAY.getHours()*3600 + 12*3600)*1000 - dt.getTime()) / 1000;
-  // Use a stable "now" relative to TODAY noon
-  const ref = new Date(TODAY); ref.setHours(14, 0, 0, 0);
-  const diffSec = (ref.getTime() - dt.getTime()) / 1000;
+  if (isNaN(dt.getTime())) return '';
+  // Antes se comparaba contra un "ahora" fijo a las 14:00 del día de carga.
+  // Todo lo posterior a esa hora daba diferencia negativa y caía en 'ahora',
+  // y por la mañana inflaba las horas. Se mide contra el reloj real.
+  const diffSec = (Date.now() - dt.getTime()) / 1000;
   if (diffSec < 60) return 'ahora';
   if (diffSec < 3600) return `hace ${Math.floor(diffSec/60)} min`;
   if (diffSec < 86400) return `hace ${Math.floor(diffSec/3600)} h`;
@@ -640,8 +650,25 @@ const workspaceMembers = (ws) => {
 // contaba en "Deadlines urgentes".
 const URGENT_DAYS = 3;
 
+const workflowColumn = (status) =>
+  (window.FRAME_KANBAN_COLUMNS || []).find(column => column.id === status);
+
+// Las columnas son editables, así que el cierre es comportamiento y no nombre.
+// Los flags indefinidos conservan compatibilidad con tableros anteriores.
+const isCompletionStatus = (status) => {
+  const column = workflowColumn(status);
+  return typeof column?.isDone === 'boolean' ? column.isDone : status === 'delivered';
+};
+
+const requiresChecklistForStatus = (status) => {
+  const column = workflowColumn(status);
+  return typeof column?.requiresChecklist === 'boolean'
+    ? column.requiresChecklist
+    : status === 'delivered';
+};
+
 const isClosed = (project) =>
-  project.status === 'delivered' || project.status === 'archived';
+  project.status === 'archived' || isCompletionStatus(project.status);
 
 const isUrgent = (project) => {
   if (isClosed(project)) return false;

@@ -128,7 +128,7 @@ const MemberCard = ({ member, projects, onClick }) => {
   const avail = getAvail(member.availability);
   const active = projects.filter(p =>
     (p.assignees || []).includes(member.id) &&
-    p.status !== 'delivered' && p.status !== 'archived'
+    !isClosed(p)
   );
   const visible = (member.skills || []).slice(0, 3);
   const extra   = (member.skills || []).length - visible.length;
@@ -231,8 +231,8 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
   const isOwnProfile = member.id === currentUserId;
 
   const all    = projects.filter(p => (p.assignees || []).includes(member.id));
-  const active = all.filter(p => p.status !== 'delivered' && p.status !== 'archived');
-  const done   = all.filter(p => p.status === 'delivered');
+  const active = all.filter(p => !isClosed(p));
+  const done   = all.filter(p => isCompletionStatus(p.status));
   const avail  = getAvail(member.availability);
 
   const upd         = (patch) => onUpdate({ ...member, ...patch });
@@ -840,7 +840,7 @@ const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMem
 
   const totalActive = team.reduce((sum, m) =>
     sum + projects.filter(p =>
-      (p.assignees || []).includes(m.id) && p.status !== 'delivered' && p.status !== 'archived'
+      (p.assignees || []).includes(m.id) && !isClosed(p)
     ).length
   , 0);
 

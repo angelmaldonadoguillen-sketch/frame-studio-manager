@@ -751,7 +751,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
       id:     'cm' + Date.now() + Math.random().toString(36).slice(2, 5),
       userId: currentUserId,
       text:   newComment.trim(),
-      at:     new Date().toISOString().slice(0, 16),
+      // ISO completo, con la Z. Al recortar a 16 caracteres se perdía el huso:
+      // el valor quedaba en UTC pero sin marcarlo, así que al releerlo con
+      // new Date() se interpretaba como hora local y el comentario aparecía
+      // 6 horas en el futuro (Honduras es UTC-6).
+      at:     new Date().toISOString(),
     };
     // ── Detectar @menciones y notificar ──────────────────────
     if (window.pushNotif) {
@@ -840,7 +844,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
 
   const progress = progressOf(project);
   const days = daysUntil(project.deadline);
-  const isUrgent = days >= 0 && days < 3 && project.status !== 'delivered' && project.status !== 'archived';
+  const isUrgent = days >= 0 && days < 3 && !isClosed(project);
 
   return (
     <div className="fixed inset-0 z-50 backdrop flex items-stretch justify-end anim-fade-in" onClick={onClose}>
@@ -923,9 +927,6 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{principal ? 'Principal' : (w.kind === 'team' ? 'Equipo' : 'Personal')}</span>
                       </button>
                     );})}
-                    <div className="px-2 py-1.5 text-[10px] leading-snug" style={{ color: 'var(--text-muted)' }}>
-                      Es una sola tarea: los cambios se reflejan en todos los tableros seleccionados.
-                    </div>
                     <button
                       onClick={saveWorkspaceVisibility}
                       disabled={savingVisibility}

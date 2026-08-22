@@ -10,8 +10,8 @@
 // el tono, así que urgencia y color salen siempre del mismo cálculo y no
 // pueden desincronizarse (antes había badges URG/VENC con su propia lógica).
 const deliveryCounter = (project) => {
-  if (project.status === 'delivered' || project.status === 'archived') {
-    return { value: '✓', label: 'Entregado', color: 'var(--text-muted)' };
+  if (isClosed(project)) {
+    return { value: '✓', label: project.status === 'archived' ? 'Archivada' : getStatus(project.status).label, color: 'var(--text-muted)' };
   }
   const d = daysUntil(project.deadline);
   if (d < 0)  return { value: '+' + Math.abs(d), label: 'Vencido',    color: 'var(--danger)' };
@@ -188,7 +188,7 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
   const panelRef = useRef(null);
 
   // sync label when col changes (e.g. after save)
-  useEffect(() => { setLabel(col.label); setWipLimit(col.wipLimit || ''); }, [col.label, col.wipLimit]);
+  useEffect(() => { setLabel(col.label); setWipLimit(col.wipLimit || ''); }, [col.label, col.wipLimit, col.isDone, col.requiresChecklist]);
 
   useEffect(() => {
     if (!open) return;
@@ -235,6 +235,30 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
           className="w-full px-2.5 py-1.5 field text-[13px]"
          
         />
+      </div>
+
+      {/* Comportamiento: el nombre y el color son presentación; estas
+          propiedades deciden cómo participa la columna en la dinámica. */}
+      <div className="mb-3 space-y-1.5">
+        <div className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Comportamiento</div>
+        <button
+          onClick={() => onUpdate({ ...col, isDone: !col.isDone })}
+          className="w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded-md text-left hover:bg-[var(--surface-3)]"
+        >
+          <span className="text-[12px]">Cuenta como completada</span>
+          <span className="w-8 h-[18px] rounded-full p-0.5 flex-shrink-0 transition-colors" style={{ background: col.isDone ? 'var(--accent)' : 'var(--surface-3)' }}>
+            <span className="block w-3.5 h-3.5 rounded-full transition-transform" style={{ background: col.isDone ? 'var(--accent-on)' : 'var(--text-muted)', transform: col.isDone ? 'translateX(14px)' : 'translateX(0)' }} />
+          </span>
+        </button>
+        <button
+          onClick={() => onUpdate({ ...col, requiresChecklist: !col.requiresChecklist })}
+          className="w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded-md text-left hover:bg-[var(--surface-3)]"
+        >
+          <span className="text-[12px] leading-tight">Exigir checklist al 100% para entrar</span>
+          <span className="w-8 h-[18px] rounded-full p-0.5 flex-shrink-0 transition-colors" style={{ background: col.requiresChecklist ? 'var(--accent)' : 'var(--surface-3)' }}>
+            <span className="block w-3.5 h-3.5 rounded-full transition-transform" style={{ background: col.requiresChecklist ? 'var(--accent-on)' : 'var(--text-muted)', transform: col.requiresChecklist ? 'translateX(14px)' : 'translateX(0)' }} />
+          </span>
+        </button>
       </div>
 
       <div className="mb-3">
@@ -872,7 +896,7 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
   const st       = getStatus(project.status);
   const days     = daysUntil(project.deadline);
   const urgent = isUrgent(project);
-  const isOver   = days < 0  && project.status !== 'delivered' && project.status !== 'archived';
+  const isOver   = days < 0 && !isClosed(project);
   const progress = progressOf(project);
   const hasTags  = pf.tags && project.tags?.length > 0;
   // En el calendario la fecha visible debe ser la misma que ubica la tarjeta.
