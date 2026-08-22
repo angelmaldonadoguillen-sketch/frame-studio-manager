@@ -364,6 +364,12 @@
     -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable;
   }
+  .portal-page-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .portal-calendar-weekday {
     padding: 9px 10px;
     border-right: 0.5px solid var(--border);

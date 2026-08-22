@@ -124,7 +124,10 @@ const ClientPortal = ({ token }) => {
   const moveMonth = delta => setCalendarDate(new Date(year, month + delta, 1));
 
   return (
-    <div className="min-h-screen overflow-y-auto" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    // body está bloqueado por la aplicación principal. El portal necesita su
+    // propio viewport desplazable; min-height lo hacía crecer fuera de una
+    // página que no podía scrollear.
+    <div className="h-screen overflow-y-auto overscroll-contain portal-page-scroll" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <header className="px-5 sm:px-8 py-5 border-b border-app" style={{ background: 'var(--surface)' }}>
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
