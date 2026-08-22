@@ -66,7 +66,10 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes("event.key === 'Enter' && !e
 check(rules.includes('request.resource.data.text.size() <= 2000'), 'los comentarios deben tener límite de tamaño');
 check(rules.includes("'attachmentUrl', 'attachmentName'"), 'los comentarios deben admitir una imagen compartida');
 check(rules.includes("attachmentUrl.matches('https://firebasestorage.googleapis.com/.*')"), 'la imagen del chat debe venir del almacenamiento controlado');
-check(rules.includes('allow update: if false'), 'los comentarios compartidos deben ser inmutables');
+check(rules.includes("affectedKeys().hasOnly(['text', 'editedAt'])"), 'la edición sólo debe cambiar el texto y su marca temporal');
+check(rules.includes('allow delete: if isMember(portal().workspaceId)'), 'sólo el equipo debe poder eliminar comentarios');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Editar comentario'), 'el equipo debe poder editar sus comentarios');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Eliminar comentario'), 'el equipo debe poder moderar y eliminar comentarios');
 check(rules.includes('request.resource.data.projectId in portal().taskIds'), 'sólo se debe comentar una tarea publicada');
 check(portal.includes('const calendarScrollRef = React.useRef(null)'), 'el calendario debe controlar su contenedor desplazable');
 check(portal.includes("addEventListener('wheel', onWheel, { passive: false })"), 'el trackpad debe activar desplazamiento horizontal');
