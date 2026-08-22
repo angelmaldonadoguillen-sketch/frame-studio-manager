@@ -587,6 +587,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [activity, setActivity]               = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [activityOpen, setActivityOpen]       = useState(false);
   const [editingCheckId, setEditingCheckId]   = useState(null);
   const [editingCheckText, setEditingCheckText] = useState('');
   const editCheckRef = useRef(null);
@@ -1197,7 +1198,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
             <div className="sticky top-0 z-10 surface border-b border-app px-6 flex items-center gap-1" style={{ background: 'var(--surface)' }}>
               {[
                 {id:'overview',label:'Visión general',icon:'list'},
-                ...(collaborationEnabled ? [{id:'comments',label:`Comentarios · ${comments.length}`,icon:'message'}] : []),
+                ...(clientPortalToken
+                  ? [{id:'comments',label:'Chat con el cliente',icon:'message'}]
+                  : collaborationEnabled
+                    ? [{id:'comments',label:`Comentarios · ${comments.length}`,icon:'message'}]
+                    : []),
               ].map(t => (
                 <button
                   key={t.id}
@@ -1280,13 +1285,6 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                   </div>
                 </section>
 
-                {clientPortalToken && (
-                  <section>
-                    <SectionTitle icon="message">Conversación con el cliente</SectionTitle>
-                    <SharedClientComments portalToken={clientPortalToken} projectId={project.id} authorType="studio" authorName={resolveUser(currentUserId)?.name || 'Estudio'} />
-                  </section>
-                )}
-
                 {/* Deliverables */}
                 <section>
                   <SectionTitle icon="upload">Entregables</SectionTitle>
@@ -1361,6 +1359,20 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                                 </a>
                               )}
                             </div>
+                            {dv.kind === 'photos' && dv.url && (
+                              <button
+                                onClick={() => {
+                                  upd({ cover: { type: 'image', value: dv.url } });
+                                  window.frameToast?.('Imagen aplicada como portada.');
+                                }}
+                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
+                                style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}
+                                title="Usar esta imagen como portada de la tarea"
+                              >
+                                <Icon name="image" size={12} />
+                                <span className="hidden sm:inline">Usar como portada</span>
+                              </button>
+                            )}
                             <button
                               onClick={() => toggleDeliverable(dv.id)}
                               className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors"
@@ -1420,9 +1432,15 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                   </div>
                 </section>
 
-                <section>
-                  <SectionTitle icon="clock" right={activity.length ? `${activity.length} eventos` : ''}>Actividad</SectionTitle>
-                  {activityLoading ? (
+                <section className="border-t border-app pt-4">
+                  <button type="button" onClick={() => setActivityOpen(open => !open)} className="w-full flex items-center justify-between rounded-md px-2 py-2 -mx-2 hover:bg-[var(--surface-2)] transition-colors" aria-expanded={activityOpen}>
+                    <span className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase"><Icon name="clock" size={12} /> Actividad</span>
+                    <span className="flex items-center gap-2 text-[11px] text-[var(--text-muted)] font-mono">
+                      {activity.length ? `${activity.length} eventos` : ''}
+                      <span className={`transition-transform ${activityOpen ? 'rotate-180' : ''}`}><Icon name="chevronDown" size={13} /></span>
+                    </span>
+                  </button>
+                  {activityOpen && (activityLoading ? (
                     <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Cargando actividad…</div>
                   ) : activity.length === 0 ? (
                     <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Los cambios importantes aparecerán aquí.</div>
@@ -1439,12 +1457,22 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                         </div>
                       ))}
                     </div>
-                  )}
+                  ))}
                 </section>
               </div>
             )}
 
-            {collaborationEnabled && tab === 'comments' && (
+            {tab === 'comments' && clientPortalToken && (
+              <div className="p-6">
+                <div className="mb-4">
+                  <h2 className="text-[15px] font-semibold">Chat de la tarea</h2>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>El cliente y el equipo ven esta misma conversación.</p>
+                </div>
+                <SharedClientComments portalToken={clientPortalToken} projectId={project.id} authorType="studio" authorName={resolveUser(currentUserId)?.name || 'Estudio'} />
+              </div>
+            )}
+
+            {tab === 'comments' && !clientPortalToken && collaborationEnabled && (
               <CommentsTab
                 comments={comments}
                 commentsLoading={commentsLoading}
@@ -1526,6 +1554,7 @@ const ChecklistAdd = ({ onAdd }) => {
 
 // ── Deliverable add ─────────────────────────────────────────────
 const DeliverableAdd = ({ onAdd, projectId }) => {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [kind, setKind] = useState('video');
   const [uploading, setUploading] = useState(false);
@@ -1535,6 +1564,7 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
     if (!name.trim()) return;
     onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: name.trim(), kind, status: 'pending' });
     setName('');
+    setOpen(false);
   };
 
   const uploadFile = async (event) => {
@@ -1553,26 +1583,39 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
       const nextKind = file.type.startsWith('image/') ? 'photos' : file.type.startsWith('audio/') ? 'audio' : file.type.startsWith('video/') ? 'video' : 'file';
       onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: file.name, kind: nextKind, status: 'pending', url, storagePath, contentType: file.type, size: file.size });
       window.frameToast?.('Archivo adjuntado al entregable.');
+      setOpen(false);
     } catch (err) {
       console.error('Deliverable upload:', err);
       window.frameToast?.(FrameAttachments.storageErrorMessage(err));
     } finally { setUploading(false); }
   };
 
+  if (!open) return (
+    <button type="button" onClick={() => setOpen(true)} className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-[var(--border-2)] text-[12px] font-medium hover:bg-[var(--surface-2)] transition-colors" style={{ color: 'var(--text-dim)' }}>
+      <Icon name="plus" size={13} /> Agregar entregable
+    </button>
+  );
+
   return (
-    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-app">
+    <div className="mt-2 p-3 field space-y-3" style={{ background: 'var(--surface-2)' }}>
+      <div>
+        <div className="text-[11px] font-semibold mb-1.5">Nombre del entregable</div>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-        placeholder="Nuevo entregable…"
-        className="flex-1 px-2.5 py-1.5 field text-[13px]"
+        placeholder="Ej. Video final para redes"
+        className="w-full px-2.5 py-2 field text-[13px]"
        
       />
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex-1 min-w-[130px]">
+          <span className="block text-[11px] font-semibold mb-1.5">Tipo</span>
       <select
         value={kind}
         onChange={(e) => setKind(e.target.value)}
-        className="px-2 py-1.5 rounded-md text-[12px] border cursor-pointer appearance-none"
+        className="w-full px-2 py-2 rounded-md text-[12px] border cursor-pointer"
        
       >
         <option value="video">Video</option>
@@ -1580,28 +1623,27 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
         <option value="audio">Audio</option>
         <option value="file">Archivo</option>
       </select>
+        </label>
       <label
         title="Adjuntar archivo: imagen, video, audio o PDF"
-        className={`p-1.5 rounded-md cursor-pointer transition ${uploading ? 'opacity-40 pointer-events-none' : ''}`}
+        className={`inline-flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer text-[12px] font-medium transition ${uploading ? 'opacity-40 pointer-events-none' : ''}`}
         style={{ background: 'var(--surface-3)', color: 'var(--accent)' }}
       >
-        <Icon name="paperclip" size={14} />
+        <Icon name="paperclip" size={14} /> {uploading ? 'Subiendo…' : 'Subir archivo'}
         <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,application/pdf" className="hidden" onChange={uploadFile} disabled={uploading} />
       </label>
-      <button aria-label="Agregar entregable"
-        onClick={submit}
-        disabled={!name.trim()}
-        className="p-1.5 rounded-md disabled:opacity-40 transition"
-        style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-      >
-        <Icon name="plus" size={14} strokeWidth={2.5} />
-      </button>
+      </div>
+      <div className="flex justify-end gap-2 pt-1">
+        <button onClick={() => { setOpen(false); setName(''); }} className="px-3 py-1.5 text-[12px] rounded-md" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+        <button onClick={submit} disabled={!name.trim()} className="px-3 py-1.5 text-[12px] font-semibold rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Agregar sin archivo</button>
+      </div>
     </div>
   );
 };
 
 // ── Timeline add ────────────────────────────────────────────────
 const TimelineAdd = ({ onAdd }) => {
+  const [open, setOpen] = useState(false);
   const [label, setLabel] = useState('');
   const [date, setDate] = useState(() => localISO(new Date(TODAY)));
 
@@ -1609,49 +1651,44 @@ const TimelineAdd = ({ onAdd }) => {
     if (!label.trim()) return;
     onAdd({ id: 'tl' + Date.now() + Math.random().toString(36).slice(2, 5), label: label.trim(), date, status: 'pending' });
     setLabel('');
+    setOpen(false);
   };
 
-  // flex-wrap: el nombre del hito, la fecha y el botón no entran en una línea
-  // de 300px. Sin esto no se achicaban — se empujaban fuera de la pantalla.
-  // Angosto, la fecha y el botón bajan al renglón siguiente.
+  if (!open) return (
+    <button type="button" onClick={() => setOpen(true)} className="mt-2 ml-3 flex items-center gap-2 text-[12px] px-3 py-2 rounded-md border border-dashed border-[var(--border-2)] hover:bg-[var(--surface-2)]" style={{ color: 'var(--text-dim)' }}>
+      <Icon name="plus" size={12} /> Agregar hito
+    </button>
+  );
+
   return (
-    <div className="relative flex flex-wrap md:flex-nowrap items-center gap-2 py-2">
+    <div className="relative ml-3 mt-2 p-3 field" style={{ background: 'var(--surface-2)' }}>
       {/* El punto era un anillo punteado con el centro transparente y sin
           máscara, así que la línea vertical del timeline se veía pasar por
           dentro. Ahora lleva fondo propio y el mismo anillo del color del
           panel que usan los hitos ya creados: la línea se corta al llegar y
           el punto queda ensartado en ella, no atravesado. */}
-      <div
-        className="absolute -left-[11px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full flex-shrink-0"
-        style={{
-          background:  'var(--surface)',
-          border:      '1.5px dashed var(--border-2)',
-          boxShadow:   '0 0 0 4px var(--surface)',
-        }}
-      ></div>
+      <div className="text-[11px] font-semibold mb-2">Nuevo hito interno</div>
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-2">
       <input
         value={label}
         onChange={(e) => setLabel(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
         placeholder="Nuevo hito…"
-        className="flex-1 min-w-0 basis-full md:basis-auto px-2.5 py-1.5 rounded-md text-[13px] border ml-3"
+        className="flex-1 min-w-0 basis-full md:basis-auto px-2.5 py-2 rounded-md text-[13px] border"
        
       />
       <input
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
-        className="px-2 py-1.5 rounded-md text-[12px] border cursor-pointer"
+        className="px-2 py-2 rounded-md text-[12px] border cursor-pointer"
        
       />
-      <button aria-label="Agregar hito"
-        onClick={submit}
-        disabled={!label.trim()}
-        className="p-1.5 rounded-md disabled:opacity-40 transition"
-        style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-      >
-        <Icon name="plus" size={14} strokeWidth={2.5} />
-      </button>
+      </div>
+      <div className="flex justify-end gap-2 mt-3">
+        <button onClick={() => { setOpen(false); setLabel(''); }} className="px-3 py-1.5 text-[12px] rounded-md" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+        <button onClick={submit} disabled={!label.trim()} className="px-3 py-1.5 text-[12px] font-semibold rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Agregar hito</button>
+      </div>
     </div>
   );
 };
