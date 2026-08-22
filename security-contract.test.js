@@ -22,7 +22,9 @@ assert.match(modal, /_legacy:\s*true/);
 assert.match(storage, /match \/frame-covers\/\{projectId\}\/\{fileName\}/);
 assert.match(storage, /match \/frame-descriptions\/\{projectId\}\/\{fileName\}/);
 assert.match(storage, /match \/frame-deliverables\/\{projectId\}\/\{fileName\}/);
+assert.match(storage, /match \/frame-client-comments\/\{token\}\/\{projectId\}\/\{fileName\}/);
 assert.match(storage, /function validDeliverable/);
+assert.doesNotMatch(storage, /request\.resource\.contentType\.matches\('video\/\.\*'\)/);
 assert.doesNotMatch(storage, /frame_users/);
 assert.match(storage, /let projectDoc = firestore\.get[\s\S]*let workspaceDoc = firestore\.get/);
 assert.match(firestore, /function hasProjectAccess\(data\)/);
@@ -53,4 +55,4 @@ assert.match(modal, /escapeDescText\(picked \|\| shortenUrl\(url\)\)/);
 assert.match(modal, /const closeImageMenu = \(\) => \{/);
 assert.match(modal, /selectedImage\.setAttribute\(attribute, value\);[\s\S]*closeImageMenu\(\);/);
 
-console.log('security-contract: 26 checks passed');
+console.log('security-contract: 28 checks passed');

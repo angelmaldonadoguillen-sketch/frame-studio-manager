@@ -22,15 +22,23 @@ service firebase.storage {
 
     function validImage() {
       return request.resource.size <= 10 * 1024 * 1024
-             && request.resource.contentType.matches('image/.*');
+             && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     }
 
     function validDeliverable() {
       return request.resource.size <= 25 * 1024 * 1024
              && (request.resource.contentType.matches('image/.*')
-                 || request.resource.contentType.matches('video/.*')
-                 || request.resource.contentType.matches('audio/.*')
-                 || request.resource.contentType == 'application/pdf');
+                 || request.resource.contentType == 'application/pdf'
+                 || request.resource.contentType == 'application/msword'
+                 || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                 || request.resource.contentType == 'application/vnd.ms-excel'
+                 || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                 || request.resource.contentType == 'application/vnd.ms-powerpoint'
+                 || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                 || request.resource.contentType == 'text/plain'
+                 || request.resource.contentType == 'text/csv'
+                 || request.resource.contentType == 'application/zip'
+                 || request.resource.contentType == 'application/x-zip-compressed');
     }
 
     match /frame-covers/{projectId}/{fileName} {
@@ -49,6 +57,22 @@ service firebase.storage {
       allow read: if projectMember(projectId);
       allow create, update: if projectMember(projectId) && validDeliverable();
       allow delete: if projectMember(projectId);
+    }
+
+    // El token del portal actúa como capacidad para el chat público. La ruta
+    // queda además ligada a una tarea realmente publicada en ese portal.
+    match /frame-client-comments/{token}/{projectId}/{fileName} {
+      function portal() {
+        return firestore.get(/databases/(default)/documents/frame_client_portals/$(token)).data;
+      }
+      allow read: if token.size() == 48
+                  && portal().published == true
+                  && projectId in portal().taskIds;
+      allow create: if token.size() == 48
+                    && portal().published == true
+                    && projectId in portal().taskIds
+                    && validImage();
+      allow update, delete: if false;
     }
   }
 }

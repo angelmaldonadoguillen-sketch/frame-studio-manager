@@ -363,7 +363,7 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/frame_client_portals/$(token)).data;
         }
         function validComment() {
-          return request.resource.data.keys().hasOnly(['id', 'projectId', 'authorType', 'authorName', 'text', 'at'])
+          return request.resource.data.keys().hasOnly(['id', 'projectId', 'authorType', 'authorName', 'text', 'at', 'attachmentUrl', 'attachmentName'])
                  && request.resource.data.id == commentId
                  && request.resource.data.projectId is string
                  && request.resource.data.projectId in portal().taskIds
@@ -372,8 +372,18 @@ service cloud.firestore {
                  && request.resource.data.authorName.size() > 0
                  && request.resource.data.authorName.size() <= 80
                  && request.resource.data.text is string
-                 && request.resource.data.text.size() > 0
                  && request.resource.data.text.size() <= 2000
+                 && (!request.resource.data.keys().hasAny(['attachmentUrl', 'attachmentName']) || (
+                   request.resource.data.keys().hasAll(['attachmentUrl', 'attachmentName'])
+                   && request.resource.data.attachmentUrl is string
+                   && request.resource.data.attachmentUrl.size() > 0
+                   && request.resource.data.attachmentUrl.size() <= 2000
+                   && request.resource.data.attachmentUrl.matches('https://firebasestorage.googleapis.com/.*')
+                   && request.resource.data.attachmentName is string
+                   && request.resource.data.attachmentName.size() > 0
+                   && request.resource.data.attachmentName.size() <= 200
+                 ))
+                 && (request.resource.data.text.size() > 0 || request.resource.data.keys().hasAll(['attachmentUrl', 'attachmentName']))
                  && request.resource.data.at is string;
         }
         allow read: if portal().published == true || isMember(portal().workspaceId);

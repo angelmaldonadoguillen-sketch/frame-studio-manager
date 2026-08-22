@@ -519,7 +519,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
           style={{ borderColor: 'var(--border-2)', color: 'var(--text-dim)' }}
         >
           <Icon name="upload" size={13} />
-          Elegir archivo
+          Elegir imagen
         </button>
       )}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
@@ -1555,24 +1555,38 @@ const ChecklistAdd = ({ onAdd }) => {
 // ── Deliverable add ─────────────────────────────────────────────
 const DeliverableAdd = ({ onAdd, projectId }) => {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [kind, setKind] = useState('video');
+  const [linkName, setLinkName] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [uploading, setUploading] = useState(false);
-  const fileRef = useRef(null);
+  const imageRef = useRef(null);
+  const documentRef = useRef(null);
 
-  const submit = () => {
-    if (!name.trim()) return;
-    onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: name.trim(), kind, status: 'pending' });
-    setName('');
+  const submitLink = () => {
+    const cleanUrl = linkUrl.trim();
+    if (!FrameAttachments.validateImageUrl(cleanUrl)) {
+      window.frameToast?.('Ingresá un enlace http o https válido.');
+      return;
+    }
+    let fallbackName = 'Enlace compartido';
+    try { fallbackName = new URL(cleanUrl).hostname.replace(/^www\./, ''); } catch (_) {}
+    onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: linkName.trim() || fallbackName, kind: 'video', status: 'pending', url: cleanUrl });
+    setLinkName('');
+    setLinkUrl('');
     setOpen(false);
   };
 
-  const uploadFile = async (event) => {
+  const uploadFile = async (event, expectedKind) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file || !projectId) return;
-    const valid = FrameAttachments.validateDeliverableFile(file);
+    const valid = expectedKind === 'photos'
+      ? FrameAttachments.validateImageFile(file)
+      : FrameAttachments.validateDeliverableFile(file);
     if (!valid.ok) { window.frameToast?.(valid.message); return; }
+    if (expectedKind === 'file' && file.type.startsWith('image/')) {
+      window.frameToast?.('Para imágenes usá la opción Adjuntar imagen.');
+      return;
+    }
     if (!window.storage) { window.frameToast?.('Storage todavía no está disponible.'); return; }
     setUploading(true);
     try {
@@ -1580,9 +1594,8 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
       const task = window.storage.ref(storagePath).put(file, { contentType: file.type });
       const snapshot = await FrameAttachments.waitForUpload(task, { timeoutMs: 60000 });
       const url = await snapshot.ref.getDownloadURL();
-      const nextKind = file.type.startsWith('image/') ? 'photos' : file.type.startsWith('audio/') ? 'audio' : file.type.startsWith('video/') ? 'video' : 'file';
-      onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: file.name, kind: nextKind, status: 'pending', url, storagePath, contentType: file.type, size: file.size });
-      window.frameToast?.('Archivo adjuntado al entregable.');
+      onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: file.name, kind: expectedKind, status: 'pending', url, storagePath, contentType: file.type, size: file.size });
+      window.frameToast?.(expectedKind === 'photos' ? 'Imagen adjuntada.' : 'Archivo adjuntado.');
       setOpen(false);
     } catch (err) {
       console.error('Deliverable upload:', err);
@@ -1598,44 +1611,30 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
 
   return (
     <div className="mt-2 p-3 field space-y-3" style={{ background: 'var(--surface-2)' }}>
-      <div>
-        <div className="text-[11px] font-semibold mb-1.5">Nombre del entregable</div>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-        placeholder="Ej. Video final para redes"
-        className="w-full px-2.5 py-2 field text-[13px]"
-       
-      />
+      <div className="grid sm:grid-cols-2 gap-2">
+        <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading} className="flex items-center gap-3 p-3 rounded-md border border-app text-left hover:bg-[var(--surface-3)] disabled:opacity-40">
+          <span className="p-2 rounded-md" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><Icon name="image" size={15} /></span>
+          <span><strong className="block text-[12px]">Adjuntar imagen</strong><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>JPG, PNG, WebP o GIF</span></span>
+        </button>
+        <button type="button" onClick={() => documentRef.current?.click()} disabled={uploading} className="flex items-center gap-3 p-3 rounded-md border border-app text-left hover:bg-[var(--surface-3)] disabled:opacity-40">
+          <span className="p-2 rounded-md" style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></span>
+          <span><strong className="block text-[12px]">Adjuntar archivo</strong><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>PDF, Word, Excel, ZIP…</span></span>
+        </button>
+        <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => uploadFile(event, 'photos')} disabled={uploading} />
+        <input ref={documentRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" className="hidden" onChange={(event) => uploadFile(event, 'file')} disabled={uploading} />
       </div>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="flex-1 min-w-[130px]">
-          <span className="block text-[11px] font-semibold mb-1.5">Tipo</span>
-      <select
-        value={kind}
-        onChange={(e) => setKind(e.target.value)}
-        className="w-full px-2 py-2 rounded-md text-[12px] border cursor-pointer"
-       
-      >
-        <option value="video">Video</option>
-        <option value="photos">Foto</option>
-        <option value="audio">Audio</option>
-        <option value="file">Archivo</option>
-      </select>
-        </label>
-      <label
-        title="Adjuntar archivo: imagen, video, audio o PDF"
-        className={`inline-flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer text-[12px] font-medium transition ${uploading ? 'opacity-40 pointer-events-none' : ''}`}
-        style={{ background: 'var(--surface-3)', color: 'var(--accent)' }}
-      >
-        <Icon name="paperclip" size={14} /> {uploading ? 'Subiendo…' : 'Subir archivo'}
-        <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,application/pdf" className="hidden" onChange={uploadFile} disabled={uploading} />
-      </label>
+      {uploading && <div className="text-[11px] text-center" style={{ color: 'var(--accent)' }}>Subiendo archivo…</div>}
+      <div className="pt-3 border-t border-app">
+        <div className="text-[11px] font-semibold mb-1">Agregar enlace</div>
+        <div className="text-[10px] mb-2" style={{ color: 'var(--text-muted)' }}>Para videos, audio, Drive, Dropbox u otros recursos externos.</div>
+        <div className="grid sm:grid-cols-[minmax(120px,.6fr)_minmax(180px,1.4fr)_auto] gap-2">
+          <input value={linkName} onChange={(event) => setLinkName(event.target.value)} placeholder="Nombre (opcional)" className="field min-w-0 px-2.5 py-2 text-[12px]" />
+          <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submitLink(); }} placeholder="https://drive.google.com/…" className="field min-w-0 px-2.5 py-2 text-[12px]" />
+          <button onClick={submitLink} disabled={!linkUrl.trim()} className="px-3 py-2 text-[12px] font-semibold rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Agregar enlace</button>
+        </div>
       </div>
       <div className="flex justify-end gap-2 pt-1">
-        <button onClick={() => { setOpen(false); setName(''); }} className="px-3 py-1.5 text-[12px] rounded-md" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
-        <button onClick={submit} disabled={!name.trim()} className="px-3 py-1.5 text-[12px] font-semibold rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>Agregar sin archivo</button>
+        <button onClick={() => { setOpen(false); setLinkName(''); setLinkUrl(''); }} className="px-3 py-1.5 text-[12px] rounded-md" style={{ color: 'var(--text-muted)' }}>Cerrar</button>
       </div>
     </div>
   );
@@ -2260,6 +2259,11 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   const [text, setText] = useState('');
   const [name, setName] = useState(() => authorName || localStorage.getItem('frame_client_comment_name') || 'Cliente');
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [attachment, setAttachment] = useState(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const imageRef = useRef(null);
+  const emojis = ['👍', '❤️', '✨', '🔥', '👏', '😊', '😂', '🎉', '✅', '👀', '🙏', '💡'];
 
   useEffect(() => {
     if (!portalToken || !projectId) return;
@@ -2268,16 +2272,49 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
     return () => unsub();
   }, [portalToken, projectId]);
 
+  const uploadImage = async (file) => {
+    if (!file || uploading) return;
+    const valid = FrameAttachments.validateImageFile(file);
+    if (!valid.ok) { window.frameToast?.(valid.message); return; }
+    if (!window.storage) { window.frameToast?.('Storage todavía no está disponible.'); return; }
+    setUploading(true);
+    try {
+      const safeName = FrameAttachments.safeFileName(file.name || 'imagen.jpg');
+      const storagePath = `frame-client-comments/${portalToken}/${projectId}/${Date.now()}_${safeName}`;
+      const task = window.storage.ref(storagePath).put(file, { contentType: file.type });
+      const snapshot = await FrameAttachments.waitForUpload(task, { timeoutMs: 60000 });
+      const url = await snapshot.ref.getDownloadURL();
+      setAttachment({ url, name: (file.name || 'Imagen').slice(0, 200) });
+    } catch (error) {
+      console.error('Shared chat image upload:', error);
+      window.frameToast?.(FrameAttachments.storageErrorMessage(error));
+    } finally { setUploading(false); }
+  };
+
+  const onPaste = (event) => {
+    const imageFile = [...(event.clipboardData?.items || [])]
+      .find(item => item.kind === 'file' && item.type.startsWith('image/'))?.getAsFile();
+    if (!imageFile) return;
+    event.preventDefault();
+    uploadImage(imageFile);
+  };
+
   const send = async () => {
     const cleanText = text.trim();
     const cleanName = (authorName || name).trim().slice(0, 80);
-    if (!cleanText || !cleanName || sending) return;
+    if ((!cleanText && !attachment) || !cleanName || sending || uploading) return;
     setSending(true);
     const id = 'pc' + Date.now() + Math.random().toString(36).slice(2, 8);
     try {
-      await window.db.collection('frame_client_portals').doc(portalToken).collection('comments').doc(id).set({ id, projectId, authorType, authorName: cleanName, text: cleanText.slice(0, 2000), at: new Date().toISOString() });
+      const comment = { id, projectId, authorType, authorName: cleanName, text: cleanText.slice(0, 2000), at: new Date().toISOString() };
+      if (attachment) {
+        comment.attachmentUrl = attachment.url;
+        comment.attachmentName = attachment.name;
+      }
+      await window.db.collection('frame_client_portals').doc(portalToken).collection('comments').doc(id).set(comment);
       if (authorType === 'client') localStorage.setItem('frame_client_comment_name', cleanName);
       setText('');
+      setAttachment(null);
     } catch { window.frameToast?.('No se pudo enviar el comentario. Revisá la conexión.'); }
     finally { setSending(false); }
   };
@@ -2285,10 +2322,23 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   return <div className="surf p-4">
     <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
       {comments.length === 0 && <div className="text-[11px] text-center py-4" style={{ color: 'var(--text-muted)' }}>Todavía no hay comentarios compartidos.</div>}
-      {comments.map(comment => <div key={comment.id} className="flex gap-2.5"><div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: comment.authorType === 'client' ? 'var(--resource-blue)' : 'var(--accent)', color: comment.authorType === 'client' ? '#fff' : 'var(--accent-on)' }}>{comment.authorName.slice(0, 2).toUpperCase()}</div><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="text-[11px] font-semibold">{comment.authorName}</span><span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{comment.authorType === 'client' ? 'Cliente' : 'Estudio'} · {relativeTime(comment.at)}</span></div><div className="text-[12px] leading-relaxed pretty">{comment.text}</div></div></div>)}
+      {comments.map(comment => <div key={comment.id} className="flex gap-2.5"><div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: comment.authorType === 'client' ? 'var(--resource-blue)' : 'var(--accent)', color: comment.authorType === 'client' ? '#fff' : 'var(--accent-on)' }}>{comment.authorName.slice(0, 2).toUpperCase()}</div><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="text-[11px] font-semibold">{comment.authorName}</span><span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{comment.authorType === 'client' ? 'Cliente' : 'Estudio'} · {relativeTime(comment.at)}</span></div>{comment.text && <div className="text-[12px] leading-relaxed pretty whitespace-pre-wrap">{comment.text}</div>}{comment.attachmentUrl && <a href={comment.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-2"><img src={comment.attachmentUrl} alt={comment.attachmentName || 'Imagen adjunta'} className="max-w-[280px] max-h-56 rounded-lg object-cover border border-app" /><span className="block mt-1 text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{comment.attachmentName}</span></a>}</div></div>)}
     </div>
     {authorType === 'client' && <input value={name} onChange={event => setName(event.target.value)} maxLength={80} className="field w-full px-3 py-2 text-[11px] mb-2" placeholder="Tu nombre" />}
-    <div className="flex gap-2"><textarea value={text} onChange={event => setText(event.target.value)} maxLength={2000} rows={2} className="field flex-1 px-3 py-2 text-[12px] resize-none" placeholder="Escribí un comentario…" /><button onClick={send} disabled={!text.trim() || sending} className="self-end p-2.5 rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}><Icon name="send" size={13} /></button></div>
+    {attachment && <div className="mb-2 inline-flex items-center gap-2 p-2 rounded-lg border border-app" style={{ background: 'var(--surface-2)' }}><img src={attachment.url} alt="Vista previa" className="w-14 h-14 rounded-md object-cover" /><span className="max-w-[180px] truncate text-[11px]">{attachment.name}</span><button onClick={() => setAttachment(null)} aria-label="Quitar imagen" className="p-1 rounded hover:bg-[var(--surface-3)]"><Icon name="x" size={12} /></button></div>}
+    <div className="relative flex gap-2 items-end">
+      <div className="field flex-1 overflow-hidden">
+        <textarea value={text} onChange={event => setText(event.target.value)} onPaste={onPaste} maxLength={2000} rows={2} className="w-full px-3 pt-2 text-[12px] resize-none bg-transparent" placeholder="Escribí un comentario o pegá una imagen…" />
+        <div className="flex items-center gap-1 px-2 pb-2">
+          <button onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" className="p-1.5 rounded hover:bg-[var(--surface-3)] disabled:opacity-40"><Icon name="image" size={14} /></button>
+          <button onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" className="p-1.5 rounded hover:bg-[var(--surface-3)] text-[15px] leading-none">☺</button>
+          {uploading && <span className="text-[10px] ml-1" style={{ color: 'var(--accent)' }}>Subiendo imagen…</span>}
+        </div>
+        <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; uploadImage(file); }} />
+      </div>
+      {emojiOpen && <div className="absolute left-0 bottom-full mb-2 grid grid-cols-6 gap-1 p-2 surf-float z-20">{emojis.map(emoji => <button key={emoji} onClick={() => { setText(value => value + emoji); setEmojiOpen(false); }} className="w-8 h-8 rounded hover:bg-[var(--surface-3)] text-base">{emoji}</button>)}</div>}
+      <button onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} className="p-2.5 rounded-md disabled:opacity-40" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}><Icon name="send" size={13} /></button>
+    </div>
   </div>;
 };
 
