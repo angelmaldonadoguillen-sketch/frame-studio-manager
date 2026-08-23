@@ -34,7 +34,7 @@ check(!fs.readFileSync('modal.jsx', 'utf8').includes('El cliente y el equipo ven
 check(fs.readFileSync('data.jsx', 'utf8').includes("avatar:   m?.avatar"), 'la ficha del tablero debe conservar el avatar del perfil');
 check(portal.includes('studioAvatar:'), 'el portal debe proyectar sólo el avatar público del estudio');
 check(rules.includes("data.studioAvatar.matches('data:image/(jpeg|png|webp);base64,.*')"), 'las reglas deben limitar el formato del avatar público');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Usar esta imagen como portada'), 'una imagen entregable debe poder usarse como portada');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Usar archivo como portada'), 'la portada debe elegirse entre los archivos de esta tarea');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-expanded={activityOpen}'), 'la actividad debe ser desplegable y accesible');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="image" size={13} /> Imagen'), 'los recursos deben ofrecer una acción compacta para imágenes');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="paperclip" size={13} /> Archivo'), 'los recursos deben ofrecer una acción compacta para documentos');
@@ -44,7 +44,7 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes('Agregar emoji'), 'el chat d
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('Agregar entregable'), 'los recursos no deben esconderse dentro de un formulario de entregable');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Enlace externo'), 'el enlace debe ser un campo independiente');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes("dv.url.replace(/^https?:\\/\\//"), 'la interfaz no debe mostrar la URL técnica del recurso');
-check(fs.readFileSync('modal.jsx', 'utf8').includes("dv.status === 'ready' ? 'Compartido' : 'Privado'"), 'la visibilidad del recurso debe expresarse con lenguaje comprensible');
+check(!fs.readFileSync('modal.jsx', 'utf8').includes("'Compartido' : 'Privado'"), 'no debe quedar el interruptor de privado: todo recurso se comparte al subirlo');
 check(!portal.includes('openTask.checklist'), 'el cliente no debe ver el checklist interno');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("collection('comments')"), 'los comentarios deben sincronizarse en tiempo real');
 check(rules.includes('match /comments/{commentId}'), 'las reglas deben cubrir comentarios del portal');
@@ -158,8 +158,10 @@ check(portal.includes('cover: portadaDe(project)'), 'la portada debe viajar dent
 check(!/^\s{4}cover:/m.test(portal.slice(portal.indexOf('  return {'), portal.indexOf('// ── Línea de proceso'))),
   'la portada no debe agregarse como clave del documento');
 check(portal.includes("cover.type === 'image'"), 'una portada de color no es una imagen que se pueda abrir');
-check(portal.includes("item.status === 'ready' && item.kind === 'photos'"),
-  'sin portada propia debe usarse una imagen ya compartida, nunca una privada');
+check(portal.includes("item.kind === 'photos' && /^https:\\/\\//i.test"),
+  'sin portada propia debe usarse una imagen de la tarea');
+check(!portal.includes("item.status === 'ready'"),
+  'el portal ya no filtra por estado: todo recurso se comparte al subirlo');
 check(portal.includes('{task.cover && ('), 'la lista debe mostrar la miniatura sin abrir la tarjeta');
 check(portal.includes('{openTask.cover && ('), 'el detalle debe mostrar la portada en grande');
 check(portal.includes('setLightbox'), 'la imagen debe poder abrirse a tamaño completo');

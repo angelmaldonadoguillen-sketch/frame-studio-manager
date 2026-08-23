@@ -56,7 +56,7 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
       return String(cover.value);
     }
     const compartida = (project.deliverables || []).find(item =>
-      item.status === 'ready' && item.kind === 'photos' && /^https:\/\//i.test(String(item.url || '')));
+      item.kind === 'photos' && /^https:\/\//i.test(String(item.url || '')));
     return compartida ? String(compartida.url) : '';
   };
   const visible = (projects || [])
@@ -86,7 +86,7 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
         // dibujarla mal.
         phaseIndex: isClosed(project) ? etiquetasFases.length : fases.indexOf(project.status),
         cover: portadaDe(project),
-        deliverables: (project.deliverables || []).filter(item => item.status === 'ready').map(item => ({
+        deliverables: (project.deliverables || []).map(item => ({
           name: String(item.name || 'Entregable'),
           kind: String(item.kind || 'file'),
           url: /^https:\/\//i.test(String(item.url || '')) ? String(item.url) : '',

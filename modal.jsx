@@ -407,7 +407,12 @@ const COVER_PRESETS = [
   '#1a1200', '#0a2010', '#2a1000', '#111827', '#1a1016',
 ];
 
-const CoverEditor = ({ cover, onChange, projectId }) => {
+const CoverEditor = ({ cover, onChange, projectId, deliverables = [] }) => {
+  // Las imágenes de ESTA tarea. Elegir la portada es elegir entre lo que ya se
+  // subió acá — antes había que ir a la fila del recurso y volver, y con dos
+  // imágenes no quedaba claro cuál estaba puesta.
+  const imagenes = (deliverables || []).filter(item =>
+    item.kind === 'photos' && /^https?:\/\//i.test(String(item.url || '')));
   const [open, setOpen]           = useState(false);
   const [pos, setPos]             = useState({ top: 0, right: 0 });
   const [urlVal, setUrlVal]       = useState('');
@@ -486,6 +491,37 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
       }}
       onClick={(e) => e.stopPropagation()}
     >
+      {/* ── Archivos de esta tarea ── */}
+      {imagenes.length > 0 && (
+        <>
+          <div className="ui-section-label mb-2">Usar archivo como portada</div>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {imagenes.slice(0, 9).map(item => {
+              const puesta = cover?.type === 'image' && cover.value === item.url;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => { onChange({ type: 'image', value: item.url }); setOpen(false); }}
+                  title={item.name}
+                  aria-label={'Usar ' + item.name + ' como portada'}
+                  aria-pressed={puesta}
+                  className="relative aspect-square rounded-lg overflow-hidden transition hover:scale-105"
+                  style={{ boxShadow: puesta ? '0 0 0 2px var(--accent)' : '0 0 0 1px var(--border)' }}
+                >
+                  <img src={item.url} alt="" className="w-full h-full object-cover" />
+                  {puesta && (
+                    <span className="absolute inset-0 flex items-center justify-center"
+                          style={{ background: 'rgba(0,0,0,.45)', color: 'var(--accent)' }}>
+                      <Icon name="check" size={14} strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* ── Colores ── */}
       <div className="ui-section-label mb-3">Color de fondo</div>
       <div className="grid grid-cols-5 gap-2 mb-4">
@@ -827,9 +863,6 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
   };
   const cancelEditDv = () => { setEditingDvId(null); setEditingDvData({}); };
 
-  const toggleDeliverable = (id) => {
-    upd({ deliverables: project.deliverables.map(dv => dv.id === id ? { ...dv, status: dv.status === 'ready' ? 'pending' : 'ready' } : dv) });
-  };
   const addDeliverable    = (dv)  => upd({ deliverables: [...project.deliverables, dv] });
   const removeDeliverable = (id)  => {
     const item = project.deliverables.find(dv => dv.id === id);
@@ -980,7 +1013,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
         {/* Cover */}
         <div className="relative">
           <Cover cover={project.cover} height={180} />
-          <CoverEditor cover={project.cover} onChange={(cover) => upd({ cover })} projectId={project.id} />
+          <CoverEditor cover={project.cover} onChange={(cover) => upd({ cover })} projectId={project.id} deliverables={project.deliverables} />
           <div className="absolute bottom-4 left-6 right-6">
             <div className="flex items-center gap-2 mb-2">
               <TypePill type={project.type} size="md" solid />
@@ -1355,35 +1388,11 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                                 {dv.kind === 'photos' ? 'Imagen' : dv.kind === 'file' ? (dv.name.split('.').pop() || 'Archivo') : 'Enlace externo'}
                               </div>
                             </div>
-                            {dv.kind === 'photos' && dv.url && (
-                              <button
-                                onClick={() => {
-                                  upd({ cover: { type: 'image', value: dv.url } });
-                                  window.frameToast?.('Imagen aplicada como portada.');
-                                }}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
-                                style={{ background: 'var(--surface-3)', color: 'var(--text-dim)' }}
-                                title="Usar esta imagen como portada de la tarea"
-                              >
-                                <Icon name="image" size={12} />
-                                <span className="hidden md:inline">Portada</span>
-                              </button>
-                            )}
                             {dv.url && (
                               <a href={dv.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex-shrink-0 p-1.5 rounded-md hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }} title="Abrir recurso">
                                 <Icon name="external" size={13} />
                               </a>
                             )}
-                            <button
-                              onClick={() => toggleDeliverable(dv.id)}
-                              className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors"
-                              style={{
-                                background: dv.status === 'ready' ? 'var(--accent-soft)' : 'var(--surface-3)',
-                                color: dv.status === 'ready' ? 'var(--resource-teal)' : 'var(--resource-neutral)',
-                              }}
-                            >
-                              {dv.status === 'ready' ? 'Compartido' : 'Privado'}
-                            </button>
                             <button onClick={() => removeDeliverable(dv.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity flex-shrink-0">
                               <Icon name="trash" size={13} />
                             </button>
@@ -1564,7 +1573,7 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
     }
     let fallbackName = 'Enlace compartido';
     try { fallbackName = new URL(cleanUrl).hostname.replace(/^www\./, ''); } catch (_) {}
-    onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: linkName.trim() || fallbackName, kind: 'video', status: 'pending', url: cleanUrl });
+    onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: linkName.trim() || fallbackName, kind: 'video', status: 'ready', url: cleanUrl });
     setLinkName('');
     setLinkUrl('');
     setLinkOpen(false);
@@ -1589,7 +1598,7 @@ const DeliverableAdd = ({ onAdd, projectId }) => {
       const task = window.storage.ref(storagePath).put(file, { contentType: file.type });
       const snapshot = await FrameAttachments.waitForUpload(task, { timeoutMs: 60000 });
       const url = await snapshot.ref.getDownloadURL();
-      onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: file.name, kind: expectedKind, status: 'pending', url, storagePath, contentType: file.type, size: file.size });
+      onAdd({ id: 'dv' + Date.now() + Math.random().toString(36).slice(2, 5), name: file.name, kind: expectedKind, status: 'ready', url, storagePath, contentType: file.type, size: file.size });
       window.frameToast?.(expectedKind === 'photos' ? 'Imagen adjuntada.' : 'Archivo adjuntado.');
     } catch (err) {
       console.error('Deliverable upload:', err);
