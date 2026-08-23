@@ -44,7 +44,28 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes('Agregar emoji'), 'el chat d
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('Agregar entregable'), 'los recursos no deben esconderse dentro de un formulario de entregable');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Enlace externo'), 'el enlace debe ser un campo independiente');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes("dv.url.replace(/^https?:\\/\\//"), 'la interfaz no debe mostrar la URL técnica del recurso');
-check(!fs.readFileSync('modal.jsx', 'utf8').includes("'Compartido' : 'Privado'"), 'no debe quedar el interruptor de privado: todo recurso se comparte al subirlo');
+// Compartido de entrada, con un interruptor para la excepción. La visibilidad
+// NO usa `status`: ese campo venía en 'pending' por defecto, así que todo lo
+// subido hasta ahora arrancaría oculto. Se usa clientVisible, igual que las
+// tareas: sin el campo, se comparte.
+check(!fs.readFileSync('modal.jsx', 'utf8').includes("'Compartido' : 'Privado'"),
+  'no debe quedar el chip de privado: se comparte al subir');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('const toggleDeliverableVisible'),
+  'debe existir un interruptor para ocultarle un recurso al cliente');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('role="switch"'),
+  'ocultar debe ser un interruptor y no un botón de texto');
+check(fs.readFileSync('modal.jsx', 'utf8').includes("dv.clientVisible === false"),
+  'el interruptor debe apagar clientVisible, no status');
+check(portal.includes('item.clientVisible !== false'),
+  'sin el campo el recurso se comparte: los viejos no deben quedar ocultos');
+check(portal.includes('const compartido = item =>'), 'el portal debe respetar el interruptor');
+check(portal.includes('item.url === cover.value && !compartido(item)'),
+  'una imagen apagada no debe colarse como portada');
+// El interruptor no lleva transición: un fondo que viene de una variable y
+// tiene transition-colors se queda con el color anterior (mismo defecto que
+// obligó al apagón de transiciones al cambiar de tema).
+check(!/role="switch"[\s\S]{0,400}transition-colors/.test(fs.readFileSync('modal.jsx', 'utf8')),
+  'el interruptor no debe transicionar un color que sale de una variable');
 check(!portal.includes('openTask.checklist'), 'el cliente no debe ver el checklist interno');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("collection('comments')"), 'los comentarios deben sincronizarse en tiempo real');
 check(rules.includes('match /comments/{commentId}'), 'las reglas deben cubrir comentarios del portal');

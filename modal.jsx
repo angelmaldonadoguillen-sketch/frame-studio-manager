@@ -863,6 +863,14 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
   };
   const cancelEditDv = () => { setEditingDvId(null); setEditingDvData({}); };
 
+  // Visible salvo que se diga lo contrario, igual que las tareas con
+  // clientVisible. No se usa `status` para esto: ese campo venía en 'pending'
+  // por defecto, así que todo lo subido hasta ahora arrancaría oculto — que
+  // era justamente el problema. Sin el campo, se muestra.
+  const toggleDeliverableVisible = (id) => {
+    upd({ deliverables: project.deliverables.map(dv =>
+      dv.id === id ? { ...dv, clientVisible: dv.clientVisible === false } : dv) });
+  };
   const addDeliverable    = (dv)  => upd({ deliverables: [...project.deliverables, dv] });
   const removeDeliverable = (id)  => {
     const item = project.deliverables.find(dv => dv.id === id);
@@ -1393,6 +1401,27 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                                 <Icon name="external" size={13} />
                               </a>
                             )}
+                            {/* Interruptor para ocultarle uno al cliente. Va
+                                encendido de entrada: lo que se sube es para
+                                compartirlo, y esto es la excepción. */}
+                            {(() => {
+                              const visible = dv.clientVisible !== false;
+                              return (
+                                <button
+                                  onClick={() => toggleDeliverableVisible(dv.id)}
+                                  role="switch"
+                                  aria-checked={visible}
+                                  aria-label={visible ? 'Ocultar al cliente' : 'Mostrar al cliente'}
+                                  title={visible ? 'El cliente lo ve' : 'Oculto para el cliente'}
+                                  className="flex-shrink-0 relative rounded-full"
+                                  style={{ width: 30, height: 17, background: visible ? 'var(--resource-teal)' : 'var(--surface-3)' }}
+                                >
+                                  <span className="absolute rounded-full"
+                                        style={{ width: 13, height: 13, top: 2, left: visible ? 15 : 2,
+                                                 background: visible ? 'var(--resource-on)' : 'var(--text-muted)' }} />
+                                </button>
+                              );
+                            })()}
                             <button onClick={() => removeDeliverable(dv.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity flex-shrink-0">
                               <Icon name="trash" size={13} />
                             </button>

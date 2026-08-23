@@ -50,14 +50,24 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
   //
   // Sólo https: una portada de color o una ruta interna no son una imagen que
   // el cliente pueda abrir.
+  // Compartido salvo que el creativo lo apague, igual que las tareas con
+  // clientVisible. Sin el campo se comparte: los recursos viejos no traen
+  // ninguno y no tendrían por qué quedar ocultos.
+  const compartido = item => item.clientVisible !== false;
+
   const portadaDe = (project) => {
     const cover = project.cover;
     if (cover && cover.type === 'image' && /^https:\/\//i.test(String(cover.value || ''))) {
-      return String(cover.value);
+      // Si esa imagen es un recurso que el creativo apagó, no se usa de
+      // portada: apagarla y verla igual en la tarjeta sería peor que no
+      // tener el interruptor.
+      const oculta = (project.deliverables || []).some(item =>
+        item.url === cover.value && !compartido(item));
+      if (!oculta) return String(cover.value);
     }
-    const compartida = (project.deliverables || []).find(item =>
-      item.kind === 'photos' && /^https:\/\//i.test(String(item.url || '')));
-    return compartida ? String(compartida.url) : '';
+    const disponible = (project.deliverables || []).find(item =>
+      compartido(item) && item.kind === 'photos' && /^https:\/\//i.test(String(item.url || '')));
+    return disponible ? String(disponible.url) : '';
   };
   const visible = (projects || [])
     // Visible por defecto: al publicar un cliente entran todas sus tareas.
@@ -86,7 +96,7 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
         // dibujarla mal.
         phaseIndex: isClosed(project) ? etiquetasFases.length : fases.indexOf(project.status),
         cover: portadaDe(project),
-        deliverables: (project.deliverables || []).map(item => ({
+        deliverables: (project.deliverables || []).filter(compartido).map(item => ({
           name: String(item.name || 'Entregable'),
           kind: String(item.kind || 'file'),
           url: /^https:\/\//i.test(String(item.url || '')) ? String(item.url) : '',
