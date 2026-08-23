@@ -366,58 +366,11 @@
 
   /* Portal de cliente: el calendario conserva siete columnas legibles. En
      teléfonos se desplaza dentro de su propia caja, sin ensanchar la página. */
-  .portal-calendar {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(150px, 1fr));
-    min-width: 1050px;
-  }
-  .portal-calendar-scroll {
-    width: 100%;
-    max-width: 100%;
-    touch-action: pan-x pan-y;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-gutter: stable;
-  }
   .portal-page-scroll {
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
-  }
-  .portal-calendar-weekday {
-    padding: 9px 10px;
-    border-right: 0.5px solid var(--border);
-    border-bottom: 0.5px solid var(--border);
-    color: var(--text-muted);
-    font-size: var(--t-10);
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-  }
-  .portal-calendar-day {
-    min-width: 0;
-    min-height: 172px;
-    padding: 10px;
-    border-right: 0.5px solid var(--border);
-    border-bottom: 0.5px solid var(--border);
-    background: var(--surface);
-  }
-  .portal-calendar-day[data-outside] { background: var(--bg); opacity: 0.48; }
-  .portal-calendar-day[data-today] { background: var(--accent-soft-weak); }
-  .portal-calendar-task {
-    min-width: 0;
-    padding: 9px;
-    border-radius: var(--r-sm);
-    background: var(--surface-2);
-    box-shadow: inset 0 0.5px 0 rgba(255,255,255,.06);
-  }
-  .portal-calendar-thumb {
-    width: calc(100% + 18px);
-    height: 38px;
-    margin: -9px -9px 7px;
-    object-fit: cover;
-    object-position: center 30%;
-    border-radius: var(--r-sm) var(--r-sm) 0 0;
   }
   .frame-card-actions { margin-left: auto; }
 

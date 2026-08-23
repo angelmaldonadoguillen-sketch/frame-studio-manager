@@ -25,15 +25,7 @@ check(rules.includes('allow get: if resource.data.published == true'), 'sólo un
 check(rules.includes('allow list: if false'), 'nadie debe enumerar portales');
 check(rules.includes('data.tasks.size() <= 100'), 'la proyección debe tener un límite');
 check(rules.includes("data.keys().hasOnly(['workspaceId', 'clientId', 'clientName', 'clientInitials', 'clientColor', 'studioName', 'studioAvatar', 'published', 'updatedAt', 'taskIds', 'tasks'])"), 'el documento público debe rechazar campos privados');
-check(portal.includes('Calendario mensual del trabajo'), 'el portal debe mostrar un calendario accesible');
-check(portal.includes('calendarDays.map'), 'el calendario debe renderizar su cuadrícula mensual');
-check(portal.includes('moveMonth(-1)'), 'el cliente debe poder navegar al mes anterior');
-check(portal.includes('moveMonth(1)'), 'el cliente debe poder navegar al mes siguiente');
-check(portal.includes('tasksByDate[iso]'), 'las tareas deben ubicarse por fecha en el calendario');
-check(fs.readFileSync('frame.css', 'utf8').includes('grid-template-columns: repeat(7, minmax(150px, 1fr))'), 'el calendario debe conservar siete días con columnas legibles');
 check(portal.includes('max-w-[1440px]'), 'el portal debe aprovechar pantallas amplias');
-check(portal.includes("task.deliverables?.find(item => item.kind === 'photos'"), 'una imagen entregable debe aparecer como miniatura en el calendario');
-check(portal.includes('setOpenTask(task)'), 'la tarjeta del calendario debe abrir su detalle');
 check(portal.includes('Recursos compartidos'), 'el detalle debe reutilizar los entregables normales');
 check(portal.includes('<SharedClientComments'), 'el detalle público debe incluir conversación');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('Información para el cliente'), 'la tarjeta creativa no debe tener un bloque público pegado');
@@ -85,12 +77,6 @@ check(rules.includes('allow delete: if isMember(portal().workspaceId)'), 'sólo 
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Editar comentario'), 'el equipo debe poder editar sus comentarios');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('Eliminar comentario'), 'el equipo debe poder moderar y eliminar comentarios');
 check(rules.includes('request.resource.data.projectId in portal().taskIds'), 'sólo se debe comentar una tarea publicada');
-check(portal.includes('const calendarScrollRef = React.useRef(null)'), 'el calendario debe controlar su contenedor desplazable');
-check(portal.includes("addEventListener('wheel', onWheel, { passive: false })"), 'el trackpad debe activar desplazamiento horizontal');
-check(portal.includes('calendar.scrollLeft += rawDelta * scale'), 'el gesto debe mover el calendario');
-check(portal.includes('horizontalGesture ? event.deltaX : event.deltaY'), 'debe aceptar trackpad y Shift+rueda');
-check(portal.includes("removeEventListener('wheel', onWheel)"), 'el listener debe limpiarse al desmontar');
-check(fs.readFileSync('frame.css', 'utf8').includes('touch-action: pan-x pan-y'), 'el gesto táctil debe permanecer habilitado');
 check(portal.includes('h-screen overflow-y-auto'), 'el portal debe crear su propio viewport vertical desplazable');
 check(portal.includes('portal-page-scroll'), 'el scroll vertical debe tener una regla específica');
 check(fs.readFileSync('frame.css', 'utf8').includes('overscroll-behavior-y: contain'), 'el scroll vertical debe permanecer contenido en el portal');
@@ -98,16 +84,11 @@ check(fs.readFileSync('frame.css', 'utf8').includes('overscroll-behavior-y: cont
 
 // ── Fase 1: el portal responde la pregunta del cliente ──────────────
 check(portal.includes('Próxima entrega'), 'la portada debe abrir con la próxima entrega');
-check(portal.indexOf('Próxima entrega') < portal.indexOf('Calendario de trabajo'), 'la próxima entrega debe ir antes que el calendario');
 check(portal.includes('Tus trabajos'), 'el cliente debe ver la lista de sus trabajos');
-check(portal.indexOf('Tus trabajos') < portal.indexOf('Calendario de trabajo'), 'la lista debe ir antes que el calendario');
 check(portal.includes('const proxima = pendientes[0]'), 'la próxima entrega debe salir de lo pendiente, no de lo entregado');
 check(portal.includes("pendientes = tasks.filter") && portal.includes('a.deadline'), 'lo pendiente debe ordenarse por fecha de entrega');
 check(portal.includes('días de atraso'), 'un atraso debe decirse con todas las letras');
 check(portal.includes("texto: 'Hoy'"), 'la entrega de hoy debe leerse como Hoy');
-check(portal.includes('setCalendarOpen'), 'el calendario debe poder plegarse');
-check(portal.includes("matchMedia('(min-width: 768px)')"), 'el calendario debe arrancar plegado sólo en pantalla chica');
-check(portal.includes('hidden={!calendarOpen}'), 'el calendario plegado no debe ocupar la pantalla');
 check(portal.includes('const avancePorFase'), 'una tarea sin checklist no debe informar 0%');
 check(portal.includes('columns = []'), 'las fases deben entrar por parámetro y no alterar la forma pública');
 check(!portal.includes('columns: '), 'las columnas no deben proyectarse al documento del portal');

@@ -137,15 +137,7 @@ const ClientPortal = ({ token }) => {
   const [portal, setPortal] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [unavailable, setUnavailable] = React.useState(false);
-  const [calendarDate, setCalendarDate] = React.useState(() => new Date(TODAY));
   const [openTask, setOpenTask] = React.useState(null);
-  // Plegado en el teléfono: la cuadrícula mide 1050px contra 315 visibles, así
-  // que abierta empuja fuera de la pantalla lo que el cliente vino a leer.
-  // En pantalla grande entra entera y se abre sola.
-  const [calendarOpen, setCalendarOpen] = React.useState(() => {
-    try { return window.matchMedia('(min-width: 768px)').matches; } catch { return true; }
-  });
-  const calendarScrollRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!/^[a-f0-9]{48}$/.test(token || '')) { setUnavailable(true); setLoading(false); return; }
@@ -157,25 +149,6 @@ const ClientPortal = ({ token }) => {
     return () => unsub();
   }, [token]);
 
-  // Trackpad y Shift+rueda: el calendario es más ancho que el teléfono o una
-  // ventana estrecha, pero algunos navegadores consumen deltaX antes de mover
-  // un overflow anidado. El listener no pasivo sólo intercepta el gesto
-  // claramente horizontal y conserva el scroll vertical de la página.
-  React.useEffect(() => {
-    const calendar = calendarScrollRef.current;
-    if (!calendar) return;
-    const onWheel = event => {
-      const horizontalGesture = Math.abs(event.deltaX) > Math.abs(event.deltaY) * 0.75;
-      if (!horizontalGesture && !event.shiftKey) return;
-      const rawDelta = horizontalGesture ? event.deltaX : event.deltaY;
-      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? calendar.clientWidth : 1;
-      const before = calendar.scrollLeft;
-      calendar.scrollLeft += rawDelta * scale;
-      if (calendar.scrollLeft !== before) event.preventDefault();
-    };
-    calendar.addEventListener('wheel', onWheel, { passive: false });
-    return () => calendar.removeEventListener('wheel', onWheel);
-  }, [portal]);
 
   if (loading) return <LoadingScreen />;
   if (unavailable || !portal) return (
@@ -194,9 +167,12 @@ const ClientPortal = ({ token }) => {
   const overall = tasks.length ? Math.round(tasks.reduce((sum, task) => sum + Number(task.progress || 0), 0) / tasks.length) : 0;
 
   // ── Lo que el cliente vino a preguntar ──────────────────────────
-  // "¿Cuándo me entregás?" se responde arriba de todo y sin tocar nada. El
-  // calendario contesta "cómo está repartido el mes", que es la pregunta de
-  // quien planifica el trabajo, no la de quien lo espera.
+  // "¿Cuándo me entregás?" se responde arriba de todo y sin tocar nada.
+  //
+  // Acá hubo un calendario mensual y se quitó a propósito: contestaba "cómo
+  // está repartido el mes", que es la pregunta de quien planifica el trabajo,
+  // no la de quien lo espera. Además obligaba a arrastrar 3,3 pantallas en un
+  // teléfono. La línea de proceso de cada trabajo dice lo mismo y mejor.
   const pendientes = tasks.filter(t => !entregada(t))
     .sort((a, b) => (a.deadline || '9999-12-31').localeCompare(b.deadline || '9999-12-31'));
   const proxima = pendientes[0] || null;
@@ -224,22 +200,6 @@ const ClientPortal = ({ token }) => {
     if (d === 1) return { texto: 'Mañana', color: 'var(--warn)' };
     return { texto: 'En ' + d + ' días', color: 'var(--text-dim)' };
   };
-  const year = calendarDate.getFullYear();
-  const month = calendarDate.getMonth();
-  const first = new Date(year, month, 1);
-  const gridStart = new Date(year, month, 1 - ((first.getDay() + 6) % 7));
-  const calendarDays = Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(gridStart);
-    date.setDate(gridStart.getDate() + index);
-    return date;
-  });
-  const tasksByDate = tasks.reduce((map, task) => {
-    const date = task.startDate || task.deadline;
-    if (!date) return map;
-    (map[date] ||= []).push(task);
-    return map;
-  }, {});
-  const moveMonth = delta => setCalendarDate(new Date(year, month + delta, 1));
 
   return (
     // body está bloqueado por la aplicación principal. El portal necesita su
@@ -354,55 +314,6 @@ const ClientPortal = ({ token }) => {
           </section>
         )}
 
-        <section>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <button onClick={() => setCalendarOpen(open => !open)}
-                    className="flex items-center gap-2 text-left" aria-expanded={calendarOpen}>
-              <Icon name={calendarOpen ? 'chevronDown' : 'chevronRight'} size={14} style={{ color: 'var(--text-muted)' }} />
-              <span><span className="font-display text-lg font-bold">Calendario de trabajo</span>
-                <span className="block text-[11px]" style={{ color: 'var(--text-muted)' }}>{tasks.length} tareas visibles</span></span>
-            </button>
-            {calendarOpen && (
-              <div className="flex items-center gap-1">
-                <button onClick={() => moveMonth(-1)} className="p-2 rounded-md hover:bg-[var(--surface-2)]" aria-label="Mes anterior"><Icon name="chevronLeft" size={14} /></button>
-                <button onClick={() => setCalendarDate(new Date(TODAY))} className="px-3 py-1.5 rounded-md text-[11px] font-semibold hover:bg-[var(--surface-2)]">Hoy</button>
-                <button onClick={() => moveMonth(1)} className="p-2 rounded-md hover:bg-[var(--surface-2)]" aria-label="Mes siguiente"><Icon name="chevronRight" size={14} /></button>
-              </div>
-            )}
-          </div>
-
-          <div className="surf-panel overflow-hidden" hidden={!calendarOpen}>
-            <div className="px-4 sm:px-5 py-4 border-b border-app font-display text-xl font-bold capitalize">
-              {calendarDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-            </div>
-            <div ref={calendarScrollRef} className="portal-calendar-scroll overflow-x-auto" style={{ overscrollBehaviorX: 'contain' }}>
-              <div className="portal-calendar" role="grid" aria-label="Calendario mensual del trabajo">
-                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => <div key={day} className="portal-calendar-weekday">{day}</div>)}
-                {calendarDays.map(date => {
-                  const iso = localISO(date);
-                  const dayTasks = tasksByDate[iso] || [];
-                  const inMonth = date.getMonth() === month;
-                  const today = iso === localISO(new Date(TODAY));
-                  return (
-                    <div key={iso} className="portal-calendar-day" data-outside={!inMonth || undefined} data-today={today || undefined} role="gridcell">
-                      <div className="flex items-center justify-between mb-2"><span className="text-[11px] tnum font-semibold" style={{ color: today ? 'var(--accent)' : inMonth ? 'var(--text-dim)' : 'var(--text-faint)' }}>{date.getDate()}</span>{today && <span className="text-[9px] font-bold">HOY</span>}</div>
-                      <div className="space-y-1.5">{dayTasks.map(task => (
-                        <article key={task.id} className="portal-calendar-task cursor-pointer" title={`${task.title} · ${task.status}`} onClick={() => setOpenTask(task)}>
-                          {task.deliverables?.find(item => item.kind === 'photos' && item.url) && <img src={task.deliverables.find(item => item.kind === 'photos' && item.url).url} alt="" className="portal-calendar-thumb" />}
-                          <div className="text-[10px] font-semibold truncate">{task.title}</div>
-                          <div className="flex items-center justify-between gap-1 mt-1"><span className="text-[9px] truncate" style={{ color: 'var(--text-muted)' }}>{task.status}</span><span className="flex items-center gap-1"><span className="text-[9px] tnum flex-shrink-0">{task.progress}%</span>{task.deliverables?.some(item => item.url) && <Icon name="link" size={9} />}</span></div>
-                          <div className="h-0.5 rounded-full overflow-hidden mt-1.5" style={{ background: 'var(--surface-3)' }}><div className="h-full" style={{ width: `${task.progress}%`, background: task.progress >= 100 ? 'var(--resource-green)' : 'var(--accent)' }} /></div>
-                          {task.deadline && <div className="text-[9px] tnum truncate mt-1.5" style={{ color: 'var(--text-faint)' }}>Entrega {fmtDate(task.deadline)}</div>}
-                        </article>
-                      ))}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-        </section>
       </main>
       {openTask && (
         <div className="fixed inset-0 z-50 backdrop flex items-center justify-center p-4" onClick={() => setOpenTask(null)}>
