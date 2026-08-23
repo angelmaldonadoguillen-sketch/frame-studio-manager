@@ -89,7 +89,7 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes('role="tablist" aria-label="
 // en el registro. Se envía con el botón, que además dice qué hace.
 check(!/onKeyDown=\{event => \{ if \(event\.key === 'Enter' && !event\.shiftKey[\s\S]{0,80}send\(\)/.test(fs.readFileSync('modal.jsx', 'utf8')),
   'Enter no debe enviar el comentario');
-check(fs.readFileSync('modal.jsx', 'utf8').includes(">\n              {sending ? 'Publicando…' : 'Comentar'}"),
+check(/>\r?\n\s+\{sending \? 'Publicando…' : 'Comentar'\}/.test(fs.readFileSync('modal.jsx', 'utf8')),
   'el envío debe ser un botón con palabra, no una flecha');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('Enter para enviar · Shift + Enter para una nueva línea'),
   'no debe quedar el cartel de un atajo que ya no existe');

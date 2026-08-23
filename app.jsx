@@ -2408,27 +2408,72 @@ const App = () => {
   };
 
   const restoreTrashItem = async (item) => {
-    const { deletedAt, ...project } = item;
+    const { deletedAt, ...storedProject } = item;
+    const originId = storedProject.workspaceId || wsId;
+    const originWorkspace = state.workspaces.find(workspace => workspace.id === originId);
+    const primaryViewerIds = [...new Set((originWorkspace?.memberIds || []).filter(Boolean))];
+    if (!originWorkspace || primaryViewerIds.length === 0) {
+      throw new Error('No se pudo reconstruir el acceso del tablero principal.');
+    }
+
+    // La papelera también contiene documentos anteriores a workspaceIds y
+    // viewerIds. normalizeProject les agrega esos campos para poder pintarlos,
+    // pero viewerIds queda vacío y las reglas rechazan recrear la tarea. La
+    // restauración nace primero con la ACL exacta del tablero principal: es
+    // una creación válida y garantiza que la tarea vuelva aunque compartirla
+    // de nuevo falle después.
+    const primaryProject = {
+      ...storedProject,
+      workspaceId: originId,
+      workspaceIds: [originId],
+      viewerIds: primaryViewerIds,
+    };
     const batch = window.db.batch();
-    batch.set(window.db.collection('frame_projects').doc(project.id), project);
+    const projectRef = window.db.collection('frame_projects').doc(primaryProject.id);
+    batch.set(projectRef, primaryProject);
     batch.delete(window.db.collection('frame_trash').doc(item.id));
     await batch.commit();
 
-    // Al eliminar se quitaron estas referencias. Sin restaurarlas, la tarea
-    // compartida volvía sólo a su tablero principal.
-    await Promise.all((project.workspaceIds || [project.workspaceId]).filter(Boolean).map(workspaceId =>
-      window.db.collection('frame_workspaces').doc(workspaceId).update({
-        sharedTaskIds: firebase.firestore.FieldValue.arrayUnion(project.id),
-      }).catch(err => console.error('[FRAME] Restaurar referencia compartida:', err))
-    ));
-    return project;
+    const rememberedIds = [...new Set((storedProject.workspaceIds || [originId]).filter(Boolean))];
+    const availableIds = [
+      originId,
+      ...rememberedIds.filter(id => id !== originId && state.workspaces.some(workspace => workspace.id === id)),
+    ];
+    if (availableIds.length === 1) return { project: primaryProject, sharingFailed: false };
+
+    const availableWorkspaces = availableIds
+      .map(id => state.workspaces.find(workspace => workspace.id === id))
+      .filter(Boolean);
+    const viewerIds = [...new Set(availableWorkspaces.flatMap(workspace => workspace.memberIds || []).filter(Boolean))];
+    try {
+      // Segunda fase atómica: recupera la ACL compartida y las referencias de
+      // cada tablero. Si falla, la primera fase ya dejó la tarea a salvo en
+      // su tablero principal.
+      const shareBatch = window.db.batch();
+      shareBatch.update(projectRef, { workspaceIds: availableIds, viewerIds });
+      availableIds.forEach(workspaceId => {
+        shareBatch.update(window.db.collection('frame_workspaces').doc(workspaceId), {
+          sharedTaskIds: firebase.firestore.FieldValue.arrayUnion(primaryProject.id),
+        });
+      });
+      await shareBatch.commit();
+      return {
+        project: { ...primaryProject, workspaceIds: availableIds, viewerIds },
+        sharingFailed: false,
+      };
+    } catch (err) {
+      console.error('[FRAME] Restaurar referencias compartidas:', err);
+      return { project: primaryProject, sharingFailed: true };
+    }
   };
 
   const handleRestoreProject = async (item) => {
     try {
-      const project = await restoreTrashItem(item);
+      const { project, sharingFailed } = await restoreTrashItem(item);
       dispatch({ type: 'restore_project', project });
-      window.frameToast?.('Tarea restaurada.');
+      window.frameToast?.(sharingFailed
+        ? 'Tarea restaurada en su tablero principal.'
+        : 'Tarea restaurada.');
     } catch (err) {
       notifyWriteError(err, 'la restauración de la tarea');
     }
@@ -2447,12 +2492,18 @@ const App = () => {
   const handleRestoreAllTrash = async () => {
     const restored = [];
     let failed = 0;
+    let sharingFailed = 0;
     for (const item of state.trash) {
-      try { restored.push(await restoreTrashItem(item)); }
+      try {
+        const result = await restoreTrashItem(item);
+        restored.push(result.project);
+        if (result.sharingFailed) sharingFailed += 1;
+      }
       catch (err) { failed += 1; console.error('[FRAME] Restaurar todo:', item.id, err); }
     }
     if (restored.length) dispatch({ type: 'restore_projects', projects: restored });
     if (failed) window.frameToast?.(`${restored.length} restauradas; ${failed} no se pudieron restaurar.`);
+    else if (sharingFailed) window.frameToast?.(`${restored.length} restauradas; ${sharingFailed} quedaron sólo en su tablero principal.`);
     else window.frameToast?.(`${restored.length} ${restored.length === 1 ? 'tarea restaurada' : 'tareas restauradas'}.`);
   };
 
