@@ -211,7 +211,7 @@ const QuickAddSheet = ({ tipos, statusId, onCreate, onClose }) => {
               className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors"
               style={{
                 background: tipo === t.id ? t.color : 'var(--surface-3)',
-                color:      tipo === t.id ? '#0a0a0b' : 'var(--text-dim)',
+                color:      tipo === t.id ? 'var(--resource-on)' : 'var(--text-dim)',
               }}
             >
               {t.label}
@@ -395,7 +395,7 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
     setCargando('tarjeta');
     cargarModulo('modal.jsx', () => typeof ProjectModal !== 'undefined')
       .then(() => { setCargando(null); dispatch({ type: 'open_project', id }); })
-      .catch(() => { setCargando(null); window.frameToast?.('No se pudo abrir la tarjeta. Revisá la conexión.'); });
+      .catch(() => { setCargando(null); window.frameToast?.('No se pudo abrir la tarea. Revisá la conexión.'); });
   };
 
   const abrirRutina = () => {
@@ -536,7 +536,7 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
           onClick={() => setQuickAdd(true)}
           className="w-14 h-14 rounded-full flex items-center justify-center"
           style={{ background: 'var(--accent)', color: 'var(--accent-on)', boxShadow: '0 8px 24px -6px rgba(0,0,0,.6)' }}
-          aria-label="Agregar tarjeta"
+          aria-label="Nueva tarea"
         >
           <Icon name="plus" size={24} strokeWidth={2.5} />
         </button>

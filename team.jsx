@@ -365,7 +365,7 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
 
             {/* Availability dropdown */}
             <div className="flex items-center gap-3 mb-5">
-              <span className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">Estado</span>
+              <span className="ui-section-label">Estado</span>
               <Dropdown
                 trigger={
                   <button
@@ -420,7 +420,7 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
           <div className="p-6 space-y-6">
             {/* Contact */}
             <section>
-              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Contacto</div>
+              <div className="ui-section-label mb-3">Contacto</div>
               <div className="rounded-lg overflow-hidden border border-app divide-y divide-[var(--border)]">
                 {[
                   { icon: 'at',  label: 'Email',    key: 'email', mono: true },
@@ -445,7 +445,7 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
 
             {/* Skills */}
             <section>
-              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Skills</div>
+              <div className="ui-section-label mb-2">Skills</div>
               <div className="flex flex-wrap gap-1.5">
                 {(member.skills || []).map(s => (
                   <span key={s} className="group flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-[var(--surface-2)] text-[var(--text-dim)]">
@@ -461,7 +461,7 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
 
             {/* Bio */}
             <section>
-              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Bio</div>
+              <div className="ui-section-label mb-2">Bio</div>
               <InlineEdit
                 value={member.bio || ''}
                 onChange={(v) => upd({ bio: v })}
@@ -473,7 +473,7 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
 
             {/* Projects */}
             <section>
-              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">
+              <div className="ui-section-label mb-3">
                 Tareas asignadas ({all.length})
               </div>
               {all.length === 0 ? (
@@ -537,7 +537,7 @@ const MemberDetail = ({ member, projects, onClose, onUpdate, onDelete, currentUs
                       <button
                         onClick={() => { onDelete(member.id); onClose(); }}
                         className="flex-1 py-1.5 rounded-md text-[13px] font-semibold"
-                        style={{ background: 'var(--danger)', color: '#0a0a0b' }}
+                        style={{ background: 'var(--danger)', color: 'var(--danger-on)' }}
                       >
                         Sí, eliminar
                       </button>

@@ -15,22 +15,14 @@ const AUTH_ERRORS = {
   'auth/popup-closed-by-user':   'Ventana cerrada antes de completar.',
 };
 
-// ── Guía de setup (cuando auth no está habilitado) ───────────────
+// ── Estado de acceso no disponible ───────────────────────────────
 const AuthSetupGuide = () => (
   <div
-    className="p-4 rounded-xl border text-[12px] leading-relaxed space-y-1.5"
+    className="p-3 rounded-lg text-[12px] flex items-center gap-2"
     style={{ background: 'var(--warn-soft)', borderColor: 'var(--warn-soft-2)', color: 'var(--warn)' }}
   >
-    <div className="font-semibold flex items-center gap-2">
-      <Icon name="alert" size={13} />
-      Firebase Auth no está habilitado aún
-    </div>
-    <div className="text-[11px] opacity-80 leading-relaxed pl-5">
-      1. Abrí <strong>console.firebase.google.com</strong><br />
-      2. Proyecto <strong>tooned-os</strong> → Authentication<br />
-      3. Sign-in method → <strong>Email/Password</strong> → Habilitar<br />
-      4. Settings → Authorized domains → Agregar <strong>angelmaldonadoguillen-sketch.github.io</strong>
-    </div>
+    <Icon name="alert" size={14} className="flex-shrink-0" />
+    <span className="font-medium">El acceso no está disponible en este momento.</span>
   </div>
 );
 
@@ -81,7 +73,7 @@ const LoginScreen = () => {
       const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
       const colors   = typeof TEAM_COLORS !== 'undefined'
         ? TEAM_COLORS
-        : ['#D4FF4F','#FF7A59','#6CC4FF','#C089FF','var(--warn)','#FB7185','#7DD3C0'];
+        : ['var(--resource-green)','var(--resource-coral)','var(--resource-blue)','var(--resource-violet)','var(--warn)','var(--resource-pink)','var(--resource-teal)'];
 
       const newProfile = {
         id:           cred.user.uid,
@@ -136,20 +128,17 @@ const LoginScreen = () => {
 
   return (
     <div
-      className="h-screen flex items-center justify-center"
+      className="frame-auth-stage h-screen flex items-center justify-center"
       style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}
     >
       <div className="w-full max-w-[380px] px-5">
 
         {/* Logo + título */}
         <div className="text-center mb-8 anim-fade-in">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: 'var(--accent)', boxShadow: '0 0 40px rgba(212,255,79,0.25)' }}
-          >
+          <div className="frame-auth-mark w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span
               className="font-display font-black text-[30px]"
-              style={{ color: '#0a0a0b', letterSpacing: '-0.04em' }}
+              style={{ letterSpacing: '-0.04em' }}
             >
               F
             </span>
@@ -160,8 +149,8 @@ const LoginScreen = () => {
           >
             FRAME
           </div>
-          <div className="text-[10px] tracking-[0.3em] text-[var(--text-muted)] uppercase mt-1">
-            Studio Manager
+          <div className="text-[11px] text-[var(--text-muted)] mt-1">
+            Studio manager
           </div>
         </div>
 
@@ -198,13 +187,13 @@ const LoginScreen = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nombre completo *"
-                  className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2 focus:border-[var(--accent)]/60 transition-colors"
+                  className="field w-full px-3 py-2.5 text-[13px]"
                 />
                 <input
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   placeholder="Rol (ej: Editor, Fotógrafo…)"
-                  className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2"
+                  className="field w-full px-3 py-2.5 text-[13px]"
                 />
               </>
             )}
@@ -215,7 +204,7 @@ const LoginScreen = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
-              className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2 focus:border-[var(--accent)]/60 transition-colors"
+              className="field w-full px-3 py-2.5 text-[13px]"
             />
 
             <input
@@ -224,7 +213,7 @@ const LoginScreen = () => {
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && mode === 'login') submit(); }}
               placeholder="Contraseña"
-              className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2"
+              className="field w-full px-3 py-2.5 text-[13px]"
             />
 
             {mode === 'register' && (
@@ -234,7 +223,7 @@ const LoginScreen = () => {
                 onChange={(e) => setConfirm(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
                 placeholder="Confirmar contraseña *"
-                className="w-full px-3 py-2.5 rounded-lg text-[13px] border border-app surface-2"
+                className="field w-full px-3 py-2.5 text-[13px]"
               />
             )}
 
@@ -257,11 +246,11 @@ const LoginScreen = () => {
               onClick={submit}
               disabled={loading || !canSubmit}
               className="w-full py-2.5 rounded-lg text-[13px] font-bold disabled:opacity-40 transition hover:brightness-110 flex items-center justify-center gap-2 mt-1"
-              style={{ background: 'var(--accent)', color: '#0a0a0b' }}
+              style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
             >
               {loading ? (
                 <>
-                  <div className="w-3.5 h-3.5 rounded-full border-2 border-[#0a0a0b]/40 border-t-[#0a0a0b] animate-spin"></div>
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-current opacity-60 animate-spin" style={{ borderRightColor: 'transparent' }}></div>
                   Un momento…
                 </>
               ) : mode === 'login' ? (

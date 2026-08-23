@@ -160,8 +160,8 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* Status breakdown */}
-          <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
-            <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-4">
+          <div className="surf-panel p-5">
+            <div className="ui-section-label mb-4">
               Estado de tareas
             </div>
             <div className="space-y-3">
@@ -189,8 +189,8 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
           </div>
 
           {/* Type breakdown — real project types */}
-          <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
-            <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-4">
+          <div className="surf-panel p-5">
+            <div className="ui-section-label mb-4">
               Por tipo de producción
             </div>
             {typeCounts.length === 0 ? (
@@ -223,9 +223,9 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-4">
 
           {/* Monthly project count bar chart */}
-          <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
+          <div className="surf-panel p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">
+              <div className="ui-section-label">
                 Tareas por mes — últimos 6 meses
               </div>
               <div className="text-[10px] text-[var(--text-muted)]">por fecha límite</div>
@@ -265,8 +265,8 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
           </div>
 
           {/* Team workload — active members only */}
-          <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
-            <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-4">
+          <div className="surf-panel p-5">
+            <div className="ui-section-label mb-4">
               Carga del equipo
             </div>
             {workload.length === 0 ? (
@@ -301,8 +301,8 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         </div>
 
         {/* ── Row 4: Top clientes ── */}
-        <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
-          <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-4">
+        <div className="surf-panel p-5">
+          <div className="ui-section-label mb-4">
             Top clientes por volumen
           </div>
           {topClients.length === 0 ? (
@@ -343,9 +343,9 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
         </div>
 
         {/* ── Row 5: Próximos deadlines ── */}
-        <div className="rounded-xl border border-app p-5" style={{ background: 'var(--surface)' }}>
+        <div className="surf-panel p-5">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">
+            <div className="ui-section-label">
               Próximas fechas límite
             </div>
             {urgent.length > 0 && (
@@ -398,9 +398,9 @@ const AnalyticsSection = ({ projects, clients, team, currentUserId }) => {
 
 // ── KPI Card ─────────────────────────────────────────────────────
 const KpiCard = ({ icon, label, value, sub, color }) => (
-  <div className="rounded-xl border border-app p-4 flex flex-col gap-2" style={{ background: 'var(--surface)' }}>
+  <div className="surf p-4 flex flex-col gap-2">
     <div className="flex items-center justify-between">
-      <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">{label}</div>
+      <div className="ui-section-label">{label}</div>
       <div
         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
         style={{ background: colorAlpha(color, 13), color }}
