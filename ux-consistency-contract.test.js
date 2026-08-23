@@ -15,7 +15,7 @@ assert.match(css, /\.ui-section-label\s*\{/);
 assert.match(modal, /className="ui-section-label basis-full mb-3">Propiedades/);
 assert.match(modal, /<SectionTitle icon="check"[^>]*>[\s\S]*?Checklist[\s\S]*?<\/SectionTitle>/);
 assert.doesNotMatch(modal, /Checklist de producción/);
-assert.match(modal, /\{id:'comments',label:'Chat',icon:'message'\}/);
+assert.match(modal, /\{id:'comments',label:'Comentarios',icon:'message'\}/);
 assert.doesNotMatch(modal, /Los mensajes del equipo aparecerán aquí|El cliente y el equipo comparten este chat|Los cambios importantes aparecerán aquí/);
 assert.match(views, /label = 'Nueva tarea'/);
 assert.match(mobile, /aria-label="Nueva tarea"/);

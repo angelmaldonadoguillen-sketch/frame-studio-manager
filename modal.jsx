@@ -1199,9 +1199,9 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
               {[
                 {id:'overview',label:'Visión general',icon:'list'},
                 ...(clientPortalToken
-                  ? [{id:'comments',label:'Chat',icon:'message'}]
+                  ? [{id:'comments',label:'Comentarios',icon:'message'}]
                   : collaborationEnabled
-                    ? [{id:'comments',label:'Chat',icon:'message'}]
+                    ? [{id:'comments',label:'Comentarios',icon:'message'}]
                     : []),
               ].map(t => (
                 <button
@@ -2170,7 +2170,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
         {!commentsLoading && comments.length === 0 && (
           <div className="min-h-[180px] flex flex-col items-center justify-center text-center px-6">
             <Icon name="message" size={20} style={{ color: 'var(--text-muted)' }} />
-            <div className="text-[13px] font-medium mt-3">Iniciá la conversación</div>
+            <div className="text-[13px] font-medium mt-3">Sin comentarios todavía</div>
           </div>
         )}
         {comments.map(c => {
@@ -2273,8 +2273,29 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   const listRef = useRef(null);
   const composerRef = useRef(null);
   const initialsFor = value => String(value || '?').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
-  const avatarFor = comment => comment.authorType === 'studio' ? (studioAvatar || authorAvatar) : '';
+
+  // Sólo el propio comentario lleva foto. Antes todo comentario del estudio
+  // usaba studioAvatar —la foto del dueño del tablero—, así que si escribía
+  // otra persona del equipo el cliente veía su nombre con la cara de otro.
+  // Las iniciales del autor siempre son correctas.
+  const avatarFor = comment =>
+    (comment.authorType === authorType && comment.authorName === authorName && authorAvatar) ? authorAvatar : '';
   const clientAvatarStyle = { background: resolveThemeColor(clientColor || 'var(--resource-blue)'), color: 'var(--resource-on)' };
+
+  // Un comentario es un registro, no un mensaje. "hace 2 h" sirve mientras
+  // mirás; a los tres días no dice nada y este hilo es la prueba de lo que se
+  // acordó. Va la fecha, y la hora al lado.
+  const selloDeTiempo = (iso) => {
+    const dt = new Date(iso);
+    if (Number.isNaN(dt.getTime())) return '';
+    const hoy = new Date(TODAY);
+    const mismoAno = dt.getFullYear() === hoy.getFullYear();
+    const fecha = dt.toLocaleDateString('es-ES', mismoAno
+      ? { day: '2-digit', month: 'short' }
+      : { day: '2-digit', month: 'short', year: 'numeric' });
+    const hora = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return `${fecha}, ${hora}`;
+  };
 
   useEffect(() => {
     if (!portalToken || !projectId) return;
@@ -2287,8 +2308,17 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
     return () => unsub();
   }, [portalToken, projectId]);
 
+  // Baja al final sólo cuando llega un comentario nuevo con el hilo ya
+  // abierto. Al abrir se lee desde donde empieza, como cualquier registro;
+  // saltar al fondo es comportamiento de chat y deja al que entra sin saber
+  // dónde está parado.
+  const vistos = useRef(null);
   useEffect(() => {
-    if (!loading && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+    if (loading || !listRef.current) return;
+    if (vistos.current !== null && comments.length > vistos.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+    vistos.current = comments.length;
   }, [comments.length, loading]);
 
   const uploadImage = async (file) => {
@@ -2362,12 +2392,24 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   return <section className={`flex flex-col max-w-[900px] ${authorType === 'client' ? 'min-h-[280px] pt-1' : 'min-h-[420px] p-5 md:p-7'}`}>
     <div ref={listRef} className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1 md:pr-2" aria-live="polite">
       {loading && <div className="min-h-[160px] flex items-center justify-center"><div className="flex gap-1.5">{[0,1,2].map(index => <span key={index} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--text-muted)', animationDelay: `${index * 160}ms` }} />)}</div></div>}
-      {!loading && comments.length === 0 && <div className="min-h-[160px] flex flex-col items-center justify-center text-center px-6"><Icon name="message" size={20} style={{ color: 'var(--text-muted)' }} /><div className="text-[13px] font-medium mt-3">Iniciá la conversación</div></div>}
+      {!loading && comments.length === 0 && <div className="min-h-[160px] flex flex-col items-center justify-center text-center px-6"><Icon name="message" size={20} style={{ color: 'var(--text-muted)' }} /><div className="text-[13px] font-medium mt-3">Sin comentarios todavía</div></div>}
       {!loading && comments.map(comment => <article key={comment.id} className="flex gap-3 group rounded-lg py-1">
         {avatarFor(comment) ? <img src={avatarFor(comment)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0" style={comment.authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{comment.authorType === 'client' ? (clientInitials || initialsFor(comment.authorName)) : initialsFor(comment.authorName)}</div>}
         <div className="min-w-0 flex-1 pt-0.5">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"><span className="text-[12px] font-semibold">{comment.authorName}</span><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{relativeTime(comment.at)}{comment.editedAt ? ' · editado' : ''}</span></div>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-[12px] font-semibold">{comment.authorName}</span>
+              {/* Quién es cada uno, dicho. En un registro entre dos partes no
+                  alcanza con el nombre: el cliente no tiene por qué saber que
+                  "Rocío" es del estudio. */}
+              <span className="text-[9px] px-1.5 py-0.5 rounded tracking-wide uppercase"
+                    style={comment.authorType === 'studio'
+                      ? { background: 'var(--surface-3)', color: 'var(--text-dim)' }
+                      : { background: 'var(--accent-soft)', color: 'var(--text-dim)' }}>
+                {comment.authorType === 'studio' ? 'Estudio' : 'Cliente'}
+              </span>
+              <span className="text-[10px] tnum" title={new Date(comment.at).toLocaleString('es-ES')} style={{ color: 'var(--text-muted)' }}>{selloDeTiempo(comment.at)}{comment.editedAt ? ' · editado' : ''}</span>
+            </div>
             {authorType === 'studio' && <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
               {comment.authorType === 'studio' && comment.text && <button type="button" onClick={() => { setEditingId(comment.id); setEditingText(comment.text); setConfirmDeleteId(''); }} aria-label="Editar comentario" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)]" title="Editar comentario"><Icon name="edit" size={13} /></button>}
               {confirmDeleteId === comment.id ? <><button type="button" onClick={() => deleteComment(comment.id)} className="px-2 h-7 rounded-md text-[10px] hover:bg-[var(--surface-2)]" style={{ color: 'var(--danger)' }}>Eliminar</button><button type="button" onClick={() => setConfirmDeleteId('')} className="px-2 h-7 rounded-md text-[10px] hover:bg-[var(--surface-2)]" style={{ color: 'var(--text-muted)' }}>Cancelar</button></> : <button type="button" onClick={() => { setConfirmDeleteId(comment.id); setEditingId(''); }} aria-label="Eliminar comentario" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)]" title="Eliminar comentario"><Icon name="trash" size={13} /></button>}
@@ -2384,20 +2426,27 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
       <div className="relative flex gap-3 items-start">
         {composerAvatar ? <img src={composerAvatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-1" style={authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{authorType === 'client' ? (clientInitials || initialsFor(authorName)) : initialsFor(authorName)}</div>}
         <div className="flex-1 min-w-0 rounded-xl border border-app focus-within:border-[var(--border-2)] transition-colors" style={{ background: 'var(--surface-2)' }}>
-          <textarea ref={composerRef} value={text} onChange={event => setText(event.target.value)} onInput={event => { event.currentTarget.style.height = 'auto'; event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 120)}px`; }} onPaste={onPaste} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } if (event.key === 'Escape') setEmojiOpen(false); }} maxLength={2000} rows={1} className="w-full px-3 pt-3 pb-1 text-[13px] leading-5 resize-none bg-transparent min-h-[48px] max-h-[120px]" placeholder="Agregar un comentario…" />
+          {/* Enter hace un salto de línea, no envía. Un comentario se piensa
+              antes de mandarlo: con Enter enviando, un párrafo de tres
+              renglones salía como tres comentarios sueltos y quedaba así en
+              el registro. Se envía con el botón, a propósito. */}
+          <textarea ref={composerRef} value={text} onChange={event => setText(event.target.value)} onInput={event => { event.currentTarget.style.height = 'auto'; event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 160)}px`; }} onPaste={onPaste} onKeyDown={event => { if (event.key === 'Escape') setEmojiOpen(false); }} maxLength={2000} rows={2} className="w-full px-3 pt-3 pb-1 text-[13px] leading-5 resize-none bg-transparent min-h-[68px] max-h-[160px]" placeholder="Escribí un comentario…" />
           <div className="flex items-center justify-between px-2 pb-2">
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" aria-label="Adjuntar imagen" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></button>
               <button type="button" onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" aria-label="Agregar emoji" aria-pressed={emojiOpen} aria-expanded={emojiOpen} aria-controls="shared-emoji-picker" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="emoji" size={17} /></button>
               {uploading && <span className="text-[10px] ml-1" style={{ color: 'var(--accent)' }}>Subiendo…</span>}
             </div>
-            <button type="button" onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} aria-label="Enviar comentario" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] disabled:opacity-25" style={{ color: 'var(--text-dim)' }}><Icon name="arrowUp" size={17} strokeWidth={1.9} /></button>
+            {/* Botón con palabra y no una flecha: es la única forma de enviar
+                desde que Enter hace salto de línea, así que tiene que verse. */}
+            <button type="button" onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} className="px-3.5 h-8 rounded-md text-[12px] font-semibold disabled:opacity-30 transition-opacity" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>
+              {sending ? 'Publicando…' : 'Comentar'}
+            </button>
           </div>
           <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; uploadImage(file); }} />
         </div>
         {emojiOpen && <ChatEmojiPicker id="shared-emoji-picker" onClose={() => setEmojiOpen(false)} onPick={emoji => { setText(value => value + emoji); setEmojiOpen(false); composerRef.current?.focus(); }} className="absolute left-11 bottom-full mb-2" />}
       </div>
-      <div className="hidden sm:block text-[9px] mt-1.5 ml-11" style={{ color: 'var(--text-faint)' }}>Enter para enviar · Shift + Enter para una nueva línea</div>
     </div>
   </section>;
 };

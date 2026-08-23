@@ -209,7 +209,13 @@ const ClientPortal = ({ token }) => {
       <header className="px-5 sm:px-8 py-5 border-b border-app" style={{ background: 'var(--surface)' }}>
         <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center font-display font-bold" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>F</div>
+            {/* La foto del estudio va acá, que es donde identifica a quien
+                comparte. Antes se usaba para firmar cada comentario del
+                equipo, y le ponía la cara del dueño del tablero a lo que
+                escribía cualquier otro. */}
+            {portal.studioAvatar
+              ? <img src={portal.studioAvatar} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+              : <div className="w-9 h-9 rounded-lg flex items-center justify-center font-display font-bold flex-shrink-0" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>{String(portal.studioName || 'F').trim().slice(0, 1).toUpperCase()}</div>}
             <div className="min-w-0"><div className="font-semibold truncate">{portal.studioName}</div><div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Seguimiento compartido</div></div>
           </div>
           <div className="text-[11px] tnum" style={{ color: 'var(--text-muted)' }}>Actualizado {relativeTime(portal.updatedAt)}</div>

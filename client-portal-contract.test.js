@@ -29,7 +29,7 @@ check(portal.includes('max-w-[1440px]'), 'el portal debe aprovechar pantallas am
 check(portal.includes('Recursos compartidos'), 'el detalle debe reutilizar los entregables normales');
 check(portal.includes('<SharedClientComments'), 'el detalle público debe incluir conversación');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('Información para el cliente'), 'la tarjeta creativa no debe tener un bloque público pegado');
-check(fs.readFileSync('modal.jsx', 'utf8').includes("label:'Chat'"), 'el chat compartido debe aparecer con un nombre simple');
+check(fs.readFileSync('modal.jsx', 'utf8').includes("label:'Comentarios'"), 'la pestaña debe llamarse Comentarios: no es un chat, es un registro');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('El cliente y el equipo ven esta misma conversación.'), 'el chat no debe mostrar explicaciones redundantes');
 check(fs.readFileSync('data.jsx', 'utf8').includes("avatar:   m?.avatar"), 'la ficha del tablero debe conservar el avatar del perfil');
 check(portal.includes('studioAvatar:'), 'el portal debe proyectar sólo el avatar público del estudio');
@@ -63,10 +63,17 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes('const CHAT_EMOJI_GROUPS = [
 check(fs.readFileSync('modal.jsx', 'utf8').includes("id: 'faces', label: 'Caras'"), 'el selector debe incluir una categoría de caras');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("id: 'work', label: 'Trabajo'"), 'el selector debe incluir una categoría orientada al trabajo');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('role="tablist" aria-label="Categorías de emojis"'), 'las categorías deben ser navegables y accesibles');
-check(fs.readFileSync('modal.jsx', 'utf8').includes("event.key === 'Enter' && !event.shiftKey"), 'Enter debe enviar y Shift+Enter debe conservar el salto de línea');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Enter para enviar · Shift + Enter para una nueva línea'), 'el chat debe explicar el atajo sin recargar el compositor');
+// Enter ya NO envía: un comentario se piensa antes de mandarlo, y con Enter
+// enviando un párrafo de tres renglones quedaba como tres comentarios sueltos
+// en el registro. Se envía con el botón, que además dice qué hace.
+check(!/onKeyDown=\{event => \{ if \(event\.key === 'Enter' && !event\.shiftKey[\s\S]{0,80}send\(\)/.test(fs.readFileSync('modal.jsx', 'utf8')),
+  'Enter no debe enviar el comentario');
+check(fs.readFileSync('modal.jsx', 'utf8').includes(">\n              {sending ? 'Publicando…' : 'Comentar'}"),
+  'el envío debe ser un botón con palabra, no una flecha');
+check(!fs.readFileSync('modal.jsx', 'utf8').includes('Enter para enviar · Shift + Enter para una nueva línea'),
+  'no debe quedar el cartel de un atajo que ya no existe');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-live="polite"'), 'la conversación debe anunciar mensajes nuevos sin interrumpir');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('Iniciá la conversación'), 'el estado vacío debe invitar a conversar con lenguaje breve');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Sin comentarios todavía'), 'el estado vacío debe nombrar lo que hay, sin invitar a conversar');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("listRef.current.scrollTop = listRef.current.scrollHeight"), 'el chat debe mantener visible el mensaje más reciente');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('<FormatBtn'), 'el chat interno no debe mostrar controles decorativos sin función');
 check(rules.includes('request.resource.data.text.size() <= 2000'), 'los comentarios deben tener límite de tamaño');
