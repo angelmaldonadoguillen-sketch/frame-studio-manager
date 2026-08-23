@@ -42,6 +42,23 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
   // dibujar la línea de proceso sin publicar reglas nuevas — y sin el riesgo
   // de que un documento con una clave de más quede rechazado en silencio.
   const etiquetasFases = columnas.map(c => String(c.label || c.id || '')).slice(0, 12);
+
+  // La imagen de la tarjeta. Primero la portada que puso el creativo; si no
+  // hay, la primera imagen que ya compartió. Un trabajo audiovisual se
+  // reconoce por la imagen antes que por el título, y en una lista de seis
+  // trabajos es la diferencia entre buscar y ver.
+  //
+  // Sólo https: una portada de color o una ruta interna no son una imagen que
+  // el cliente pueda abrir.
+  const portadaDe = (project) => {
+    const cover = project.cover;
+    if (cover && cover.type === 'image' && /^https:\/\//i.test(String(cover.value || ''))) {
+      return String(cover.value);
+    }
+    const compartida = (project.deliverables || []).find(item =>
+      item.status === 'ready' && item.kind === 'photos' && /^https:\/\//i.test(String(item.url || '')));
+    return compartida ? String(compartida.url) : '';
+  };
   const visible = (projects || [])
     // Visible por defecto: al publicar un cliente entran todas sus tareas.
     // Sólo se excluye una cuando el creativo lo decide explícitamente.
@@ -64,6 +81,7 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
         // (columnas viejas o borradas): ahí no se dibuja la línea en vez de
         // dibujarla mal.
         phaseIndex: isClosed(project) ? etiquetasFases.length : fases.indexOf(project.status),
+        cover: portadaDe(project),
         deliverables: (project.deliverables || []).filter(item => item.status === 'ready').map(item => ({
           name: String(item.name || 'Entregable'),
           kind: String(item.kind || 'file'),
@@ -138,6 +156,17 @@ const ClientPortal = ({ token }) => {
   const [loading, setLoading] = React.useState(true);
   const [unavailable, setUnavailable] = React.useState(false);
   const [openTask, setOpenTask] = React.useState(null);
+  // Visor a tamaño completo. Abrir la imagen en otra pestaña deja al cliente
+  // fuera del seguimiento y con una URL de Storage en la barra; acá se mira y
+  // se vuelve con Escape.
+  const [lightbox, setLightbox] = React.useState('');
+
+  React.useEffect(() => {
+    if (!lightbox) return;
+    const esc = e => { if (e.key === 'Escape') setLightbox(''); };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [lightbox]);
 
   React.useEffect(() => {
     if (!/^[a-f0-9]{48}$/.test(token || '')) { setUnavailable(true); setLoading(false); return; }
@@ -292,7 +321,15 @@ const ClientPortal = ({ token }) => {
                 return (
                   <button key={task.id} onClick={() => setOpenTask(task)}
                           className="w-full text-left surf surf-hover p-4">
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3.5">
+                      {/* La miniatura antes de abrir nada: en una lista de
+                          trabajos audiovisuales, la imagen identifica más
+                          rápido que el título. */}
+                      {task.cover && (
+                        <img src={task.cover} alt="" loading="lazy" referrerPolicy="no-referrer"
+                             className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+                             style={{ background: 'var(--surface-3)' }} />
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="text-[14px] font-semibold truncate">{task.title}</div>
                         <div className="flex items-center gap-2 mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
@@ -326,11 +363,50 @@ const ClientPortal = ({ token }) => {
           <div className="surf-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
             <div className="p-5 sm:p-7">
               <div className="flex items-start justify-between gap-4"><div><div className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>{openTask.type} · {openTask.status}</div><h2 className="font-display text-2xl font-bold pretty">{openTask.title}</h2></div><button onClick={() => setOpenTask(null)} className="p-2 rounded-md hover:bg-[var(--surface-3)]"><Icon name="x" size={15} /></button></div>
-              <div className="grid grid-cols-2 gap-3 my-5"><div className="surf p-3"><div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Inicio</div><div className="font-semibold tnum">{fmtDate(openTask.startDate)}</div></div><div className="surf p-3"><div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Entrega</div><div className="font-semibold tnum">{fmtDate(openTask.deadline)}</div></div></div>
-              {openTask.deliverables?.length > 0 && <section className="mb-6"><h3 className="ui-section-label mb-3">Recursos compartidos</h3><div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{openTask.deliverables.map((item, index) => item.url ? <a key={index} href={item.url} target="_blank" rel="noopener noreferrer" className="surf overflow-hidden group">{item.kind === 'photos' ? <img src={item.url} alt={item.name} className="w-full h-24 object-cover transition-transform group-hover:scale-105" /> : <div className="h-20 flex items-center justify-center"><Icon name="external" size={18} /></div>}<div className="px-2.5 py-2 text-[10px] truncate">{item.name}</div></a> : <div key={index} className="surf px-3 py-3 text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{item.name}</div>)}</div></section>}
+              {/* La portada, grande y abrible. Es lo primero que el cliente
+                  quiere ver de un trabajo audiovisual. */}
+              {openTask.cover && (
+                <button onClick={() => setLightbox(openTask.cover)}
+                        className="block w-full mt-5 rounded-xl overflow-hidden"
+                        aria-label="Ver la imagen a tamaño completo">
+                  <img src={openTask.cover} alt="" referrerPolicy="no-referrer"
+                       className="w-full max-h-72 object-cover transition-transform hover:scale-[1.01]"
+                       style={{ background: 'var(--surface-3)' }} />
+                </button>
+              )}
+
+              {/* Fase actual, con la misma línea que la lista: el cliente no
+                  tiene que traducir entre una vista y la otra. */}
+              <div className="mt-5">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <span className="text-[12px] font-medium">{phaseText(openTask)}</span>
+                  <span className="text-[12px] tnum" style={{ color: 'var(--text-muted)' }}>{openTask.progress}%</span>
+                </div>
+                <PhaseLine phases={openTask.phases} phaseIndex={openTask.phaseIndex} size="lg" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 my-5"><div className="surf p-3"><div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Inicio</div><div className="font-semibold tnum">{fmtDate(openTask.startDate)}</div></div><div className="surf p-3"><div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fecha límite</div><div className="font-semibold tnum">{fmtDate(openTask.deadline)}</div></div></div>
+              {openTask.deliverables?.length > 0 && <section className="mb-6"><h3 className="ui-section-label mb-3">Recursos compartidos</h3><div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{openTask.deliverables.map((item, index) => item.url ? (item.kind === 'photos' ? <button key={index} type="button" onClick={() => setLightbox(item.url)} className="surf overflow-hidden group text-left" aria-label={'Ver ' + item.name}><img src={item.url} alt={item.name} referrerPolicy="no-referrer" className="w-full h-24 object-cover transition-transform group-hover:scale-105" /><div className="px-2.5 py-2 text-[10px] truncate">{item.name}</div></button> : <a key={index} href={item.url} target="_blank" rel="noopener noreferrer" className="surf overflow-hidden group"><div className="h-20 flex items-center justify-center"><Icon name={item.kind === 'link' ? 'link' : item.kind === 'video' ? 'film' : 'paperclip'} size={18} /></div><div className="px-2.5 py-2 text-[10px] truncate">{item.name}</div></a>) : <div key={index} className="surf px-3 py-3 text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{item.name}</div>)}</div></section>}
               <SharedClientComments portalToken={token} projectId={openTask.id} authorType="client" authorName={portal.clientName} clientInitials={portal.clientInitials || ''} clientColor={portal.clientColor || ''} studioAvatar={portal.studioAvatar || ''} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Visor. z-index por encima del detalle, que ya está en 50: si no, la
+          imagen se abre debajo de la tarjeta que la abrió. */}
+      {lightbox && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+             style={{ background: 'rgba(0,0,0,0.92)' }}
+             onClick={() => setLightbox('')} role="dialog" aria-label="Imagen a tamaño completo">
+          <img src={lightbox} alt="" referrerPolicy="no-referrer"
+               onClick={event => event.stopPropagation()}
+               style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 10, objectFit: 'contain' }} />
+          <button onClick={() => setLightbox('')} aria-label="Cerrar"
+                  className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,.12)', color: '#fff' }}>
+            <Icon name="x" size={18} />
+          </button>
         </div>
       )}
     </div>
