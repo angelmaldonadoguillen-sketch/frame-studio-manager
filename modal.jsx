@@ -2129,10 +2129,10 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
   };
 
   return (
-    <div className="p-6 flex flex-col h-full" style={{ minHeight: 'calc(100% - 0px)' }}>
-      <div className="flex-1 space-y-5">
+    <div className="p-5 md:p-7 flex flex-col h-full min-h-[360px]">
+      <div className="flex-1 space-y-5 overflow-y-auto pr-1" aria-live="polite">
         {commentsLoading && (
-          <div className="flex justify-center py-10">
+          <div className="flex justify-center items-center min-h-[180px]">
             <div className="flex gap-1.5">
               {[0,1,2].map(i => (
                 <div key={i} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)', animationDelay: `${i * 200}ms`, opacity: 0.6 }}></div>
@@ -2141,12 +2141,10 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
           </div>
         )}
         {!commentsLoading && comments.length === 0 && (
-          <div className="text-center py-12 text-[var(--text-muted)]">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full surface-2 mb-3">
-              <Icon name="message" size={18} />
-            </div>
-            <div className="text-sm">Aún no hay comentarios</div>
-            <div className="text-[12px] mt-1">Sé el primero en comentar esta tarea</div>
+          <div className="min-h-[180px] flex flex-col items-center justify-center text-center px-6">
+            <Icon name="message" size={20} style={{ color: 'var(--text-muted)' }} />
+            <div className="text-[13px] font-medium mt-3">Iniciá la conversación</div>
+            <div className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>Los mensajes del equipo aparecerán aquí.</div>
           </div>
         )}
         {comments.map(c => {
@@ -2163,11 +2161,13 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                   <span className="text-[11px] text-[var(--text-muted)]">{relativeTime(c.at)}</span>
                   {isOwn && onDeleteComment && (
                     <button
+                      type="button"
                       onClick={() => onDeleteComment(c.id)}
-                      className="ml-auto opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] transition"
+                      aria-label="Eliminar comentario"
+                      className="ml-auto w-7 h-7 flex items-center justify-center rounded-md md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--surface-2)] transition"
                       title="Eliminar comentario"
                     >
-                      <Icon name="trash" size={11} />
+                      <Icon name="trash" size={13} />
                     </button>
                   )}
                 </div>
@@ -2178,11 +2178,10 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
         })}
       </div>
 
-      {/* Composer */}
       <div className="sticky bottom-0 mt-6 pt-4 border-t border-app" style={{ background: 'var(--surface)' }}>
-        <div className="flex gap-3">
-          <Avatar user={me} size={32} />
-          <div className="flex-1 surface-2 rounded-lg border border-app focus-within:border-[var(--border-2)]">
+        <div className="flex gap-3 items-start">
+          <div className="mt-1"><Avatar user={me} size={32} /></div>
+          <div className="relative flex-1 min-w-0 rounded-xl border border-app focus-within:border-[var(--border-2)] transition-colors" style={{ background: 'var(--surface-2)' }}>
             <div className="relative">
               <textarea
                 ref={inputRef}
@@ -2190,11 +2189,11 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                 onChange={(e) => setNewComment(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === '@') setShowMentions(true);
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); onSend(); }
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); onSend(); }
                 }}
-                placeholder="Escribí un comentario… usa @ para mencionar"
-                rows={2}
-                className="w-full px-3 py-2.5 text-[13px] resize-none"
+                placeholder="Agregar un comentario…"
+                rows={1}
+                className="w-full px-3 pt-3 pb-1 text-[13px] leading-5 resize-none bg-transparent min-h-[48px] max-h-[120px]"
               />
               {showMentions && (
                 <div className="absolute bottom-full mb-2 left-0 surface-2 border border-app rounded-lg shadow-2xl p-1 z-10" style={{ minWidth: 200 }}>
@@ -2208,22 +2207,17 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between px-2 py-1.5 border-t border-app">
-              <div className="flex gap-0.5">
-                <FormatBtn icon="bold" />
-                <FormatBtn icon="italic" />
-                <FormatBtn icon="listBullets" />
-                <FormatBtn icon="at" onClick={() => setShowMentions(s => !s)} />
-                <FormatBtn icon="paperclip" />
-              </div>
+            <div className="flex items-center justify-between px-2 pb-2">
+              <button type="button" onClick={() => setShowMentions(s => !s)} aria-label="Mencionar a alguien" aria-pressed={showMentions} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="at" size={16} /></button>
               <button
+                type="button"
                 onClick={onSend}
                 disabled={!newComment.trim()}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[12px] font-semibold transition disabled:opacity-40"
-                style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}
+                aria-label="Enviar comentario"
+                className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] transition disabled:opacity-25"
+                style={{ color: 'var(--text-dim)' }}
               >
-                Enviar
-                <Icon name="send" size={11} />
+                <Icon name="send" size={16} />
               </button>
             </div>
           </div>
@@ -2235,6 +2229,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
 
 const SharedClientComments = ({ portalToken, projectId, authorType, authorName = '', authorAvatar = '', studioAvatar = '', clientInitials = '', clientColor = '' }) => {
   const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -2244,6 +2239,8 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   const [editingText, setEditingText] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState('');
   const imageRef = useRef(null);
+  const listRef = useRef(null);
+  const composerRef = useRef(null);
   const emojis = ['👍', '❤️', '✨', '🔥', '👏', '😊', '😂', '🎉', '✅', '👀', '🙏', '💡'];
   const initialsFor = value => String(value || '?').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
   const avatarFor = comment => comment.authorType === 'studio' ? (studioAvatar || authorAvatar) : '';
@@ -2251,10 +2248,18 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
 
   useEffect(() => {
     if (!portalToken || !projectId) return;
+    setLoading(true);
     const unsub = window.db.collection('frame_client_portals').doc(portalToken).collection('comments')
-      .onSnapshot(snap => setComments(snap.docs.map(doc => doc.data()).filter(item => item.projectId === projectId).sort((a, b) => String(a.at).localeCompare(String(b.at)))), () => setComments([]));
+      .onSnapshot(snap => {
+        setComments(snap.docs.map(doc => doc.data()).filter(item => item.projectId === projectId).sort((a, b) => String(a.at).localeCompare(String(b.at))));
+        setLoading(false);
+      }, () => { setComments([]); setLoading(false); });
     return () => unsub();
   }, [portalToken, projectId]);
+
+  useEffect(() => {
+    if (!loading && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [comments.length, loading]);
 
   const uploadImage = async (file) => {
     if (!file || uploading) return;
@@ -2298,6 +2303,8 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
       await window.db.collection('frame_client_portals').doc(portalToken).collection('comments').doc(id).set(comment);
       setText('');
       setAttachment(null);
+      setEmojiOpen(false);
+      if (composerRef.current) composerRef.current.style.height = '';
     } catch { window.frameToast?.('No se pudo enviar el comentario. Revisá la conexión.'); }
     finally { setSending(false); }
   };
@@ -2322,56 +2329,48 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
 
   const composerAvatar = authorType === 'studio' ? authorAvatar : '';
 
-  return <div className="p-5 md:p-7 max-w-[900px]">
-    <div className="space-y-5 max-h-[52vh] overflow-y-auto pr-2">
-      {comments.length === 0 && <div className="text-[12px] py-8" style={{ color: 'var(--text-muted)' }}>No hay mensajes todavía.</div>}
-      {comments.map(comment => <div key={comment.id} className="flex gap-3 group">
+  return <section className={`flex flex-col max-w-[900px] ${authorType === 'client' ? 'min-h-[280px] pt-1' : 'min-h-[420px] p-5 md:p-7'}`}>
+    <div ref={listRef} className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1 md:pr-2" aria-live="polite">
+      {loading && <div className="min-h-[160px] flex items-center justify-center"><div className="flex gap-1.5">{[0,1,2].map(index => <span key={index} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--text-muted)', animationDelay: `${index * 160}ms` }} />)}</div></div>}
+      {!loading && comments.length === 0 && <div className="min-h-[160px] flex flex-col items-center justify-center text-center px-6"><Icon name="message" size={20} style={{ color: 'var(--text-muted)' }} /><div className="text-[13px] font-medium mt-3">Iniciá la conversación</div><div className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>El cliente y el equipo comparten este chat.</div></div>}
+      {!loading && comments.map(comment => <article key={comment.id} className="flex gap-3 group rounded-lg py-1">
         {avatarFor(comment) ? <img src={avatarFor(comment)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0" style={comment.authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{comment.authorType === 'client' ? (clientInitials || initialsFor(comment.authorName)) : initialsFor(comment.authorName)}</div>}
         <div className="min-w-0 flex-1 pt-0.5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"><span className="text-[12px] font-semibold">{comment.authorName}</span><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{relativeTime(comment.at)}{comment.editedAt ? ' · editado' : ''}</span></div>
-            {authorType === 'studio' && <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-              {comment.authorType === 'studio' && comment.text && <button onClick={() => { setEditingId(comment.id); setEditingText(comment.text); setConfirmDeleteId(''); }} className="p-1 rounded hover:bg-[var(--surface-2)]" title="Editar comentario"><Icon name="edit" size={12} /></button>}
-              {confirmDeleteId === comment.id ? <><button onClick={() => deleteComment(comment.id)} className="px-1.5 py-1 rounded text-[10px]" style={{ color: 'var(--danger)' }}>Eliminar</button><button onClick={() => setConfirmDeleteId('')} className="px-1.5 py-1 rounded text-[10px]" style={{ color: 'var(--text-muted)' }}>Cancelar</button></> : <button onClick={() => { setConfirmDeleteId(comment.id); setEditingId(''); }} className="p-1 rounded hover:bg-[var(--surface-2)]" title="Eliminar comentario"><Icon name="trash" size={12} /></button>}
+            {authorType === 'studio' && <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              {comment.authorType === 'studio' && comment.text && <button type="button" onClick={() => { setEditingId(comment.id); setEditingText(comment.text); setConfirmDeleteId(''); }} aria-label="Editar comentario" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)]" title="Editar comentario"><Icon name="edit" size={13} /></button>}
+              {confirmDeleteId === comment.id ? <><button type="button" onClick={() => deleteComment(comment.id)} className="px-2 h-7 rounded-md text-[10px] hover:bg-[var(--surface-2)]" style={{ color: 'var(--danger)' }}>Eliminar</button><button type="button" onClick={() => setConfirmDeleteId('')} className="px-2 h-7 rounded-md text-[10px] hover:bg-[var(--surface-2)]" style={{ color: 'var(--text-muted)' }}>Cancelar</button></> : <button type="button" onClick={() => { setConfirmDeleteId(comment.id); setEditingId(''); }} aria-label="Eliminar comentario" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)]" title="Eliminar comentario"><Icon name="trash" size={13} /></button>}
             </div>}
           </div>
-          {editingId === comment.id ? <div className="mt-1.5"><textarea autoFocus value={editingText} onChange={event => setEditingText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); saveEdit(comment.id); } if (event.key === 'Escape') setEditingId(''); }} maxLength={2000} rows={2} className="w-full px-2 py-1.5 text-[13px] field resize-none" /><div className="flex justify-end gap-2 mt-1"><button onClick={() => setEditingId('')} className="text-[10px] px-2 py-1" style={{ color: 'var(--text-muted)' }}>Cancelar</button><button onClick={() => saveEdit(comment.id)} disabled={!editingText.trim()} className="text-[10px] px-2 py-1 rounded disabled:opacity-40" style={{ background: 'var(--text)', color: 'var(--bg)' }}>Guardar</button></div></div> : comment.text && <div className="text-[13px] leading-5 pretty whitespace-pre-wrap mt-0.5">{comment.text}</div>}
-          {comment.attachmentUrl && <a href={comment.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-2"><img src={comment.attachmentUrl} alt={comment.attachmentName || 'Imagen adjunta'} className="max-w-[360px] max-h-64 rounded-lg object-cover border border-app" /><span className="block mt-1 text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{comment.attachmentName}</span></a>}
+          {editingId === comment.id ? <div className="mt-2 rounded-lg border border-app overflow-hidden" style={{ background: 'var(--surface-2)' }}><textarea autoFocus value={editingText} onChange={event => setEditingText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); saveEdit(comment.id); } if (event.key === 'Escape') setEditingId(''); }} maxLength={2000} rows={2} className="w-full px-3 py-2 text-[13px] bg-transparent resize-none" /><div className="flex justify-end gap-1 p-1.5 border-t border-app"><button type="button" onClick={() => setEditingId('')} className="text-[10px] px-2 h-7 rounded-md hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-muted)' }}>Cancelar</button><button type="button" onClick={() => saveEdit(comment.id)} disabled={!editingText.trim()} className="text-[10px] px-2.5 h-7 rounded-md disabled:opacity-40" style={{ background: 'var(--text)', color: 'var(--bg)' }}>Guardar</button></div></div> : comment.text && <div className="text-[13px] leading-5 pretty whitespace-pre-wrap mt-0.5">{comment.text}</div>}
+          {comment.attachmentUrl && <a href={comment.attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 max-w-full group/image"><img src={comment.attachmentUrl} alt={comment.attachmentName || 'Imagen adjunta'} className="max-w-full w-auto max-h-72 rounded-xl object-cover border border-app transition-opacity group-hover/image:opacity-90" /><span className="block mt-1 text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{comment.attachmentName}</span></a>}
         </div>
-      </div>)}
+      </article>)}
     </div>
 
-    <div className="mt-7 pt-4 border-t border-app">
-      {attachment && <div className="mb-3 ml-11 inline-flex items-center gap-2 p-2 rounded-lg border border-app" style={{ background: 'var(--surface-2)' }}><img src={attachment.url} alt="Vista previa" className="w-14 h-14 rounded-md object-cover" /><span className="max-w-[180px] truncate text-[11px]">{attachment.name}</span><button onClick={() => setAttachment(null)} aria-label="Quitar imagen" className="p-1 rounded hover:bg-[var(--surface-3)]"><Icon name="x" size={12} /></button></div>}
+    <div className="mt-auto pt-4 border-t border-app">
+      {attachment && <div className="mb-3 ml-0 sm:ml-11 inline-flex max-w-full items-center gap-2 p-2 rounded-xl border border-app" style={{ background: 'var(--surface-2)' }}><img src={attachment.url} alt="Vista previa" className="w-14 h-14 rounded-lg object-cover" /><span className="max-w-[180px] truncate text-[11px]">{attachment.name}</span><button type="button" onClick={() => setAttachment(null)} aria-label="Quitar imagen" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]"><Icon name="x" size={12} /></button></div>}
       <div className="relative flex gap-3 items-start">
-        {composerAvatar ? <img src={composerAvatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-0.5" style={authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{authorType === 'client' ? (clientInitials || initialsFor(authorName)) : initialsFor(authorName)}</div>}
-        <div className="flex-1 min-w-0 border-b border-[var(--border-2)] focus-within:border-[var(--text-muted)] transition-colors">
-          <textarea value={text} onChange={event => setText(event.target.value)} onPaste={onPaste} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} maxLength={2000} rows={1} className="w-full px-0 py-1.5 text-[13px] resize-none bg-transparent min-h-[36px]" placeholder="Agregar un comentario…" />
-          <div className="flex items-center justify-between pb-2">
+        {composerAvatar ? <img src={composerAvatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-1" style={authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{authorType === 'client' ? (clientInitials || initialsFor(authorName)) : initialsFor(authorName)}</div>}
+        <div className="flex-1 min-w-0 rounded-xl border border-app focus-within:border-[var(--border-2)] transition-colors" style={{ background: 'var(--surface-2)' }}>
+          <textarea ref={composerRef} value={text} onChange={event => setText(event.target.value)} onInput={event => { event.currentTarget.style.height = 'auto'; event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 120)}px`; }} onPaste={onPaste} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} maxLength={2000} rows={1} className="w-full px-3 pt-3 pb-1 text-[13px] leading-5 resize-none bg-transparent min-h-[48px] max-h-[120px]" placeholder="Agregar un comentario…" />
+          <div className="flex items-center justify-between px-2 pb-2">
             <div className="flex items-center gap-1">
-              <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" aria-label="Adjuntar imagen" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></button>
-              <button type="button" onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" aria-label="Agregar emoji" aria-pressed={emojiOpen} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)]" style={{ color: 'var(--text-dim)' }}><Icon name="smile" size={17} /></button>
+              <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" aria-label="Adjuntar imagen" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></button>
+              <button type="button" onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" aria-label="Agregar emoji" aria-pressed={emojiOpen} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="smile" size={17} /></button>
               {uploading && <span className="text-[10px] ml-1" style={{ color: 'var(--accent)' }}>Subiendo…</span>}
             </div>
-            <button type="button" onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} aria-label="Enviar comentario" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)] disabled:opacity-25" style={{ color: 'var(--text-dim)' }}><Icon name="send" size={16} /></button>
+            <button type="button" onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} aria-label="Enviar comentario" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] disabled:opacity-25" style={{ color: 'var(--text-dim)' }}><Icon name="send" size={16} /></button>
           </div>
           <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; uploadImage(file); }} />
         </div>
-        {emojiOpen && <div className="absolute left-11 bottom-full mb-2 grid grid-cols-6 gap-1 p-2 surf-float z-20">{emojis.map(emoji => <button key={emoji} onClick={() => { setText(value => value + emoji); setEmojiOpen(false); }} className="w-8 h-8 rounded hover:bg-[var(--surface-3)] text-base">{emoji}</button>)}</div>}
+        {emojiOpen && <div className="absolute left-11 bottom-full mb-2 grid grid-cols-6 gap-1 p-2 rounded-xl surf-float z-20">{emojis.map(emoji => <button type="button" key={emoji} onClick={() => { setText(value => value + emoji); setEmojiOpen(false); composerRef.current?.focus(); }} className="w-8 h-8 rounded-md hover:bg-[var(--surface-3)] text-base">{emoji}</button>)}</div>}
       </div>
+      <div className="hidden sm:block text-[9px] mt-1.5 ml-11" style={{ color: 'var(--text-faint)' }}>Enter para enviar · Shift + Enter para una nueva línea</div>
     </div>
-  </div>;
+  </section>;
 };
-
-// Sin uso: el editor de descripción trae su propia barra de formato (TB).
-// Se deja porque el nombre accesible tiene que venir de quien lo usa — un
-// icono dinámico no puede describirse a sí mismo.
-const FormatBtn = ({ icon, onClick, label }) => (
-  <button onClick={onClick} aria-label={label}
-          className="p-1.5 rounded text-[var(--text-muted)] hover:text-white hover:bg-[var(--surface-3)]">
-    <Icon name={icon} size={13} aria-hidden="true" />
-  </button>
-);
 
 Object.assign(window, {
   Avatar, AvatarStack, StatusPill, TypePill, PriorityBadge, Cover,

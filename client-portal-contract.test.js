@@ -67,6 +67,11 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="send" size={16}
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-label="Adjuntar imagen"'), 'el clip debe tener un nombre accesible');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-pressed={emojiOpen}'), 'el selector de emojis debe exponer su estado');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("event.key === 'Enter' && !event.shiftKey"), 'Enter debe enviar y Shift+Enter debe conservar el salto de línea');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Enter para enviar · Shift + Enter para una nueva línea'), 'el chat debe explicar el atajo sin recargar el compositor');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-live="polite"'), 'la conversación debe anunciar mensajes nuevos sin interrumpir');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('Iniciá la conversación'), 'el estado vacío debe invitar a conversar con lenguaje breve');
+check(fs.readFileSync('modal.jsx', 'utf8').includes("listRef.current.scrollTop = listRef.current.scrollHeight"), 'el chat debe mantener visible el mensaje más reciente');
+check(!fs.readFileSync('modal.jsx', 'utf8').includes('<FormatBtn'), 'el chat interno no debe mostrar controles decorativos sin función');
 check(rules.includes('request.resource.data.text.size() <= 2000'), 'los comentarios deben tener límite de tamaño');
 check(rules.includes("'attachmentUrl', 'attachmentName'"), 'los comentarios deben admitir una imagen compartida');
 check(rules.includes("attachmentUrl.matches('https://firebasestorage.googleapis.com/.*')"), 'la imagen del chat debe venir del almacenamiento controlado');
