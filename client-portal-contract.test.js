@@ -175,6 +175,9 @@ check((fs.readFileSync('modal.jsx', 'utf8').match(/composer rounded-xl/g) || [])
 
 // ── Imagen: miniatura para identificar; el detalle prioriza el proceso ───
 check(portal.includes('const portadaDe'), 'la tarjeta debe llevar imagen');
+check(portal.includes('const esImagenDelBrief'), 'el portal debe reconocer imágenes que pertenecen al brief');
+check(portal.includes("!esImagenDelBrief(String(cover.value))"), 'una imagen del brief no debe usarse como portada del cliente');
+check(portal.includes("compartido(item) && !esImagenDelBrief(item)"), 'una imagen del brief no debe publicarse como recurso del cliente');
 check(portal.includes('cover: portadaDe(project)'), 'la portada debe viajar dentro de cada tarea');
 check(!/^\s{4}cover:/m.test(portal.slice(portal.indexOf('  return {'), portal.indexOf('// ── Línea de proceso'))),
   'la portada no debe agregarse como clave del documento');

@@ -55,9 +55,18 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
   // ninguno y no tendrían por qué quedar ocultos.
   const compartido = item => item.clientVisible !== false;
 
+  // Una imagen pegada dentro del brief vive en frame-descriptions. Aunque un
+  // documento antiguo la haya guardado también entre los recursos o como
+  // portada, sigue siendo contenido editorial: nunca se publica como archivo
+  // ni se usa para identificar la tarea en el portal del cliente.
+  const esImagenDelBrief = item => {
+    const url = String(typeof item === 'string' ? item : item?.url || '');
+    return /(?:\/|%2f)frame-descriptions(?:\/|%2f)/i.test(url);
+  };
+
   const portadaDe = (project) => {
     const cover = project.cover;
-    if (cover && cover.type === 'image' && /^https:\/\//i.test(String(cover.value || ''))) {
+    if (cover && cover.type === 'image' && /^https:\/\//i.test(String(cover.value || '')) && !esImagenDelBrief(String(cover.value))) {
       // Si esa imagen es un recurso que el creativo apagó, no se usa de
       // portada: apagarla y verla igual en la tarjeta sería peor que no
       // tener el interruptor.
@@ -66,7 +75,7 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
       if (!oculta) return String(cover.value);
     }
     const disponible = (project.deliverables || []).find(item =>
-      compartido(item) && item.kind === 'photos' && /^https:\/\//i.test(String(item.url || '')));
+      compartido(item) && !esImagenDelBrief(item) && item.kind === 'photos' && /^https:\/\//i.test(String(item.url || '')));
     return disponible ? String(disponible.url) : '';
   };
   const visible = (projects || [])
@@ -96,7 +105,7 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
         // dibujarla mal.
         phaseIndex: isClosed(project) ? etiquetasFases.length : fases.indexOf(project.status),
         cover: portadaDe(project),
-        deliverables: (project.deliverables || []).filter(compartido).map(item => ({
+        deliverables: (project.deliverables || []).filter(item => compartido(item) && !esImagenDelBrief(item)).map(item => ({
           name: String(item.name || 'Entregable'),
           kind: String(item.kind || 'file'),
           url: /^https:\/\//i.test(String(item.url || '')) ? String(item.url) : '',
