@@ -112,4 +112,23 @@ check(portal.includes('const avancePorFase'), 'una tarea sin checklist no debe i
 check(portal.includes('columns = []'), 'las fases deben entrar por parámetro y no alterar la forma pública');
 check(!portal.includes('columns: '), 'las columnas no deben proyectarse al documento del portal');
 check(app.includes('activeWs, true, state.kanbanColumns'), 'la sincronización debe pasar las columnas del tablero');
+// ── Línea de proceso ────────────────────────────────────────────────
+check(portal.includes('const PhaseLine'), 'el portal debe dibujar una línea de proceso');
+check(portal.includes('phases: etiquetasFases'), 'las fases deben viajar dentro de cada tarea');
+check(portal.includes('phaseIndex:'), 'cada tarea debe decir en qué fase está');
+// Las fases van DENTRO de cada tarea a propósito: la regla valida las claves de
+// arriba con hasOnly, así que una clave nueva en el documento quedaría
+// rechazada en silencio y el portal dejaría de actualizarse.
+check(rules.includes("'updatedAt', 'taskIds', 'tasks']"), 'la forma pública del portal no debe cambiar');
+check(!/^\s{4}phases:/m.test(portal.slice(portal.indexOf('  return {'), portal.indexOf('const PhaseLine'))),
+  'las fases no deben agregarse como clave del documento');
+check(portal.includes('if (!Number.isFinite(i) || i < 0) return null'),
+  'un estado que ya no existe en el tablero no debe dibujar una línea equivocada');
+check(portal.includes('isClosed(project) ? etiquetasFases.length'),
+  'una tarea entregada debe mostrar todas las fases cumplidas');
+check(portal.includes('const phaseText'), 'la fase actual debe decirse con palabras');
+check(portal.includes('phases.length}'), 'debe decirse cuántas fases son en total');
+check(portal.includes('role="img"'), 'la línea de proceso debe ser accesible');
+check(portal.includes('phases.length < 2) return null'), 'sin fases suficientes no se dibuja nada');
+
 console.log(`client-portal-contract: ${checks} checks passed`);

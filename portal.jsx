@@ -25,7 +25,8 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
   // Un checklist vacío no significa "no se empezó", significa que el creativo
   // no lo usa. Informar 0% en una tarea que va por la mitad le dice al cliente
   // exactamente lo contrario de lo que pasa.
-  const fases = (columns && columns.length ? columns : STATUSES).map(c => c.id);
+  const columnas = (columns && columns.length ? columns : STATUSES);
+  const fases = columnas.map(c => c.id);
   const avancePorFase = (project) => {
     if (isClosed(project)) return 100;
     const i = fases.indexOf(project.status);
@@ -34,6 +35,13 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
     // fase, nunca de más. La última no llega a 100 hasta que se entrega.
     return Math.round((i / fases.length) * 100);
   };
+
+  // Las fases viajan DENTRO de cada tarea, no como clave nueva del documento.
+  // La regla valida las claves de arriba con hasOnly y limita tasks a una
+  // lista de 100, pero no mira la forma de cada elemento. Así el portal puede
+  // dibujar la línea de proceso sin publicar reglas nuevas — y sin el riesgo
+  // de que un documento con una clave de más quede rechazado en silencio.
+  const etiquetasFases = columnas.map(c => String(c.label || c.id || '')).slice(0, 12);
   const visible = (projects || [])
     // Visible por defecto: al publicar un cliente entran todas sus tareas.
     // Sólo se excluye una cuando el creativo lo decide explícitamente.
@@ -50,6 +58,12 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
         startDate: String(project.startDate || ''),
         deadline: String(project.deadline || ''),
         progress: checklist.length ? Math.round((completed / checklist.length) * 100) : avancePorFase(project),
+        phases: etiquetasFases,
+        // Una tarea entregada tiene todas las fases cumplidas, esté en la
+        // columna que esté. -1 cuando el estado no pertenece al tablero
+        // (columnas viejas o borradas): ahí no se dibuja la línea en vez de
+        // dibujarla mal.
+        phaseIndex: isClosed(project) ? etiquetasFases.length : fases.indexOf(project.status),
         deliverables: (project.deliverables || []).filter(item => item.status === 'ready').map(item => ({
           name: String(item.name || 'Entregable'),
           kind: String(item.kind || 'file'),
@@ -72,6 +86,51 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
     taskIds: published ? visible.slice(0, 100).map(task => task.id) : [],
     tasks: published ? visible.slice(0, 100) : [],
   };
+};
+
+// ── Línea de proceso ─────────────────────────────────────────────
+// Contesta las tres preguntas del cliente de un vistazo: dónde va, qué ya
+// pasó y qué falta. Un porcentaje solo dice "62%" y no significa nada para
+// quien no conoce el trabajo por dentro.
+//
+// Son segmentos y no puntos con etiqueta: cinco etiquetas no entran en 375px
+// sin abreviarlas hasta volverlas ilegibles. El nombre de la fase actual va
+// aparte, en texto, que es el único que importa leer.
+const PhaseLine = ({ phases, phaseIndex, size = 'sm' }) => {
+  if (!Array.isArray(phases) || phases.length < 2) return null;
+  const i = Number(phaseIndex);
+  if (!Number.isFinite(i) || i < 0) return null;
+  const alto = size === 'lg' ? 5 : 3;
+
+  return (
+    <div className="flex items-center gap-1" role="img"
+         aria-label={`Fase ${Math.min(i + 1, phases.length)} de ${phases.length}`}>
+      {phases.map((label, index) => {
+        const cumplida = index < i;
+        const actual   = index === i;
+        return (
+          <span key={index} className="flex-1 rounded-full transition-[background] duration-500"
+                title={label}
+                style={{
+                  height: actual ? alto + 2 : alto,
+                  background: cumplida ? 'var(--resource-green)'
+                            : actual   ? 'var(--accent)'
+                            : 'var(--surface-3)',
+                }} />
+        );
+      })}
+    </div>
+  );
+};
+
+// El nombre de la fase donde está, y cuántas quedan. "Edición · 3 de 5" le
+// dice al cliente que faltan dos pasos, no sólo que estamos editando.
+const phaseText = (task) => {
+  const phases = Array.isArray(task.phases) ? task.phases : [];
+  const i = Number(task.phaseIndex);
+  if (!phases.length || !Number.isFinite(i) || i < 0) return task.status;
+  if (i >= phases.length) return task.status;
+  return `${phases[i]} · ${i + 1} de ${phases.length}`;
 };
 
 const ClientPortal = ({ token }) => {
@@ -217,13 +276,17 @@ const ClientPortal = ({ token }) => {
               </div>
 
               <div className="flex items-center justify-between gap-3 mb-2">
-                <span className="text-[12px] font-medium">{proxima.status}</span>
+                <span className="text-[12px] font-medium">{phaseText(proxima)}</span>
                 <span className="text-[12px] tnum" style={{ color: 'var(--text-muted)' }}>{proxima.progress}%</span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                <div className="h-full rounded-full transition-[width] duration-500"
-                     style={{ width: `${proxima.progress}%`, background: 'var(--accent)' }} />
-              </div>
+              {proxima.phases?.length > 1 && Number(proxima.phaseIndex) >= 0 ? (
+                <PhaseLine phases={proxima.phases} phaseIndex={proxima.phaseIndex} size="lg" />
+              ) : (
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+                  <div className="h-full rounded-full transition-[width] duration-500"
+                       style={{ width: `${proxima.progress}%`, background: 'var(--accent)' }} />
+                </div>
+              )}
 
               <button onClick={() => setOpenTask(proxima)}
                       className="mt-5 text-[13px] font-semibold inline-flex items-center gap-1.5"
@@ -262,23 +325,27 @@ const ClientPortal = ({ token }) => {
                 const c = cuando(task.deadline);
                 return (
                   <button key={task.id} onClick={() => setOpenTask(task)}
-                          className="w-full text-left surf surf-hover p-4 flex items-center gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[14px] font-semibold truncate">{task.title}</div>
-                      <div className="flex items-center gap-2 mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                        <span>{task.status}</span>
-                        {task.deadline && <span>· {fmtDate(task.deadline)}</span>}
+                          className="w-full text-left surf surf-hover p-4">
+                    <div className="flex items-start gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[14px] font-semibold truncate">{task.title}</div>
+                        <div className="flex items-center gap-2 mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          <span className="truncate">{listo ? task.status : phaseText(task)}</span>
+                          {task.deadline && <span className="flex-shrink-0">· {fmtDate(task.deadline)}</span>}
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        {listo ? (
+                          <span className="text-[12px] font-semibold" style={{ color: 'var(--resource-green)' }}>Entregado</span>
+                        ) : (
+                          <div className="text-[12px] font-semibold" style={{ color: c.color }}>{c.texto}</div>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      {listo ? (
-                        <span className="text-[12px] font-semibold" style={{ color: 'var(--resource-green)' }}>Entregado</span>
-                      ) : (
-                        <>
-                          <div className="text-[12px] font-semibold" style={{ color: c.color }}>{c.texto}</div>
-                          <div className="text-[11px] tnum" style={{ color: 'var(--text-muted)' }}>{task.progress}%</div>
-                        </>
-                      )}
+                    {/* La línea va abajo y a lo ancho: es lo que se mira de
+                        reojo al recorrer la lista. */}
+                    <div className="mt-3">
+                      <PhaseLine phases={task.phases} phaseIndex={task.phaseIndex} />
                     </div>
                   </button>
                 );
