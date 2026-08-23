@@ -142,4 +142,14 @@ check(fs.readFileSync('modal.jsx', 'utf8').includes('team-emoji-picker'),
 check(/<textarea ref=\{composerRef\}/.test(fs.readFileSync('modal.jsx', 'utf8')),
   'el campo debe seguir siendo un textarea para que el teclado del teléfono aporte sus emojis');
 
+// El anillo de foco pertenece al recuadro entero. Con la regla general, el
+// textarea dibujaba el suyo —6px de radio, 2px de separación— dentro de un
+// contenedor de 12px: quedaba corrido y dejaba la barra de acciones afuera.
+const css = fs.readFileSync('frame.css', 'utf8');
+check(css.includes('.composer:focus-within'), 'el foco debe dibujarse sobre el compositor completo');
+check(css.replace(/\s+/g, ' ').includes('.composer textarea:focus-visible, .composer input:focus-visible { outline: none; }'),
+  'el campo no debe dibujar un segundo anillo adentro');
+check((fs.readFileSync('modal.jsx', 'utf8').match(/composer rounded-xl/g) || []).length === 2,
+  'los dos compositores —cliente y equipo— deben usar la misma regla');
+
 console.log(`client-portal-contract: ${checks} checks passed`);

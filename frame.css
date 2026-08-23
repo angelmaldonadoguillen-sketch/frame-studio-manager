@@ -407,6 +407,19 @@
     border-radius: var(--r-sm);
   }
 
+  /* Compositor de comentarios.
+     El anillo de foco pertenece al recuadro entero, no al campo de adentro.
+     Con la regla general, el textarea dibujaba su propio anillo de 6px de
+     radio y 2px de separación dentro de un contenedor de 12px: quedaba
+     corrido respecto de la caja y dejaba la barra de acciones afuera, como si
+     fueran dos cosas distintas. */
+  .composer:focus-within {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .composer textarea:focus-visible,
+  .composer input:focus-visible { outline: none; }
+
   /* Acceso: las dos líneas remiten a la retícula del calendario sin añadir
      decoración ni un color de marca paralelo al producto. */
   .frame-auth-stage { position: relative; isolation: isolate; overflow: hidden; }

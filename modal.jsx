@@ -2207,7 +2207,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
       <div className="sticky bottom-0 mt-6 pt-4 border-t border-app" style={{ background: 'var(--surface)' }}>
         <div className="flex gap-3 items-start">
           <div className="mt-1"><Avatar user={me} size={32} /></div>
-          <div className="relative flex-1 min-w-0 rounded-xl border border-app focus-within:border-[var(--border-2)] transition-colors" style={{ background: 'var(--surface-2)' }}>
+          <div className="relative flex-1 min-w-0 composer rounded-xl border border-app focus-within:border-[var(--border-2)] transition-colors" style={{ background: 'var(--surface-2)' }}>
             <div className="relative">
               <textarea
                 ref={inputRef}
@@ -2429,7 +2429,7 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
       {attachment && <div className="mb-3 ml-0 sm:ml-11 inline-flex max-w-full items-center gap-2 p-2 rounded-xl border border-app" style={{ background: 'var(--surface-2)' }}><img src={attachment.url} alt="Vista previa" className="w-14 h-14 rounded-lg object-cover" /><span className="max-w-[180px] truncate text-[11px]">{attachment.name}</span><button type="button" onClick={() => setAttachment(null)} aria-label="Quitar imagen" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]"><Icon name="x" size={12} /></button></div>}
       <div className="relative flex gap-3 items-start">
         {composerAvatar ? <img src={composerAvatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-1" style={authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{authorType === 'client' ? (clientInitials || initialsFor(authorName)) : initialsFor(authorName)}</div>}
-        <div className="flex-1 min-w-0 rounded-xl border border-app focus-within:border-[var(--border-2)] transition-colors" style={{ background: 'var(--surface-2)' }}>
+        <div className="flex-1 min-w-0 composer rounded-xl border border-app focus-within:border-[var(--border-2)] transition-colors" style={{ background: 'var(--surface-2)' }}>
           {/* Enter hace un salto de línea, no envía. Un comentario se piensa
               antes de mandarlo: con Enter enviando, un párrafo de tres
               renglones salía como tres comentarios sueltos y quedaba así en
