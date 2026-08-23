@@ -403,12 +403,26 @@ service cloud.firestore {
            && request.resource.data.authorName == portal().clientName)
           || (isMember(portal().workspaceId) && request.resource.data.authorType == 'studio')
         );
+        // El estudio sólo toca lo que escribió el estudio.
+        //
+        // Antes estas dos reglas sólo pedían isMember, sin mirar de quién era
+        // el comentario: el equipo podía reescribir o borrar lo que había
+        // dicho el cliente. La interfaz no lo ofrecía, pero desde la consola
+        // del navegador se hacía en un minuto. En una herramienta cuya promesa
+        // es servir de garantía, que la parte que rinde cuentas pueda editar
+        // en silencio lo que dijo la otra vacía la promesa entera.
+        //
+        // Lo que escribe el cliente es inmutable para ambos lados. Si se
+        // equivocó, escribe otro comentario: así es un registro.
         allow update: if isMember(portal().workspaceId)
+                      && resource.data.authorType == 'studio'
+                      && request.resource.data.authorType == 'studio'
                       && validComment()
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt'])
                       && request.resource.data.text.size() > 0
                       && request.resource.data.keys().hasAll(['editedAt']);
-        allow delete: if isMember(portal().workspaceId);
+        allow delete: if isMember(portal().workspaceId)
+                      && resource.data.authorType == 'studio';
       }
     }
 

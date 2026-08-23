@@ -2265,7 +2265,6 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [attachment, setAttachment] = useState(null);
-  const [emojiOpen, setEmojiOpen] = useState(false);
   const [editingId, setEditingId] = useState('');
   const [editingText, setEditingText] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState('');
@@ -2363,7 +2362,7 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
       await window.db.collection('frame_client_portals').doc(portalToken).collection('comments').doc(id).set(comment);
       setText('');
       setAttachment(null);
-      setEmojiOpen(false);
+     
       if (composerRef.current) composerRef.current.style.height = '';
     } catch { window.frameToast?.('No se pudo enviar el comentario. Revisá la conexión.'); }
     finally { setSending(false); }
@@ -2410,7 +2409,12 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
               </span>
               <span className="text-[10px] tnum" title={new Date(comment.at).toLocaleString('es-ES')} style={{ color: 'var(--text-muted)' }}>{selloDeTiempo(comment.at)}{comment.editedAt ? ' · editado' : ''}</span>
             </div>
-            {authorType === 'studio' && <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            {/* Editar y borrar, sólo lo que escribió el estudio. Antes el
+                botón de eliminar aparecía también sobre los comentarios del
+                cliente: la parte que rinde cuentas podía borrar lo que dijo
+                la otra. En una herramienta que se vende como garantía, eso
+                vacía la garantía. Lo que dice el cliente queda. */}
+            {authorType === 'studio' && comment.authorType === 'studio' && <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
               {comment.authorType === 'studio' && comment.text && <button type="button" onClick={() => { setEditingId(comment.id); setEditingText(comment.text); setConfirmDeleteId(''); }} aria-label="Editar comentario" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)]" title="Editar comentario"><Icon name="edit" size={13} /></button>}
               {confirmDeleteId === comment.id ? <><button type="button" onClick={() => deleteComment(comment.id)} className="px-2 h-7 rounded-md text-[10px] hover:bg-[var(--surface-2)]" style={{ color: 'var(--danger)' }}>Eliminar</button><button type="button" onClick={() => setConfirmDeleteId('')} className="px-2 h-7 rounded-md text-[10px] hover:bg-[var(--surface-2)]" style={{ color: 'var(--text-muted)' }}>Cancelar</button></> : <button type="button" onClick={() => { setConfirmDeleteId(comment.id); setEditingId(''); }} aria-label="Eliminar comentario" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)]" title="Eliminar comentario"><Icon name="trash" size={13} /></button>}
             </div>}
@@ -2430,11 +2434,10 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
               antes de mandarlo: con Enter enviando, un párrafo de tres
               renglones salía como tres comentarios sueltos y quedaba así en
               el registro. Se envía con el botón, a propósito. */}
-          <textarea ref={composerRef} value={text} onChange={event => setText(event.target.value)} onInput={event => { event.currentTarget.style.height = 'auto'; event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 160)}px`; }} onPaste={onPaste} onKeyDown={event => { if (event.key === 'Escape') setEmojiOpen(false); }} maxLength={2000} rows={2} className="w-full px-3 pt-3 pb-1 text-[13px] leading-5 resize-none bg-transparent min-h-[68px] max-h-[160px]" placeholder="Escribí un comentario…" />
+          <textarea ref={composerRef} value={text} onChange={event => setText(event.target.value)} onInput={event => { event.currentTarget.style.height = 'auto'; event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 160)}px`; }} onPaste={onPaste} maxLength={2000} rows={2} className="w-full px-3 pt-3 pb-1 text-[13px] leading-5 resize-none bg-transparent min-h-[68px] max-h-[160px]" placeholder="Escribí un comentario…" />
           <div className="flex items-center justify-between px-2 pb-2">
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" aria-label="Adjuntar imagen" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></button>
-              <button type="button" onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" aria-label="Agregar emoji" aria-pressed={emojiOpen} aria-expanded={emojiOpen} aria-controls="shared-emoji-picker" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="emoji" size={17} /></button>
               {uploading && <span className="text-[10px] ml-1" style={{ color: 'var(--accent)' }}>Subiendo…</span>}
             </div>
             {/* Botón con palabra y no una flecha: es la única forma de enviar
@@ -2445,7 +2448,6 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
           </div>
           <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; uploadImage(file); }} />
         </div>
-        {emojiOpen && <ChatEmojiPicker id="shared-emoji-picker" onClose={() => setEmojiOpen(false)} onPick={emoji => { setText(value => value + emoji); setEmojiOpen(false); composerRef.current?.focus(); }} className="absolute left-11 bottom-full mb-2" />}
       </div>
     </div>
   </section>;

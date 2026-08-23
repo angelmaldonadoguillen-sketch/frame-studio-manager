@@ -58,7 +58,7 @@ check(!fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="smile"'), 'el 
 check(fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="arrowUp" size={17} strokeWidth={1.9}'), 'el envío debe usar una flecha ascendente minimalista');
 check(!fs.readFileSync('modal.jsx', 'utf8').includes('<Icon name="send"'), 'el chat no debe conservar el avión de papel anterior');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-label="Adjuntar imagen"'), 'el clip debe tener un nombre accesible');
-check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-pressed={emojiOpen}'), 'el selector de emojis debe exponer su estado');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('aria-expanded={emojiOpen}'), 'el selector de emojis del equipo debe exponer su estado');
 check(fs.readFileSync('modal.jsx', 'utf8').includes('const CHAT_EMOJI_GROUPS = ['), 'el selector debe organizar los emojis en grupos');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("id: 'faces', label: 'Caras'"), 'el selector debe incluir una categoría de caras');
 check(fs.readFileSync('modal.jsx', 'utf8').includes("id: 'work', label: 'Trabajo'"), 'el selector debe incluir una categoría orientada al trabajo');
@@ -118,5 +118,28 @@ check(portal.includes('const phaseText'), 'la fase actual debe decirse con palab
 check(portal.includes('phases.length}'), 'debe decirse cuántas fases son en total');
 check(portal.includes('role="img"'), 'la línea de proceso debe ser accesible');
 check(portal.includes('phases.length < 2) return null'), 'sin fases suficientes no se dibuja nada');
+
+// ── El registro no se puede lavar ───────────────────────────────────
+// Antes estas dos reglas sólo pedían isMember: el equipo podía reescribir o
+// borrar lo que había dicho el cliente. La interfaz no lo ofrecía, pero desde
+// la consola del navegador se hacía en un minuto.
+// Se normalizan los saltos de línea: el archivo se edita en Windows y guarda
+// CRLF, así que comparar contra \n fallaba aunque la regla fuera correcta.
+const reglasPlanas = rules.replace(/\r\n/g, '\n').replace(/\s+/g, ' ');
+check(reglasPlanas.includes("allow update: if isMember(portal().workspaceId) && resource.data.authorType == 'studio' && request.resource.data.authorType == 'studio'"),
+  'el estudio sólo debe poder editar comentarios propios');
+check(reglasPlanas.includes("allow delete: if isMember(portal().workspaceId) && resource.data.authorType == 'studio';"),
+  'el estudio sólo debe poder borrar comentarios propios');
+check(fs.readFileSync('modal.jsx', 'utf8').includes("{authorType === 'studio' && comment.authorType === 'studio' && <div className=\"flex items-center gap-0.5"),
+  'los controles de moderación no deben aparecer sobre un comentario del cliente');
+
+// El selector de emojis se fue de la vista del cliente. Los emojis del teclado
+// siguen funcionando: el campo es un textarea común.
+check(!fs.readFileSync('modal.jsx', 'utf8').includes('shared-emoji-picker'),
+  'los comentarios con el cliente no deben tener selector de emojis');
+check(fs.readFileSync('modal.jsx', 'utf8').includes('team-emoji-picker'),
+  'el chat interno del equipo sí conserva su selector');
+check(/<textarea ref=\{composerRef\}/.test(fs.readFileSync('modal.jsx', 'utf8')),
+  'el campo debe seguir siendo un textarea para que el teclado del teléfono aporte sus emojis');
 
 console.log(`client-portal-contract: ${checks} checks passed`);

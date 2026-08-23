@@ -88,47 +88,27 @@ palabra.
 
 ---
 
-## Lo que queda mal y necesita una decisión
+## Lo que se arregló al fondo, y lo que sigue abierto
 
-### El registro no es confiable · GRAVE
+### El registro no es confiable · ARREGLADO
 
-`firestore.rules.v2`, comentarios del portal:
+Las reglas de los comentarios del portal sólo pedían `isMember`, sin mirar de
+quién era el comentario. En la práctica el estudio podía **reescribir o borrar
+lo que había dicho el cliente**: la interfaz no lo ofrecía, pero desde la
+consola del navegador se hacía en un minuto.
 
-```
-allow update: if isMember(portal().workspaceId) ...
-allow delete: if isMember(portal().workspaceId);
-```
+En una herramienta cuya promesa entera es servir de garantía, que la parte que
+rinde cuentas pueda editar en silencio lo que dijo la otra vacía la promesa.
 
-La regla no comprueba de quién es el comentario. En la práctica:
+Ahora, en la regla y en la interfaz: **el estudio sólo toca lo que escribió el
+estudio**, y toda edición queda marcada como editado. Lo que escribe el
+cliente es inmutable para los dos lados — si se equivocó, escribe otro
+comentario. Así funciona un registro.
 
-- **El estudio puede editar un comentario del cliente.** Puede reescribir lo
-  que el cliente dijo. La interfaz hoy no lo ofrece, pero la regla lo permite,
-  y desde la consola del navegador se hace en un minuto.
-- **El estudio puede borrar comentarios del cliente.**
-- **El cliente no puede editar ni borrar los suyos**, ni siquiera para
-  corregir un error de tipeo.
-
-En una herramienta cuya promesa entera es *garantía*, la parte que rinde
-cuentas puede reescribir en silencio lo que dijo la otra. Aunque vos nunca lo
-harías, **el diseño no lo impide**, y eso es lo que vale cuando hay una
-discusión.
-
-**Lo que propongo**, y necesita que publiques reglas:
-
-```
-allow update: if isMember(portal().workspaceId)
-              && resource.data.authorType == 'studio'   // sólo lo propio
-              && ...
-allow delete: if isMember(portal().workspaceId)
-              && resource.data.authorType == 'studio';
-```
-
-Y del lado del cliente, permitirle editar y borrar **lo suyo** dentro de una
-ventana corta. Eso exige identificar al visitante, que hoy no se hace: todos
-los que entran con el enlace son "el cliente".
-
-No lo apliqué porque tocar reglas te obliga a publicarlas, y si el código sale
-antes que las reglas los botones empiezan a fallar en silencio.
+Los botones de editar y eliminar ya no aparecen sobre un comentario del
+cliente. El cambio de interfaz es compatible con las reglas viejas y con las
+nuevas, así que publicarlas se puede hacer en cualquier momento sin romper
+nada.
 
 ### No hay aviso de nada
 
@@ -145,11 +125,11 @@ tablón de recados.
 
 ---
 
-## Lo que decidí no tocar
+## Los emojis
 
-**El selector de emojis se queda.** Es lo que más se parece a un chat, pero no
-es lo que rompía la formalidad: un 👍 del cliente cerrando un tema es una
-respuesta perfectamente profesional, y quitar el selector no quita los emojis
-—cualquier teclado de teléfono los tiene—. Lo que hacía ver informal esto era
-el comportamiento, no los emojis. Si igual lo querés afuera, es un cambio de
-diez minutos.
+El selector se quitó de los comentarios con el cliente. Los emojis siguen
+funcionando: el campo es un `textarea` común, así que el teclado del teléfono
+los aporta igual, y en computadora se pegan.
+
+El chat interno con el equipo conserva su selector: ahí la informalidad no
+tiene costo, y es una herramienta distinta con otro público.
