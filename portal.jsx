@@ -436,6 +436,13 @@ const ClientPortal = ({ token }) => {
           <div className="surf-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
             <div className="p-5 sm:p-7">
               <div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2 mb-2.5 flex-wrap"><TypeChip task={openTask} /><span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{openTask.status}</span></div><h2 className="font-display text-2xl font-bold pretty">{openTask.title}</h2></div><button onClick={() => setOpenTask(null)} className="p-2 rounded-md hover:bg-[var(--surface-3)]"><Icon name="x" size={15} /></button></div>
+              {/* Acá NO va la portada, y se quitó dos veces por el mismo
+                  motivo: la imagen sirve para reconocer el trabajo en la
+                  lista, pero adentro la misma foto ya aparece abajo en
+                  Recursos. Puesta arriba se veía dos veces en la misma
+                  pantalla y empujaba fuera de la vista el estado, las fechas
+                  y los comentarios — que es lo que el cliente vino a leer. */}
+
               {/* Fase actual, con la misma línea que la lista: el cliente no
                   tiene que traducir entre una vista y la otra. */}
               <div className="mt-5">
