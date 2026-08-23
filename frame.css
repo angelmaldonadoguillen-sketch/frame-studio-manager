@@ -41,6 +41,7 @@
     --accent-soft: rgba(255, 255, 255, 0.13);
     --accent-soft-weak: rgba(255, 255, 255, 0.07);
     --accent-border: rgba(255, 255, 255, 0.38);
+    --focus-ring: rgba(245, 245, 247, 0.72);
     /* Variantes eléctricas de la paleta joya. Tienen luz suficiente para
        leerse sobre negro sin convertirse en tonos pastel. */
     --resource-blue:    #39a8ff;
@@ -53,6 +54,7 @@
     --resource-neutral: #a6a2ad;
     --resource-on:      #0a0a0b;
     --danger:        #ff453a;
+    --danger-on:     #0a0a0b;
     --danger-soft:   rgba(255, 69, 58, 0.10);
     --danger-soft-2: rgba(255, 69, 58, 0.20);
     --warn:          #ffd426;
@@ -94,6 +96,7 @@
     --accent-soft: rgba(24, 24, 27, 0.11);
     --accent-soft-weak: rgba(24, 24, 27, 0.06);
     --accent-border: rgba(24, 24, 27, 0.36);
+    --focus-ring: rgba(24, 24, 27, 0.64);
     /* Paleta joya de la referencia: profunda y desaturada, con contraste
        alto sobre blanco. El color informa; nunca hace de marca. */
     --resource-blue:    #104b82;
@@ -106,6 +109,7 @@
     --resource-neutral: #4b4652;
     --resource-on:      #ffffff;
     --danger:        #d92d20;
+    --danger-on:     #ffffff;
     --danger-soft:   rgba(217, 45, 32, 0.09);
     --danger-soft-2: rgba(217, 45, 32, 0.16);
     --warn:          #9a6700;
@@ -241,6 +245,16 @@
   .font-display { letter-spacing: -0.021em; }
   h1, .t-30 { letter-spacing: -0.028em; }
 
+  /* Encabezado editorial compartido: frase normal, jerarquía por peso y no
+     por mayúsculas espaciadas. */
+  .ui-section-label {
+    color: var(--text-dim);
+    font-size: var(--t-12);
+    font-weight: 600;
+    letter-spacing: -0.006em;
+    line-height: 1.25;
+  }
+
   /* Scrollbars */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -265,7 +279,7 @@
   .border-app { border-color: var(--border); }
 
   /* Selection */
-  ::selection { background: var(--accent); color: #0a0a0b; }
+  ::selection { background: var(--accent); color: var(--accent-on); }
 
   /* Subtle noise on bg */
   .noise::before {
@@ -313,7 +327,7 @@
   .check.on {
     background: var(--accent);
     border-color: var(--accent);
-    color: #0a0a0b;
+    color: var(--accent-on);
   }
   .check:hover { border-color: var(--text-dim); }
 
@@ -425,13 +439,38 @@
   .routine-pending { animation: routine-beacon 2.6s ease-out infinite; }
   .routine-done    { animation: none !important; }
 
-  /* Buttons: sin outline ni subrayado al hacer clic (solo focus-visible para teclado) */
+  /* El foco pertenece al sistema monocromo de FRAME y funciona en ambos
+     temas. Incluye todos los controles interactivos. */
   button { -webkit-tap-highlight-color: transparent; text-decoration: none; }
-  button:focus { outline: none; }
-  button:focus-visible {
-    outline: 2px solid rgba(212, 255, 79, 0.5);
+  button:focus:not(:focus-visible) { outline: none; }
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--r-sm);
+  }
+
+  /* Acceso: las dos líneas remiten a la retícula del calendario sin añadir
+     decoración ni un color de marca paralelo al producto. */
+  .frame-auth-stage { position: relative; isolation: isolate; overflow: hidden; }
+  .frame-auth-stage::before,
+  .frame-auth-stage::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    background: var(--border);
+    pointer-events: none;
+  }
+  .frame-auth-stage::before { top: 0; bottom: 0; left: 22%; width: 0.5px; }
+  .frame-auth-stage::after { left: 0; right: 0; top: 26%; height: 0.5px; }
+  .frame-auth-mark {
+    background: var(--accent);
+    color: var(--accent-on);
+    box-shadow: 0 18px 42px -24px rgba(0, 0, 0, 0.72);
   }
 
   /* UI chrome sin selección de texto (nav, sidebar, tarjetas) */

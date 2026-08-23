@@ -333,7 +333,7 @@ const ColMenuBtn = ({ col, projectCount, onUpdate, onDelete }) => {
 // Botón "+" que se transforma en una tarjeta vacía con input de título.
 // Hereda contexto (estado de columna / fecha del día) según dónde se monta.
 // variant: 'full' = botón ancho con texto · 'mini' = solo ícono "+" (celdas chicas)
-const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Agregar tarjeta' }) => {
+const QuickAddCard = ({ onCreate, context = {}, variant = 'full', label = 'Nueva tarea' }) => {
   const [active, setActive] = React.useState(false);
   const [title, setTitle]   = React.useState('');
   const inputRef = React.useRef(null);
@@ -629,7 +629,7 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
                   <QuickAddCard
                     onCreate={onQuickCreate}
                     context={{ status: s.id }}
-                    label="Agregar tarjeta"
+                    label="Nueva tarea"
                   />
                 )}
               </div>
@@ -893,7 +893,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
                         onCreate={onQuickCreate}
                         context={{ startDate: iso }}
                         variant="mini"
-                        label="Agregar tarjeta este día"
+                        label="Nueva tarea para este día"
                       />
                     )}
                   </div>
@@ -945,7 +945,7 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
           <div className="frame-card-badges flex items-center gap-1 min-w-0">
             {pf.tipo !== false && <TypePill type={project.type} />}
             {pf.prioridad !== false && urgent && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>URG</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: 'var(--danger-on)' }}>URG</span>
             )}
             {pf.prioridad !== false && isOver && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-soft-2)', color: 'var(--danger)' }}>VENC</span>
@@ -988,7 +988,7 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
             ) : (
               <div className="flex items-center gap-1">
                 <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>¿Eliminar?</span>
-                <button onClick={() => onDelete(project.id)} className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>Sí</button>
+                <button onClick={() => onDelete(project.id)} className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger)', color: 'var(--danger-on)' }}>Sí</button>
                 <button onClick={() => setConfirmDel(false)} className="text-[10px] font-medium px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-white" style={{ background: 'var(--surface-3)' }}>No</button>
               </div>
             )}
@@ -1165,7 +1165,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                     onCreate={onQuickCreate}
                     context={{ startDate: iso }}
                     variant="mini"
-                    label="Agregar tarjeta este día"
+                    label="Nueva tarea para este día"
                   />
                 )}
               </div>
@@ -1202,7 +1202,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
           <QuickAddCard
             onCreate={onQuickCreate}
             context={{ startDate: iso }}
-            label="Agregar tarjeta este día"
+            label="Nueva tarea para este día"
           />
         )}
       </div>
@@ -1348,7 +1348,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
             {onDelete && confirmDel && (
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }} onClick={(e) => e.stopPropagation()}>
                 <span className="text-[10px] font-semibold text-white">¿Eliminar?</span>
-                <button onClick={(e) => { e.stopPropagation(); onDelete(project.id); }} className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--danger)', color: '#0a0a0b' }}>Sí</button>
+                <button onClick={(e) => { e.stopPropagation(); onDelete(project.id); }} className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--danger)', color: 'var(--danger-on)' }}>Sí</button>
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }} className="text-[10px] text-white/60 hover:text-white px-1">No</button>
               </div>
             )}
@@ -1505,7 +1505,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
             <button
               onClick={() => onDeleteProject(p.id)}
               className="text-[10px] font-bold px-2 py-0.5 rounded"
-              style={{ background: 'var(--danger)', color: '#0a0a0b' }}
+              style={{ background: 'var(--danger)', color: 'var(--danger-on)' }}
             >Sí</button>
             <button
               onClick={() => setConfirmDel(false)}
@@ -1635,7 +1635,6 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete, onRestoreAll, onPer
             </div>
             <div className="text-center">
               <p className="font-semibold text-[15px] mb-1">Papelera vacía</p>
-              <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Las tareas eliminadas aparecerán aquí</p>
             </div>
           </div>
         ) : (
@@ -1710,7 +1709,7 @@ const TrashSection = ({ trash, onRestore, onPermanentDelete, onRestoreAll, onPer
                         <button
                           onClick={() => { onPermanentDelete(item.id); setConfirmId(null); }}
                           className="px-2.5 py-1 rounded-md text-[12px] font-bold transition-colors hover:brightness-110"
-                          style={{ background: 'var(--danger)', color: '#0a0a0b' }}
+                          style={{ background: 'var(--danger)', color: 'var(--danger-on)' }}
                         >
                           Sí
                         </button>

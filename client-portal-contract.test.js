@@ -9,7 +9,7 @@ const index = fs.readFileSync('index.html', 'utf8');
 let checks = 0;
 const check = (value, message) => { assert.ok(value, message); checks += 1; };
 
-check(index.includes('src="portal.jsx"'), 'el portal debe cargarse antes de montar la app');
+check(/src="portal\.jsx(?:\?[^\"]+)?"/.test(index), 'el portal debe cargarse antes de montar la app');
 check(app.includes('portalToken ? <ClientPortal'), 'el enlace debe abrir el portal sin entrar al gestor');
 check(portal.includes('crypto.getRandomValues'), 'el token debe usar entropía criptográfica');
 check(portal.includes("filter(project => String(project.client"), 'el portal debe limitarse al cliente correcto');

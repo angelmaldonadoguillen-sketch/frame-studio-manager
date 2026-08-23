@@ -361,7 +361,7 @@ const ClientDetail = ({ client, projects, columns = [], onClose, onUpdate, onDel
             </section>
             {/* Contact */}
             <section>
-              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Contacto</div>
+              <div className="ui-section-label mb-3">Contacto</div>
               <div className="space-y-1 rounded-lg overflow-hidden border border-app divide-y divide-[var(--border)]">
                 {[
                   { icon: 'users', label: 'Nombre',   key: 'name',  value: client.contact.name  },
@@ -387,7 +387,7 @@ const ClientDetail = ({ client, projects, columns = [], onClose, onUpdate, onDel
 
             {/* Tags */}
             <section>
-              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Tags</div>
+              <div className="ui-section-label mb-2">Tags</div>
               <div className="flex flex-wrap gap-1.5">
                 {client.tags.map(t => (
                   <span key={t} className="group flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-[var(--surface-2)] text-[var(--text-dim)]">
@@ -403,7 +403,7 @@ const ClientDetail = ({ client, projects, columns = [], onClose, onUpdate, onDel
 
             {/* Notes */}
             <section>
-              <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Notas internas</div>
+              <div className="ui-section-label mb-2">Notas internas</div>
               <InlineEdit
                 value={client.notes}
                 onChange={(v) => upd({ notes: v })}
@@ -416,7 +416,7 @@ const ClientDetail = ({ client, projects, columns = [], onClose, onUpdate, onDel
             {/* Projects list */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">
+                <div className="ui-section-label">
                   Tareas ({cp.length})
                 </div>
               </div>
@@ -425,7 +425,7 @@ const ClientDetail = ({ client, projects, columns = [], onClose, onUpdate, onDel
                   className="text-center py-8 rounded-lg text-[12px] text-[var(--text-muted)]"
                   style={{ background: 'var(--surface-2)' }}
                 >
-                  Sin tareas registradas para este cliente
+                  Sin tareas
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -489,7 +489,7 @@ const ClientDetail = ({ client, projects, columns = [], onClose, onUpdate, onDel
                       <button
                         onClick={() => { onDelete(client.id); onClose(); }}
                         className="flex-1 py-1.5 rounded-md text-[13px] font-semibold"
-                        style={{ background: 'var(--danger)', color: '#0a0a0b' }}
+                        style={{ background: 'var(--danger)', color: 'var(--danger-on)' }}
                       >
                         Sí, eliminar
                       </button>
@@ -864,9 +864,6 @@ const ClientsSection = ({ clients, projects, columns = [], onCreateClient, onUpd
               <div>
                 <div className="text-[15px] font-medium mb-1">
                   {search ? `Sin resultados para "${search}"` : 'Sin clientes aún'}
-                </div>
-                <div className="text-[12px] text-[var(--text-muted)]">
-                  {search ? 'Probá con otro término' : 'Empezá agregando tu primer cliente al directorio'}
                 </div>
               </div>
               {!search && (

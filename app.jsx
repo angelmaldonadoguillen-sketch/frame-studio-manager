@@ -1648,16 +1648,13 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
           </div>
         )}
 
-        {/* Vista previa de tarjetas */}
+        {/* Campos visibles */}
         <div className="surf-panel p-5">
           <div className="flex items-center gap-2 mb-1">
             <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
-            <h2 className="font-display font-semibold text-[17px]">Vista previa de tarjetas</h2>
+            <h2 className="font-display font-semibold text-[17px]">Campos visibles</h2>
           </div>
-          <p className="text-[12px] mb-5" style={{ color: 'var(--text-muted)' }}>
-            Elegí qué campos se muestran en las tarjetas del tablero, calendario y galería.
-          </p>
-          <div className="grid grid-cols-1 gap-1">
+          <div className="grid grid-cols-1 gap-1 mt-4">
             {PREVIEW_FIELD_LABELS.map(({ key, label, icon }) => (
               <ToggleRow
                 key={key}
@@ -1676,16 +1673,12 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
             <Icon name="sun" size={15} style={{ color: 'var(--accent)' }} />
             <h2 className="font-display font-semibold text-[17px]">Rutina diaria</h2>
           </div>
-          <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
-            Comportamiento de las tareas cuando no se completan en el día.
-          </p>
-          <ToggleRow
+          <div className="mt-3"><ToggleRow
             active={carryOver}
             onClick={toggleCarryOver}
             icon="alert"
             label="Mantener pendientes de rutina para mañana"
-            description="Los ítems de la rutina que no completés hoy seguirán pendientes mañana (+1d, +2d…)"
-          />
+          /></div>
         </div>
 
         {/* Proyectos */}
@@ -1694,16 +1687,13 @@ const SettingsSection = ({ previewFields, onToggle, carryOverProjects, onToggleC
             <Icon name="layers" size={15} style={{ color: 'var(--accent)' }} />
             <h2 className="font-display font-semibold text-[17px]">Tareas</h2>
           </div>
-          <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>
-            Automatizaciones de fechas para las tareas de este tablero.
-          </p>
-          <ToggleRow
+          <div className="mt-3"><ToggleRow
             active={carryOverProjects}
             onClick={onToggleCarryOverProjects}
             icon="alert"
             label="Arrastrar tareas incompletas al siguiente día"
-            description="Mueve la próxima fecha de trabajo de las tareas con checklist pendiente; la fecha límite no cambia"
-          />
+            description="La fecha límite se conserva."
+          /></div>
         </div>
 
       </div>
@@ -2743,7 +2733,7 @@ const App = () => {
     };
     dispatch({ type: 'create_project_quiet', project });
     window.db.collection('frame_projects').doc(id).set(stampWs(project))
-      .catch(err => notifyWriteError(err, 'la tarjeta nueva'));
+      .catch(err => notifyWriteError(err, 'la tarea nueva'));
   };
 
   const handleToggleFavorite = (id) => {

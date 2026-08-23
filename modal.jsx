@@ -7,7 +7,7 @@ const { useState, useRef, useEffect, useMemo } = React;
 // ── Avatar ──────────────────────────────────────────────────────
 const Avatar = ({ user, size = 24, ring = false }) => {
   if (!user) return null;
-  const ringClass = ring ? 'ring-2 ring-[#0a0a0b]' : '';
+  const ringClass = ring ? 'ring-2 ring-[var(--surface)]' : '';
   const avatarColor = resolveThemeColor(user.color);
   if (user.avatar) {
     return (
@@ -50,8 +50,8 @@ const AvatarStack = ({ ids, size = 22, max = 4 }) => {
       ))}
       {extra > 0 && (
         <div
-          className="rounded-full flex items-center justify-center text-[10px] font-semibold ring-2 ring-[#0a0a0b]"
-          style={{ width: size, height: size, marginLeft: -6, background: '#26262d', color: '#9a9aa3' }}
+          className="rounded-full flex items-center justify-center text-[10px] font-semibold ring-2 ring-[var(--surface)]"
+          style={{ width: size, height: size, marginLeft: -6, background: 'var(--surface-3)', color: 'var(--text-dim)' }}
         >
           +{extra}
         </div>
@@ -487,7 +487,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
       onClick={(e) => e.stopPropagation()}
     >
       {/* ── Colores ── */}
-      <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Color de fondo</div>
+      <div className="ui-section-label mb-3">Color de fondo</div>
       <div className="grid grid-cols-5 gap-2 mb-4">
         {COVER_PRESETS.map(c => (
           <button
@@ -504,7 +504,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
       </div>
 
       {/* ── Subir archivo ── */}
-      <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">Subir imagen</div>
+      <div className="ui-section-label mb-2">Subir imagen</div>
       {uploading ? (
         <div className="space-y-1.5 mb-3">
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
@@ -525,7 +525,7 @@ const CoverEditor = ({ cover, onChange, projectId }) => {
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
 
       {/* ── URL manual ── */}
-      <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-2">URL de imagen</div>
+      <div className="ui-section-label mb-2">URL de imagen</div>
       <div className="flex gap-2">
         <input
           value={urlVal}
@@ -1014,7 +1014,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
           <div className="border-b md:border-b-0 md:border-r border-app md:overflow-y-auto p-5
                           flex flex-wrap gap-x-5 gap-y-3 content-start
                           md:block md:space-y-1">
-            <div className="basis-full text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase mb-3">Propiedades</div>
+            <div className="ui-section-label basis-full mb-3">Propiedades</div>
 
             <PropRow icon="briefcase" label="Cliente">
               <ClientAutocomplete
@@ -1180,7 +1180,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                 Tags, partiendo la barra por la mitad del panel. */}
             <div className="basis-full mt-6 pt-4 border-t border-app">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">Progreso</div>
+                <div className="ui-section-label">Progreso</div>
                 <div className="text-xs font-mono" style={{ color: 'var(--accent)' }}>{progress}%</div>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
@@ -1201,7 +1201,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                 ...(clientPortalToken
                   ? [{id:'comments',label:'Chat',icon:'message'}]
                   : collaborationEnabled
-                    ? [{id:'comments',label:`Comentarios · ${comments.length}`,icon:'message'}]
+                    ? [{id:'comments',label:'Chat',icon:'message'}]
                     : []),
               ].map(t => (
                 <button
@@ -1226,7 +1226,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                 {/* Checklist */}
                 <section>
                   <SectionTitle icon="check" right={`${project.checklist.filter(c => c.done).length}/${project.checklist.length}`}>
-                    Checklist de producción
+                    Checklist
                   </SectionTitle>
                   <div className="space-y-1">
                     {project.checklist.map(c => {
@@ -1435,7 +1435,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
 
                 <section className="border-t border-app pt-4">
                   <button type="button" onClick={() => setActivityOpen(open => !open)} className="w-full flex items-center justify-between rounded-md px-2 py-2 -mx-2 hover:bg-[var(--surface-2)] transition-colors" aria-expanded={activityOpen}>
-                    <span className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase"><Icon name="clock" size={12} /> Actividad</span>
+                    <span className="ui-section-label flex items-center gap-2"><Icon name="clock" size={14} /> Actividad</span>
                     <span className="flex items-center gap-2 text-[11px] text-[var(--text-muted)] font-mono">
                       {activity.length ? `${activity.length} eventos` : ''}
                       <span className={`transition-transform ${activityOpen ? 'rotate-180' : ''}`}><Icon name="chevronDown" size={13} /></span>
@@ -1444,7 +1444,7 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                   {activityOpen && (activityLoading ? (
                     <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Cargando actividad…</div>
                   ) : activity.length === 0 ? (
-                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Los cambios importantes aparecerán aquí.</div>
+                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Sin actividad</div>
                   ) : (
                     <div className="space-y-2">
                       {activity.map(item => (
@@ -1489,8 +1489,8 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
 
 const SectionTitle = ({ icon, right, children }) => (
   <div className="flex items-center justify-between mb-3">
-    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase">
-      <Icon name={icon} size={12} />
+    <div className="ui-section-label flex items-center gap-2">
+      <Icon name={icon} size={14} />
       {children}
     </div>
     {right && <span className="text-[11px] text-[var(--text-muted)] font-mono">{right}</span>}
@@ -2085,7 +2085,7 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
           onInput={scheduleSave}
           onPaste={handlePaste}
           onClick={handleClick}
-          data-placeholder="Describí la tarea, el brief y las referencias…"
+          data-placeholder="Escribí el brief…"
           className="desc-editor p-3 text-[15px] leading-relaxed"
           style={{ minHeight: 100, background: 'var(--surface-2)', color: 'var(--text)' }}
         />
@@ -2171,7 +2171,6 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
           <div className="min-h-[180px] flex flex-col items-center justify-center text-center px-6">
             <Icon name="message" size={20} style={{ color: 'var(--text-muted)' }} />
             <div className="text-[13px] font-medium mt-3">Iniciá la conversación</div>
-            <div className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>Los mensajes del equipo aparecerán aquí.</div>
           </div>
         )}
         {comments.map(c => {
@@ -2363,7 +2362,7 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   return <section className={`flex flex-col max-w-[900px] ${authorType === 'client' ? 'min-h-[280px] pt-1' : 'min-h-[420px] p-5 md:p-7'}`}>
     <div ref={listRef} className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1 md:pr-2" aria-live="polite">
       {loading && <div className="min-h-[160px] flex items-center justify-center"><div className="flex gap-1.5">{[0,1,2].map(index => <span key={index} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--text-muted)', animationDelay: `${index * 160}ms` }} />)}</div></div>}
-      {!loading && comments.length === 0 && <div className="min-h-[160px] flex flex-col items-center justify-center text-center px-6"><Icon name="message" size={20} style={{ color: 'var(--text-muted)' }} /><div className="text-[13px] font-medium mt-3">Iniciá la conversación</div><div className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>El cliente y el equipo comparten este chat.</div></div>}
+      {!loading && comments.length === 0 && <div className="min-h-[160px] flex flex-col items-center justify-center text-center px-6"><Icon name="message" size={20} style={{ color: 'var(--text-muted)' }} /><div className="text-[13px] font-medium mt-3">Iniciá la conversación</div></div>}
       {!loading && comments.map(comment => <article key={comment.id} className="flex gap-3 group rounded-lg py-1">
         {avatarFor(comment) ? <img src={avatarFor(comment)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0" style={comment.authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{comment.authorType === 'client' ? (clientInitials || initialsFor(comment.authorName)) : initialsFor(comment.authorName)}</div>}
         <div className="min-w-0 flex-1 pt-0.5">
