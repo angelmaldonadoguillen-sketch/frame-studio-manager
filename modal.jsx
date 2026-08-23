@@ -2116,10 +2116,37 @@ const DescriptionEditor = ({ blocks, onChange, projectId }) => {
   );
 };
 
+const CHAT_EMOJI_GROUPS = [
+  { id: 'recent', label: 'Frecuentes', glyph: '✨', emojis: ['👍','❤️','✨','🔥','👏','✅','👀','🙏','😊','🎉','💡','🚀','💯','🙌'] },
+  { id: 'faces', label: 'Caras', glyph: '😊', emojis: ['😀','😃','😄','😁','😊','🙂','😉','😍','🥰','😘','😎','🤩','🥳','😂','🤣','🥹','😅','🤔','😮','😢','😭','😤','😴','🫠','🤯','🫡','🤗','🙃'] },
+  { id: 'gestures', label: 'Gestos', glyph: '👋', emojis: ['👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👍','👎','✊','👊','🤝','👏','🙌','🫶','🙏'] },
+  { id: 'celebrate', label: 'Celebrar', glyph: '🎉', emojis: ['🎉','🎊','✨','⭐','🌟','💫','🔥','💥','🚀','🏆','🥇','🎯','💯','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💖','💝','🎁','🥂','🍾','🎈','🎵'] },
+  { id: 'work', label: 'Trabajo', glyph: '✅', emojis: ['✅','☑️','✔️','❌','⚠️','🚩','📌','📍','📅','⏰','⏳','💡','📝','📎','📁','📤','📥','🔗','🔍','📊','📈','📉','💬','👀','🛠️','⚙️','🔒','🔓'] },
+  { id: 'objects', label: 'Objetos', glyph: '💡', emojis: ['💡','📱','💻','⌨️','🖥️','📷','🎥','🎙️','🎧','🔊','🔔','📢','✏️','🖊️','🖌️','🎨','📦','✉️','📨','🗂️','🧩','🔑','🧠','🧭','🛒','💳','📣','🔋'] },
+];
+
+const ChatEmojiPicker = ({ id, onPick, onClose, className = '' }) => {
+  const [category, setCategory] = useState(CHAT_EMOJI_GROUPS[0].id);
+  const group = CHAT_EMOJI_GROUPS.find(item => item.id === category) || CHAT_EMOJI_GROUPS[0];
+  return <div id={id} role="dialog" aria-label="Selector de emojis" className={`w-[286px] max-w-[calc(100vw-48px)] p-2.5 rounded-xl surf-float z-30 ${className}`}>
+    <div className="flex items-center justify-between px-1 pb-2">
+      <div><div className="text-[12px] font-semibold">Emojis</div><div className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{group.label}</div></div>
+      <button type="button" onClick={onClose} aria-label="Cerrar selector de emojis" className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="x" size={12} /></button>
+    </div>
+    <div role="tablist" aria-label="Categorías de emojis" className="grid grid-cols-6 gap-1 pb-2 border-b border-app">
+      {CHAT_EMOJI_GROUPS.map(item => <button type="button" key={item.id} role="tab" aria-label={item.label} aria-selected={category === item.id} onClick={() => setCategory(item.id)} className="h-8 rounded-md text-[15px] flex items-center justify-center transition-colors" style={{ background: category === item.id ? 'var(--surface-3)' : 'transparent', opacity: category === item.id ? 1 : 0.62 }}>{item.glyph}</button>)}
+    </div>
+    <div role="tabpanel" aria-label={group.label} className="grid grid-cols-7 gap-0.5 pt-2 max-h-[188px] overflow-y-auto">
+      {group.emojis.map((emoji, index) => <button type="button" key={`${emoji}-${index}`} onClick={() => onPick(emoji)} aria-label={`Insertar ${emoji}`} className="w-9 h-9 rounded-md flex items-center justify-center text-[18px] hover:bg-[var(--surface-3)] transition-colors">{emoji}</button>)}
+    </div>
+  </div>;
+};
+
 const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], resolveUser, newComment, setNewComment, onSend, onDeleteComment }) => {
   const resolve = resolveUser || ((id) => team.find(m => m.id === id) || getUser(id));
   const me = resolve(currentUserId);
   const [showMentions, setShowMentions] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const inputRef = useRef(null);
 
   const insertMention = (user) => {
@@ -2190,6 +2217,7 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                 onKeyDown={(e) => {
                   if (e.key === '@') setShowMentions(true);
                   if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); onSend(); }
+                  if (e.key === 'Escape') setEmojiOpen(false);
                 }}
                 placeholder="Agregar un comentario…"
                 rows={1}
@@ -2208,7 +2236,10 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
               )}
             </div>
             <div className="flex items-center justify-between px-2 pb-2">
-              <button type="button" onClick={() => setShowMentions(s => !s)} aria-label="Mencionar a alguien" aria-pressed={showMentions} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="at" size={16} /></button>
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => setShowMentions(s => !s)} aria-label="Mencionar a alguien" aria-pressed={showMentions} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="at" size={16} /></button>
+                <button type="button" onClick={() => setEmojiOpen(open => !open)} aria-label="Agregar emoji" aria-expanded={emojiOpen} aria-controls="team-emoji-picker" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="emoji" size={17} /></button>
+              </div>
               <button
                 type="button"
                 onClick={onSend}
@@ -2217,9 +2248,10 @@ const CommentsTab = ({ comments, commentsLoading, currentUserId, team = [], reso
                 className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] transition disabled:opacity-25"
                 style={{ color: 'var(--text-dim)' }}
               >
-                <Icon name="send" size={16} />
+                <Icon name="arrowUp" size={17} strokeWidth={1.9} />
               </button>
             </div>
+            {emojiOpen && <ChatEmojiPicker id="team-emoji-picker" onClose={() => setEmojiOpen(false)} onPick={emoji => { setNewComment(value => value + emoji); setEmojiOpen(false); inputRef.current?.focus(); }} className="absolute left-0 bottom-full mb-2" />}
           </div>
         </div>
       </div>
@@ -2241,7 +2273,6 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
   const imageRef = useRef(null);
   const listRef = useRef(null);
   const composerRef = useRef(null);
-  const emojis = ['👍', '❤️', '✨', '🔥', '👏', '😊', '😂', '🎉', '✅', '👀', '🙏', '💡'];
   const initialsFor = value => String(value || '?').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
   const avatarFor = comment => comment.authorType === 'studio' ? (studioAvatar || authorAvatar) : '';
   const clientAvatarStyle = { background: resolveThemeColor(clientColor || 'var(--resource-blue)'), color: 'var(--resource-on)' };
@@ -2354,18 +2385,18 @@ const SharedClientComments = ({ portalToken, projectId, authorType, authorName =
       <div className="relative flex gap-3 items-start">
         {composerAvatar ? <img src={composerAvatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-1" style={authorType === 'client' ? clientAvatarStyle : { background: 'var(--surface-3)', color: '#fff' }}>{authorType === 'client' ? (clientInitials || initialsFor(authorName)) : initialsFor(authorName)}</div>}
         <div className="flex-1 min-w-0 rounded-xl border border-app focus-within:border-[var(--border-2)] transition-colors" style={{ background: 'var(--surface-2)' }}>
-          <textarea ref={composerRef} value={text} onChange={event => setText(event.target.value)} onInput={event => { event.currentTarget.style.height = 'auto'; event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 120)}px`; }} onPaste={onPaste} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} maxLength={2000} rows={1} className="w-full px-3 pt-3 pb-1 text-[13px] leading-5 resize-none bg-transparent min-h-[48px] max-h-[120px]" placeholder="Agregar un comentario…" />
+          <textarea ref={composerRef} value={text} onChange={event => setText(event.target.value)} onInput={event => { event.currentTarget.style.height = 'auto'; event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 120)}px`; }} onPaste={onPaste} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } if (event.key === 'Escape') setEmojiOpen(false); }} maxLength={2000} rows={1} className="w-full px-3 pt-3 pb-1 text-[13px] leading-5 resize-none bg-transparent min-h-[48px] max-h-[120px]" placeholder="Agregar un comentario…" />
           <div className="flex items-center justify-between px-2 pb-2">
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading || !!attachment} title="Adjuntar imagen" aria-label="Adjuntar imagen" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}><Icon name="paperclip" size={15} /></button>
-              <button type="button" onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" aria-label="Agregar emoji" aria-pressed={emojiOpen} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="smile" size={17} /></button>
+              <button type="button" onClick={() => setEmojiOpen(open => !open)} title="Agregar emoji" aria-label="Agregar emoji" aria-pressed={emojiOpen} aria-expanded={emojiOpen} aria-controls="shared-emoji-picker" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)]" style={{ color: 'var(--text-dim)' }}><Icon name="emoji" size={17} /></button>
               {uploading && <span className="text-[10px] ml-1" style={{ color: 'var(--accent)' }}>Subiendo…</span>}
             </div>
-            <button type="button" onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} aria-label="Enviar comentario" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] disabled:opacity-25" style={{ color: 'var(--text-dim)' }}><Icon name="send" size={16} /></button>
+            <button type="button" onClick={send} disabled={(!text.trim() && !attachment) || sending || uploading} aria-label="Enviar comentario" className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[var(--surface-3)] disabled:opacity-25" style={{ color: 'var(--text-dim)' }}><Icon name="arrowUp" size={17} strokeWidth={1.9} /></button>
           </div>
           <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; uploadImage(file); }} />
         </div>
-        {emojiOpen && <div className="absolute left-11 bottom-full mb-2 grid grid-cols-6 gap-1 p-2 rounded-xl surf-float z-20">{emojis.map(emoji => <button type="button" key={emoji} onClick={() => { setText(value => value + emoji); setEmojiOpen(false); composerRef.current?.focus(); }} className="w-8 h-8 rounded-md hover:bg-[var(--surface-3)] text-base">{emoji}</button>)}</div>}
+        {emojiOpen && <ChatEmojiPicker id="shared-emoji-picker" onClose={() => setEmojiOpen(false)} onPick={emoji => { setText(value => value + emoji); setEmojiOpen(false); composerRef.current?.focus(); }} className="absolute left-11 bottom-full mb-2" />}
       </div>
       <div className="hidden sm:block text-[9px] mt-1.5 ml-11" style={{ color: 'var(--text-faint)' }}>Enter para enviar · Shift + Enter para una nueva línea</div>
     </div>
