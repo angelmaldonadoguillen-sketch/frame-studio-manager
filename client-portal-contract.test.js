@@ -172,4 +172,19 @@ check(portal.includes("item.kind === 'link' ? 'link' : item.kind === 'video' ? '
   'cada tipo de recurso debe llevar su propio icono');
 check(portal.includes('>Fecha límite<'), 'el detalle debe nombrar la fecha límite igual que el gestor');
 
+// ── Tipo, e indicadores de contenido en la miniatura ────────────────
+check(portal.includes('const TypeChip'), 'el tipo debe verse como pastilla, no como texto gris');
+check(portal.includes('typeIcon:') && portal.includes('typeColor:'),
+  'el icono y el color del tipo deben viajar con la tarea');
+check(portal.includes('colorAlpha(color, 14)'),
+  'el color de la pastilla debe salir de la paleta para adaptarse a los dos temas');
+check(portal.includes('<TypeChip task={task} />'), 'la miniatura debe mostrar el tipo');
+check(portal.includes('<TypeChip task={openTask} />'), 'el detalle debe mostrar el mismo tipo');
+check(portal.includes('task.deliverables?.length > 0 && ('),
+  'la miniatura debe indicar que hay recursos, y sólo cuando los hay');
+check(portal.includes('conteoComentarios[task.id] > 0 && ('),
+  'la miniatura debe indicar que hay comentarios, y sólo cuando los hay');
+check(portal.includes("collection('comments')\n      .onSnapshot") || /collection\('comments'\)[\s\S]{0,40}onSnapshot/.test(portal),
+  'el conteo de comentarios debe ser una sola escucha para todo el portal');
+
 console.log(`client-portal-contract: ${checks} checks passed`);

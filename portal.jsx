@@ -70,6 +70,10 @@ const buildClientPortalDocument = (client, projects, workspace, published = clie
         id: String(project.id),
         title: String(project.title || ''),
         type: getType(project.type).label,
+        // El icono y el color del tipo, para que la pastilla del portal sea la
+        // misma que ve el creativo y no una etiqueta gris cualquiera.
+        typeIcon: String(getType(project.type).icon || 'folder'),
+        typeColor: String(getType(project.type).color || 'var(--resource-neutral)').slice(0, 64),
         status: getStatus(project.status).label,
         statusId: String(project.status || ''),
         startDate: String(project.startDate || ''),
@@ -141,6 +145,20 @@ const PhaseLine = ({ phases, phaseIndex, size = 'sm' }) => {
   );
 };
 
+// La pastilla del tipo, con el mismo icono y color que ve el creativo. Una
+// etiqueta gris que dice "Post" obliga a leerla; con su color se reconoce.
+const TypeChip = ({ task }) => {
+  if (!task.type) return null;
+  const color = task.typeColor || 'var(--resource-neutral)';
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium"
+          style={{ color, background: colorAlpha(color, 14), boxShadow: `inset 0 0 0 1px ${colorAlpha(color, 30)}` }}>
+      <Icon name={task.typeIcon || 'folder'} size={11} />
+      {task.type}
+    </span>
+  );
+};
+
 // El nombre de la fase donde está, y cuántas quedan. "Edición · 3 de 5" le
 // dice al cliente que faltan dos pasos, no sólo que estamos editando.
 const phaseText = (task) => {
@@ -167,6 +185,24 @@ const ClientPortal = ({ token }) => {
     document.addEventListener('keydown', esc);
     return () => document.removeEventListener('keydown', esc);
   }, [lightbox]);
+
+  // Cuántos comentarios tiene cada trabajo. Es una sola escucha para todo el
+  // portal, no una por tarjeta: los comentarios ya viven en una subcolección
+  // del mismo documento y el cliente ya tiene permiso de leerlos.
+  const [conteoComentarios, setConteoComentarios] = React.useState({});
+  React.useEffect(() => {
+    if (!/^[a-f0-9]{48}$/.test(token || '')) return;
+    const unsub = window.db.collection('frame_client_portals').doc(token).collection('comments')
+      .onSnapshot(snap => {
+        const cuenta = {};
+        snap.docs.forEach(doc => {
+          const id = doc.data()?.projectId;
+          if (id) cuenta[id] = (cuenta[id] || 0) + 1;
+        });
+        setConteoComentarios(cuenta);
+      }, () => setConteoComentarios({}));
+    return () => unsub();
+  }, [token]);
 
   React.useEffect(() => {
     if (!/^[a-f0-9]{48}$/.test(token || '')) { setUnavailable(true); setLoading(false); return; }
@@ -336,6 +372,24 @@ const ClientPortal = ({ token }) => {
                           <span className="truncate">{listo ? task.status : phaseText(task)}</span>
                           {task.deadline && <span className="flex-shrink-0">· {fmtDate(task.deadline)}</span>}
                         </div>
+                        {/* Tipo, y qué hay adentro sin tener que entrar. Los
+                            contadores sólo aparecen cuando hay algo: un cero
+                            ocupa el mismo lugar y no informa nada. */}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <TypeChip task={task} />
+                          {task.deliverables?.length > 0 && (
+                            <span className="flex items-center gap-1 text-[11px] tnum" style={{ color: 'var(--text-muted)' }}
+                                  title={task.deliverables.length + ' recurso(s) compartido(s)'}>
+                              <Icon name="paperclip" size={11} />{task.deliverables.length}
+                            </span>
+                          )}
+                          {conteoComentarios[task.id] > 0 && (
+                            <span className="flex items-center gap-1 text-[11px] tnum" style={{ color: 'var(--text-muted)' }}
+                                  title={conteoComentarios[task.id] + ' comentario(s)'}>
+                              <Icon name="message" size={11} />{conteoComentarios[task.id]}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         {listo ? (
@@ -362,7 +416,7 @@ const ClientPortal = ({ token }) => {
         <div className="fixed inset-0 z-50 backdrop flex items-center justify-center p-4" onClick={() => setOpenTask(null)}>
           <div className="surf-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
             <div className="p-5 sm:p-7">
-              <div className="flex items-start justify-between gap-4"><div><div className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>{openTask.type} · {openTask.status}</div><h2 className="font-display text-2xl font-bold pretty">{openTask.title}</h2></div><button onClick={() => setOpenTask(null)} className="p-2 rounded-md hover:bg-[var(--surface-3)]"><Icon name="x" size={15} /></button></div>
+              <div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2 mb-2.5 flex-wrap"><TypeChip task={openTask} /><span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{openTask.status}</span></div><h2 className="font-display text-2xl font-bold pretty">{openTask.title}</h2></div><button onClick={() => setOpenTask(null)} className="p-2 rounded-md hover:bg-[var(--surface-3)]"><Icon name="x" size={15} /></button></div>
               {/* La portada, grande y abrible. Es lo primero que el cliente
                   quiere ver de un trabajo audiovisual. */}
               {openTask.cover && (
