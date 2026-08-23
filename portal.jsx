@@ -427,18 +427,6 @@ const ClientPortal = ({ token }) => {
           <div className="surf-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
             <div className="p-5 sm:p-7">
               <div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2 mb-2.5 flex-wrap"><TypeChip task={openTask} /><span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{openTask.status}</span></div><h2 className="font-display text-2xl font-bold pretty">{openTask.title}</h2></div><button onClick={() => setOpenTask(null)} className="p-2 rounded-md hover:bg-[var(--surface-3)]"><Icon name="x" size={15} /></button></div>
-              {/* La portada, grande y abrible. Es lo primero que el cliente
-                  quiere ver de un trabajo audiovisual. */}
-              {openTask.cover && (
-                <button onClick={() => setLightbox(openTask.cover)}
-                        className="block w-full mt-5 rounded-xl overflow-hidden"
-                        aria-label="Ver la imagen a tamaño completo">
-                  <img src={openTask.cover} alt="" referrerPolicy="no-referrer"
-                       className="w-full max-h-72 object-cover transition-transform hover:scale-[1.01]"
-                       style={{ background: 'var(--surface-3)' }} />
-                </button>
-              )}
-
               {/* Fase actual, con la misma línea que la lista: el cliente no
                   tiene que traducir entre una vista y la otra. */}
               <div className="mt-5">

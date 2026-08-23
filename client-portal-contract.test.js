@@ -173,7 +173,7 @@ check(css.replace(/\s+/g, ' ').includes('.composer textarea:focus-visible, .comp
 check((fs.readFileSync('modal.jsx', 'utf8').match(/composer rounded-xl/g) || []).length === 2,
   'los dos compositores —cliente y equipo— deben usar la misma regla');
 
-// ── Imagen: miniatura antes de abrir, y abrible al abrir ────────────
+// ── Imagen: miniatura para identificar; el detalle prioriza el proceso ───
 check(portal.includes('const portadaDe'), 'la tarjeta debe llevar imagen');
 check(portal.includes('cover: portadaDe(project)'), 'la portada debe viajar dentro de cada tarea');
 check(!/^\s{4}cover:/m.test(portal.slice(portal.indexOf('  return {'), portal.indexOf('// ── Línea de proceso'))),
@@ -184,7 +184,7 @@ check(portal.includes("item.kind === 'photos' && /^https:\\/\\//i.test"),
 check(!portal.includes("item.status === 'ready'"),
   'el portal ya no filtra por estado: todo recurso se comparte al subirlo');
 check(portal.includes('{task.cover && ('), 'la lista debe mostrar la miniatura sin abrir la tarjeta');
-check(portal.includes('{openTask.cover && ('), 'el detalle debe mostrar la portada en grande');
+check(!portal.includes('{openTask.cover && ('), 'el detalle no debe repetir la portada en grande');
 check(portal.includes('setLightbox'), 'la imagen debe poder abrirse a tamaño completo');
 check(portal.includes("z-[60]") && portal.includes('z-50 backdrop'),
   'el visor debe quedar por encima del detalle que lo abrió');
