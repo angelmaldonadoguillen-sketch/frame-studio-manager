@@ -1980,7 +1980,7 @@ const App = () => {
   useEffect(() => {
     if (!authUser || !activeWsReady) return;
     state.clients.filter(client => client.portalPublished && client.portalToken).forEach(client => {
-      const document = buildClientPortalDocument(client, state.projects, activeWs, true);
+      const document = buildClientPortalDocument(client, state.projects, activeWs, true, state.kanbanColumns);
       window.db.collection('frame_client_portals').doc(client.portalToken).set(document)
         .catch(err => console.error('[FRAME] Sincronizar portal:', err));
     });
@@ -2816,7 +2816,7 @@ const App = () => {
     try {
       await window.db.collection('frame_clients').doc(client.id).set(stampWs(updated));
       await window.db.collection('frame_client_portals').doc(portalToken)
-        .set(buildClientPortalDocument({ ...updated, workspaceId: wsId }, state.projects, activeWs, published));
+        .set(buildClientPortalDocument({ ...updated, workspaceId: wsId }, state.projects, activeWs, published, state.kanbanColumns));
       dispatch({ type: 'update_client', client: updated });
       window.frameToast?.(published ? 'Portal del cliente publicado.' : 'Portal del cliente desactivado.');
       return updated;

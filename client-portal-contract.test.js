@@ -95,4 +95,21 @@ check(portal.includes('h-screen overflow-y-auto'), 'el portal debe crear su prop
 check(portal.includes('portal-page-scroll'), 'el scroll vertical debe tener una regla específica');
 check(fs.readFileSync('frame.css', 'utf8').includes('overscroll-behavior-y: contain'), 'el scroll vertical debe permanecer contenido en el portal');
 
+
+// ── Fase 1: el portal responde la pregunta del cliente ──────────────
+check(portal.includes('Próxima entrega'), 'la portada debe abrir con la próxima entrega');
+check(portal.indexOf('Próxima entrega') < portal.indexOf('Calendario de trabajo'), 'la próxima entrega debe ir antes que el calendario');
+check(portal.includes('Tus trabajos'), 'el cliente debe ver la lista de sus trabajos');
+check(portal.indexOf('Tus trabajos') < portal.indexOf('Calendario de trabajo'), 'la lista debe ir antes que el calendario');
+check(portal.includes('const proxima = pendientes[0]'), 'la próxima entrega debe salir de lo pendiente, no de lo entregado');
+check(portal.includes("pendientes = tasks.filter") && portal.includes('a.deadline'), 'lo pendiente debe ordenarse por fecha de entrega');
+check(portal.includes('días de atraso'), 'un atraso debe decirse con todas las letras');
+check(portal.includes("texto: 'Hoy'"), 'la entrega de hoy debe leerse como Hoy');
+check(portal.includes('setCalendarOpen'), 'el calendario debe poder plegarse');
+check(portal.includes("matchMedia('(min-width: 768px)')"), 'el calendario debe arrancar plegado sólo en pantalla chica');
+check(portal.includes('hidden={!calendarOpen}'), 'el calendario plegado no debe ocupar la pantalla');
+check(portal.includes('const avancePorFase'), 'una tarea sin checklist no debe informar 0%');
+check(portal.includes('columns = []'), 'las fases deben entrar por parámetro y no alterar la forma pública');
+check(!portal.includes('columns: '), 'las columnas no deben proyectarse al documento del portal');
+check(app.includes('activeWs, true, state.kanbanColumns'), 'la sincronización debe pasar las columnas del tablero');
 console.log(`client-portal-contract: ${checks} checks passed`);
