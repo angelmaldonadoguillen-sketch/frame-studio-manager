@@ -324,18 +324,63 @@ const InviteBanner = ({ invites, onAccept, onDecline }) => {
 // ── Selector de tablero ─────────────────────────────────────────
 // Cambiar de tablero recarga todos los datos: el estado se vacía en el
 // dispatch y los listeners se vuelven a suscribir con el workspaceId nuevo.
-const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, collapsed }) => {
+const WorkspaceRenameForm = ({ workspace, onRename, onClose }) => {
+  const [name, setName] = React.useState(workspace.name || '');
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const savingRef = React.useRef(false);
+  const submit = async (event) => {
+    event.preventDefault();
+    if (savingRef.current || !name.trim()) return;
+    savingRef.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      await onRename(workspace.id, name);
+      onClose();
+    } catch (err) {
+      setError(err.message || 'No se pudo cambiar el nombre.');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+  return (
+    <form onSubmit={submit} className="p-3 space-y-2" aria-label="Cambiar nombre del tablero">
+      <label className="block text-[12px] font-medium">
+        Nombre del tablero
+        <input autoFocus required maxLength={80} value={name} disabled={saving}
+          onFocus={event => event.target.select()}
+          onChange={event => { setName(event.target.value); setError(''); }}
+          onKeyDown={event => { if (event.key === 'Escape' && !savingRef.current) { event.preventDefault(); onClose(); } }}
+          className="block w-full min-w-0 mt-2 px-2.5 py-2 rounded-md text-[13px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          style={{ background: 'var(--surface-3)', color: 'var(--text)' }} />
+      </label>
+      {error && <p role="alert" className="text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" disabled={saving || !name.trim() || name.trim() === workspace.name}
+          className="px-3 py-2 rounded-md text-[12px] font-semibold disabled:opacity-40"
+          style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>{saving ? 'Guardando…' : 'Guardar'}</button>
+        <button type="button" disabled={saving} onClick={onClose}
+          className="px-3 py-2 rounded-md text-[12px] disabled:opacity-40" style={{ color: 'var(--text-dim)' }}>Cancelar</button>
+      </div>
+    </form>
+  );
+};
+
+const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, onRenameWorkspace, collapsed }) => {
   const [open, setOpen] = useState(false);
+  const [renaming, setRenaming] = useState(null);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const ref = useRef(null);
 
   useEffect(() => {
     if (!open) return;
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setCreating(false); } };
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target) && !renaming) { setOpen(false); setCreating(false); } };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+  }, [open, renaming]);
 
   const active = state.workspaces.find(w => w.id === state.activeWorkspaceId);
   const personal = state.workspaces.filter(w => w.kind === 'personal');
@@ -377,6 +422,12 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, c
           )}
         </button>
 
+        {isOwner && (
+          <button type="button" onClick={() => { setRenaming(w); setCreating(false); }}
+            title="Cambiar nombre" aria-label={'Cambiar nombre de ' + w.name}
+            className="p-2 rounded-md flex-shrink-0 hover:bg-[var(--surface-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            style={{ color: 'var(--text-muted)' }}><Icon name="edit" size={13} /></button>
+        )}
         {/* Borrar: sólo el dueño, y nunca el último que queda — sin ningún
             tablero la app no tiene dónde poner nada. */}
         {isOwner && canDelete && (
@@ -406,7 +457,7 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, c
   return (
     <div className={`${collapsed ? 'px-2' : 'px-3'} py-2.5 border-b border-app relative`} ref={ref}>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => { if (!renaming) setOpen(o => !o); }}
         title={collapsed ? (active ? active.name : 'Sin tablero') : undefined}
         className={`w-full flex items-center rounded-lg transition-colors ${collapsed ? 'justify-center py-2.5' : 'gap-2 px-2 py-2'}`}
         style={{ background: open ? 'var(--surface-3)' : 'var(--surface-2)' }}
@@ -430,6 +481,7 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, c
             boxShadow: 'inset 0 .5px 0 rgba(255,255,255,.08), 0 16px 40px -12px rgba(0,0,0,.8)',
           }}
         >
+          {renaming ? <WorkspaceRenameForm key={renaming.id} workspace={renaming} onRename={onRenameWorkspace} onClose={() => setRenaming(null)} /> : <>
           <div className="p-1.5 space-y-0.5">
             {personal.map(w => <Row key={w.id} w={w} canDelete={state.workspaces.length > 1} />)}
 
@@ -479,6 +531,7 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, c
               </button>
             )}
           </div>
+          </>}
         </div>
       )}
     </div>
@@ -488,7 +541,7 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, c
 // ── Sidebar ─────────────────────────────────────────────────────
 const SIDEBAR_KEY = 'frame_sidebar_collapsed';
 
-const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }) => {
+const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace, onRenameWorkspace }) => {
   // Se recuerda plegada o abierta: si cada recarga la vuelve a abrir, el que
   // trabaja plegado tiene que cerrarla otra vez todos los días.
   const [collapsed, setCollapsed] = useState(() => {
@@ -563,7 +616,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace }
       </div>
 
       {/* Tablero activo */}
-      <WorkspaceSwitcher state={state} dispatch={dispatch} onCreateTeam={onCreateTeam} onDeleteWorkspace={onDeleteWorkspace} collapsed={collapsed} />
+      <WorkspaceSwitcher state={state} dispatch={dispatch} onCreateTeam={onCreateTeam} onDeleteWorkspace={onDeleteWorkspace} onRenameWorkspace={onRenameWorkspace} collapsed={collapsed} />
 
       {/* Usuario autenticado — cerrar sesión vive acá adentro */}
       <ProfileMenu me={me} collapsed={collapsed} onSignOut={onSignOut}
@@ -1896,10 +1949,25 @@ const App = () => {
     window.db.collection('frame_invites').doc(invite.id).delete()
       .catch(err => console.error('[FRAME] Rechazar invitación:', err));
 
-  // ── Eliminar un tablero ─────────────────────────────────────
-  // No borra los proyectos ni los clientes que tuviera: quedan huérfanos en
-  // Firestore en vez de desaparecer sin aviso. Es deliberado — perder trabajo
-  // por un clic es mucho peor que dejar documentos sin usar.
+  // ── Cambiar nombre sin alterar tareas ni miembros ────────────
+  const handleRenameWorkspace = async (workspaceId, proposedName) => {
+    const workspace = state.workspaces.find(w => w.id === workspaceId);
+    if (!authUser || !workspace || workspace.ownerId !== authUser.uid || !(workspace.memberIds || []).includes(authUser.uid)) {
+      throw new Error('Solo el propietario puede cambiar el nombre.');
+    }
+    const name = String(proposedName || '').trim();
+    if (!name || name.length > 80) throw new Error('Usá un nombre de 1 a 80 caracteres.');
+    if (name === workspace.name) return;
+    if (navigator.onLine === false) throw new Error('Sin conexión. Intentá guardar cuando vuelvas a conectarte.');
+    try {
+      await window.db.collection('frame_workspaces').doc(workspaceId).update({ name });
+    } catch (err) {
+      console.error('[FRAME] Cambiar nombre del tablero:', err);
+      throw new Error('No se pudo cambiar el nombre. Intentá de nuevo.');
+    }
+  };
+
+  // No borra las tareas ni los clientes que tuviera el tablero.
   const handleDeleteWorkspace = (ws) => {
     if (!ws || state.workspaces.length <= 1) return;
     if (state.activeWorkspaceId === ws.id) {
@@ -1967,6 +2035,7 @@ const App = () => {
         publish();
       }, (err) => {
         console.error('[FRAME] Tareas compartidas:', err);
+        window.frameToast?.('No se pudieron cargar las tareas compartidas. Revisá la conexión y los permisos del tablero.');
         sharedReady = true;
         publish();
       });
@@ -2548,18 +2617,28 @@ const App = () => {
   // workspaceIds decide dónde aparece. viewerIds es la ACL materializada que
   // Firestore y Storage pueden comprobar sin consultas dinámicas inseguras.
   const handleSetProjectWorkspaces = async (project, requestedIds) => {
-    const originId = project.workspaceId || wsId;
-    if (originId !== wsId) throw new Error('Sólo el tablero principal puede cambiar la visibilidad.');
-
-    const available = state.workspaces.filter(w => !w._hasPendingWrites);
-    const availableIds = new Set(available.map(w => w.id));
-    const workspaceIds = [...new Set([originId, ...(requestedIds || [])])]
-      .filter(id => availableIds.has(id));
-    const selected = available.filter(w => workspaceIds.includes(w.id));
-    const viewerIds = [...new Set(selected.flatMap(w => w.memberIds || []))];
-    if (!viewerIds.includes(state.currentUserId)) viewerIds.push(state.currentUserId);
-
     try {
+      const originId = project.workspaceId || wsId;
+      if (originId !== wsId) throw new Error('Sólo el tablero principal puede cambiar la visibilidad.');
+
+      const available = state.workspaces;
+      const availableIds = new Set(available.map(w => w.id));
+      const workspaceIds = [...new Set([originId, ...(requestedIds || [])])];
+      if (workspaceIds.length > 5 || workspaceIds.some(id => !availableIds.has(id))) {
+        throw new Error('Elegí hasta 5 tableros a los que tengas acceso.');
+      }
+      // Confirmar miembros en el servidor: el estado local puede estar desfasado
+      // tras una invitación, y la ACL debe coincidir con los miembros actuales.
+      const selected = await Promise.all(workspaceIds.map(async id => {
+        const snap = await window.db.collection('frame_workspaces').doc(id).get({ source: 'server' });
+        if (!snap.exists || !(snap.data().memberIds || []).includes(state.currentUserId)) {
+          throw new Error('Ya no tenés acceso a uno de los tableros seleccionados.');
+        }
+        return { ...snap.data(), id };
+      }));
+      const viewerIds = [...new Set(selected.flatMap(w => w.memberIds || []))];
+      const refBatch = window.db.batch();
+
       // El tipo personalizado se copia como configuración visual, no como
       // tarea. El documento y todos sus campos siguen siendo únicos.
       const sourceType = state.customTypes.find(t => t.id === project.type);
@@ -2569,7 +2648,7 @@ const App = () => {
           const ref = window.db.collection('frame_workspaces').doc(workspace.id).collection('config').doc('project_types');
           const snap = await ref.get();
           const types = snap.exists ? (snap.data()?.types || []) : PROJECT_TYPES;
-          if (!types.some(t => t.id === sourceType.id)) await ref.set({ types: [...types, sourceType] });
+          if (!types.some(t => t.id === sourceType.id)) refBatch.set(ref, { types: [...types, sourceType] }, { merge: true });
         }));
       }
       // Una tarea compartida debe tener una columna donde aparecer. Se copia
@@ -2588,16 +2667,17 @@ const App = () => {
                 requiresChecklist: !!status.requiresChecklist,
               }));
           if (!columns.some(column => column.id === sourceStatus.id)) {
-            await ref.set({ columns: [...columns, sourceStatus] });
+            refBatch.set(ref, { columns: [...columns, sourceStatus] }, { merge: true });
           }
         }));
       }
 
-      await window.db.collection('frame_projects').doc(project.id).update({ workspaceIds, viewerIds });
+      // La tarea, su configuración y las referencias se guardan juntas.
+      // Si un permiso falla, no queda compartida sólo a medias.
+      refBatch.update(window.db.collection('frame_projects').doc(project.id), { workspaceIds, viewerIds });
 
       const previousIds = new Set(project.workspaceIds?.length ? project.workspaceIds : [originId]);
       const selectedIds = new Set(workspaceIds);
-      const refBatch = window.db.batch();
       available.forEach(workspace => {
         if (!selectedIds.has(workspace.id) && !previousIds.has(workspace.id)) return;
         refBatch.update(window.db.collection('frame_workspaces').doc(workspace.id), {
@@ -2622,7 +2702,8 @@ const App = () => {
 
       window.frameToast?.(`Tarea visible en ${workspaceIds.length} ${workspaceIds.length === 1 ? 'tablero' : 'tableros'}.`);
     } catch (err) {
-      notifyWriteError(err, 'los tableros visibles de la tarea');
+      if (err?.code) notifyWriteError(err, 'los tableros visibles de la tarea');
+      else window.frameToast?.(err.message || 'No se pudieron guardar los tableros.');
       throw err;
     }
   };
@@ -2957,6 +3038,7 @@ const App = () => {
         workspaces={state.workspaces}
         activeWorkspaceId={state.activeWorkspaceId}
         onQuickCreate={handleQuickCreate}
+        onRenameWorkspace={handleRenameWorkspace}
         onSignOut={() => firebase.auth().signOut()}
       >
         {modalDetalle}
@@ -2967,7 +3049,7 @@ const App = () => {
   return (
     <div className="h-screen flex" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
       <ToastStack />
-      <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} onCreateTeam={handleCreateTeamWorkspace} onDeleteWorkspace={handleDeleteWorkspace} />
+      <Sidebar state={state} dispatch={dispatch} onSignOut={() => firebase.auth().signOut()} onCreateTeam={handleCreateTeamWorkspace} onDeleteWorkspace={handleDeleteWorkspace} onRenameWorkspace={handleRenameWorkspace} />
 
       {/* El banner va dentro de la columna de contenido y no sobre toda la
           pantalla: avisa sin tapar ni interrumpir lo que se estaba haciendo. */}

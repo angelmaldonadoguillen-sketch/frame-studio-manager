@@ -638,7 +638,9 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
   const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState(() =>
     project.workspaceIds?.length ? project.workspaceIds : [project.workspaceId]
   );
-  const availableWorkspaces = workspaces.filter(w => !w._hasPendingWrites);
+  // Una escritura pendiente (p. ej. renombrar) no debe hacer desaparecer el
+  // selector. El guardado confirma existencia y miembros contra el servidor.
+  const availableWorkspaces = workspaces;
 
   useEffect(() => {
     setSelectedWorkspaceIds(project.workspaceIds?.length ? project.workspaceIds : [project.workspaceId]);
