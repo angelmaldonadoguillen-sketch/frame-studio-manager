@@ -325,11 +325,13 @@ const MobileFiltersSheet = ({ state, dispatch, workspaces, activeWorkspaceId, on
 
 // ── Aplicación móvil ─────────────────────────────────────────────
 const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
-                     onQuickCreate, onSignOut, children }) => {
+                     onQuickCreate, onSignOut, onRenameWorkspace, children }) => {
   const columnas = state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES;
   const tipos    = (state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES).map(themed);
 
   const [colIndex, setColIndex] = React.useState(0);
+  const [renamingWorkspace, setRenamingWorkspace] = React.useState(null);
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
   const [quickAdd, setQuickAdd] = React.useState(false);
   const [rutina, setRutina]     = React.useState(false);
   const [perfil, setPerfil]     = React.useState(false);
@@ -416,6 +418,7 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
           {workspaces.map(w => (
             <button
               key={w.id}
+              disabled={!!renamingWorkspace}
               onClick={() => dispatch({ type: 'set_active_workspace', id: w.id })}
               className="px-3 py-1.5 rounded-lg text-[13px] font-medium whitespace-nowrap flex-shrink-0 transition-colors"
               style={{
@@ -427,6 +430,10 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
             </button>
           ))}
         </div>
+        {activeWorkspace?.ownerId === authUser.uid && <button type="button" disabled={!!renamingWorkspace}
+          onClick={() => setRenamingWorkspace(activeWorkspace)} title="Cambiar nombre del tablero" aria-label="Cambiar nombre del tablero"
+          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-[var(--surface-3)] disabled:opacity-40"
+          style={{ color: 'var(--text-muted)' }}><Icon name="edit" size={15} /></button>}
         <button
           onClick={abrirRutina}
           className="px-3 py-1.5 rounded-lg text-[13px] font-medium flex-shrink-0"
@@ -435,6 +442,11 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
           Rutina
         </button>
       </div>
+
+      {renamingWorkspace && <div className="flex-shrink-0 hair" style={{ background: 'var(--surface)' }}>
+        <WorkspaceRenameForm key={renamingWorkspace.id} workspace={renamingWorkspace}
+          onRename={onRenameWorkspace} onClose={() => setRenamingWorkspace(null)} />
+      </div>}
 
       {/* Búsqueda y filtros comparten el mismo estado que escritorio. */}
       <div className="flex items-center gap-2 px-3 py-2 hair flex-shrink-0" style={{ background: 'var(--surface)' }}>
