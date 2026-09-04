@@ -1108,8 +1108,8 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
             ...(!soloYo ? [{ key: 'assignee', label: 'Equipo', options: (wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color })) }] : []),
             { key: 'client', label: 'Cliente', options: [...new Map((state.projects || []).filter(p => p.client).map(p => { const cl = (state.clients || []).find(c => c.name === p.client); return [p.client, { id: p.client, label: p.client, color: cl?.color || '#9A9AA3' }]; })).values()] },
             { key: 'tags', label: 'Tags', options: tagOptions },
-            { key: 'startDate', label: 'Fecha de inicio', options: startDateOptions },
-            { key: 'deadline', label: 'Fecha límite', options: deadlineOptions },
+
+            { key: 'deadline', label: 'Fecha de entrega', options: deadlineOptions },
             { key: 'progress', label: 'Progreso', options: progressOptions },
             { key: 'attributes', label: 'Características', options: attributeOptions },
           ]}
@@ -1318,7 +1318,7 @@ const applyFilters = (state) => {
     if (state.filters.client.length   && !state.filters.client.includes(p.client))                              return false;
     if (state.filters.tags.length     && !state.filters.tags.some(tag => (p.tags || []).includes(tag)))          return false;
     const closed = isClosed(p);
-    if (!dateFilterMatches(p.startDate, state.filters.startDate, 'startDate'))                                   return false;
+
     // Dentro del campo se mantiene la lógica O: una entregada no coincide con
     // "Vencidas", pero sí con "Este mes" cuando ambos están seleccionados.
     if (!dateFilterMatches(p.deadline, state.filters.deadline, 'deadline', closed))                              return false;
@@ -1355,10 +1355,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
   const [client, setClient] = useState('');
   const [type, setType] = useState(availableTypes[0]?.id || 'other');
   const [priority, setPriority] = useState('medium');
-  const [deadline, setDeadline] = useState(() => {
-    const dt = new Date(TODAY); dt.setDate(dt.getDate() + 14);
-    return localISO(dt);
-  });
+  const [deadline, setDeadline] = useState('');
 
   const submit = () => {
     if (!title.trim() || !client.trim()) return;
@@ -1373,7 +1370,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
       assignees: [],
       startDate: localISO(new Date(TODAY)),
       deadline,
-      sessionDate: deadline,
+      sessionDate: deadline || localISO(new Date()),
       budget: 0,
       currency: 'USD',
       tags: [],
@@ -1448,7 +1445,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
             </div>
           </div>
           <div>
-            <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Fecha límite</label>
+            <label className="block text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-1.5">Fecha de entrega</label>
             <input
               type="date"
               value={deadline}
@@ -1574,7 +1571,7 @@ const PREVIEW_FIELD_LABELS = [
   { key: 'estado',       label: 'Estado',         icon: 'dot'      },
   { key: 'prioridad',    label: 'Prioridad',      icon: 'flag'     },
   { key: 'responsables', label: 'Responsables',   icon: 'users'    },
-  { key: 'deadline',     label: 'Fecha límite',   icon: 'calendar' },
+  { key: 'deadline',     label: 'Fecha de entrega',   icon: 'calendar' },
   { key: 'presupuesto',  label: 'Presupuesto',    icon: 'zap'      },
   { key: 'tags',         label: 'Tags',           icon: 'hash'     },
   { key: 'progreso',     label: 'Progreso',       icon: 'layers'   },
@@ -2215,7 +2212,7 @@ const App = () => {
       // No archivar ni entregados
       if (isClosed(p)) return false;
       // La fecha de sesión o deadline tiene que ser pasada
-      const refDate = p.startDate || p.sessionDate || p.deadline;
+      const refDate = p.sessionDate || p.startDate || p.deadline;
       return refDate && refDate < today;
     });
 
@@ -2227,9 +2224,9 @@ const App = () => {
     const batch = window.db.batch();
     toUpdate.forEach(p => {
       // La fecha límite es un compromiso; sólo se mueve la próxima fecha de trabajo.
-      const updated = { ...p, startDate: today, sessionDate: today };
+      const updated = { ...p, sessionDate: today };
       dispatch({ type: 'update_project', project: updated });
-      batch.update(window.db.collection('frame_projects').doc(p.id), { startDate: today, sessionDate: today });
+      batch.update(window.db.collection('frame_projects').doc(p.id), { sessionDate: today });
     });
     batch.commit()
       .then(() => {
@@ -2828,19 +2825,9 @@ const App = () => {
     const { title, status, startDate, sessionDate, deadline, type } = opts;
     const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 5);
 
-    // Crear desde una celda del calendario tiene que dejar la tarea EN ese
-    // día. startDate no se leía de las opciones y quedaba fijo en hoy, así
-    // que la tarjeta aparecía en el día de hoy sin importar dónde la creaste.
-    const start = startDate || localISO(new Date(TODAY));
-
-    // Los 14 días de plazo se cuentan desde el arranque, no desde hoy: una
-    // tarea creada para dentro de un mes no vence la semana que viene.
-    const defDeadline = (() => {
-      const dt = new Date(start + 'T00:00');
-      dt.setDate(dt.getDate() + 14);
-      return localISO(dt);
-    })();
-    const dl = deadline || defDeadline;
+    // La creación permanece interna; el calendario elige solo la sesión.
+    const start = localISO(new Date());
+    const dl = deadline ?? '';
 
     const project = {
       id,
@@ -2852,7 +2839,7 @@ const App = () => {
       assignees:  [],
       startDate:  start,
       deadline:   dl,
-      sessionDate: sessionDate || start,
+      sessionDate: sessionDate || startDate || dl || start,
       budget:     0,
       currency:   'USD',
       tags:       [],

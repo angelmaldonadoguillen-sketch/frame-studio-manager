@@ -6,8 +6,8 @@ const mobile = fs.readFileSync('mobile.jsx', 'utf8');
 
 assert.match(app, /tags: \[\], startDate: \[\], deadline: \[\], progress: \[\], attributes: \[\]/);
 assert.match(app, /Más filtros/);
-assert.match(app, /Fecha de inicio/);
-assert.match(app, /Fecha límite/);
+assert.doesNotMatch(app, /label: 'Fecha de inicio'/);
+assert.match(app, /Fecha de entrega/);
 assert.match(app, /Sin checklist/);
 assert.match(app, /Sin responsable/);
 assert.match(app, /Con entregables/);

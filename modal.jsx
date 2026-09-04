@@ -1156,39 +1156,24 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
               </Dropdown>
             </PropRow>}
 
-            <PropRow icon="calendar" label="Inicio">
-              <input
-                type="date"
-                value={project.startDate}
-                onChange={(e) => updField('startDate')(e.target.value)}
-                className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
-                style={{ colorScheme: 'var(--color-scheme)' }}
-              />
-            </PropRow>
 
-            <PropRow icon="calendar" label="Fecha límite">
+
+            <PropRow icon="calendar" label="Fecha de entrega">
               <div className="flex items-center gap-2">
                 <input
                   type="date"
                   value={project.deadline}
-                  // El navegador impide elegir una fecha anterior al inicio.
-                  // Antes se podía dejar el deadline antes del comienzo, y el
-                  // contador de días mostraba un proyecto ya vencido el mismo
-                  // día que arrancaba.
-                  min={project.startDate || undefined}
+                  // Opcional: conserva el compromiso aunque la sesión cambie.
                   onChange={(e) => updField('deadline')(e.target.value)}
                   className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
                   style={{ colorScheme: 'var(--color-scheme)' }}
                 />
                 {isUrgent && <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>en {days}d</span>}
+                {project.deadline && days < 0 && !isClosed(project) && <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>Atrasada {Math.abs(days)}d</span>}
               </div>
             </PropRow>
 
-            {/* Se quitó "Día de trabajo" (sessionDate). Con el calendario
-                ubicando por fecha de inicio, era un tercer campo de fecha que
-                no posicionaba nada y competía con Inicio por el mismo
-                significado. El dato sigue existiendo — lo usa el carry-over
-                automático — pero deja de pedirse en la interfaz. */}
+            {/* La sesión se gestiona desde el calendario; la entrega es el compromiso. */}
 
             {collaborationEnabled && <PropRow icon="zap" label="Presupuesto">
               <div className="flex items-center gap-1 text-sm">

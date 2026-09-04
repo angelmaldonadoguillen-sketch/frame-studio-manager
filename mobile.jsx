@@ -254,10 +254,7 @@ const MobileFiltersSheet = ({ state, dispatch, workspaces, activeWorkspaceId, on
     ...(!soloYo ? [{ key: 'assignee', label: 'Equipo', options: members.map(u => ({ id: u.id, label: u.name })) }] : []),
     { key: 'client', label: 'Cliente', options: clients },
     { key: 'tags', label: 'Tags', options: tags },
-    { key: 'startDate', label: 'Inicio', options: [
-      { id: 'today', label: 'Hoy' }, { id: 'this_week', label: 'Esta semana' }, { id: 'this_month', label: 'Este mes' },
-    ] },
-    { key: 'deadline', label: 'Fecha límite', options: [
+    { key: 'deadline', label: 'Fecha de entrega', options: [
       { id: 'overdue', label: 'Vencidas' }, { id: 'today', label: 'Vencen hoy' },
       { id: 'next_7_days', label: 'Próximos 7 días' }, { id: 'this_month', label: 'Este mes' },
     ] },

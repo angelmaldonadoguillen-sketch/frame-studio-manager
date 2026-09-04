@@ -40,11 +40,11 @@ exports.carryOverIncompleteTasks = onSchedule({
       const data = task.data();
       const checklist = Array.isArray(data.checklist) ? data.checklist : [];
       const incomplete = checklist.length > 0 && checklist.some(item => !item.done);
-      const refDate = data.startDate || data.sessionDate || data.deadline;
+      const refDate = data.sessionDate || data.startDate || data.deadline;
       if (!incomplete || !refDate || refDate >= today || data.status === 'archived' || completedStatuses.has(data.status)) continue;
 
       batch.update(task.ref, {
-        startDate: today,
+
         sessionDate: today,
         carryOverAt: FieldValue.serverTimestamp(),
       });

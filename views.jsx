@@ -726,7 +726,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
   const projectsByDate = useMemo(() => {
     const map = {};
     projects.forEach(p => {
-      const date = p.startDate || p.sessionDate || p.deadline;
+      const date = p.sessionDate || p.startDate || p.deadline;
       if (!date) return;
       if (!map[date]) map[date] = [];
       if (!map[date].some(x => x.id === p.id)) map[date].push(p);
@@ -794,11 +794,11 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
     if (!dragging) return;
     const project = projects.find(p => p.id === dragging.id);
     if (!project) return;
-    const currentDate = project.startDate;
+    const currentDate = project.sessionDate || project.startDate;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
     // Arrastrar reagenda el arranque y deja la fecha límite intacta: es un
     // compromiso con el cliente, no algo que cambie por reordenar la semana.
-    onUpdateProject && onUpdateProject({ ...project, startDate: iso });
+    onUpdateProject && onUpdateProject({ ...project, sessionDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
 
@@ -891,7 +891,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
                     {onQuickCreate && (
                       <QuickAddCard
                         onCreate={onQuickCreate}
-                        context={{ startDate: iso }}
+                        context={{ sessionDate: iso }}
                         variant="mini"
                         label="Nueva tarea para este día"
                       />
@@ -928,7 +928,7 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
   const hasTags  = pf.tags && project.tags?.length > 0;
   // En el calendario la fecha visible debe ser la misma que ubica la tarjeta.
   // Mostrar deadline acá hacía parecer que el arrastre no había guardado.
-  const displayedDate = calendarDate || project.startDate || project.sessionDate || project.deadline;
+  const displayedDate = calendarDate || project.sessionDate || project.startDate || project.deadline;
 
   return (
     <div
@@ -1087,11 +1087,11 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
       if (match) found = match;
     });
     if (!found) return;
-    const currentDate = found.startDate;
+    const currentDate = found.sessionDate || found.startDate;
     if (currentDate === iso) { setDragging(null); setDragOverDate(null); return; }
     // Sólo la fecha de inicio: la límite es un dato, no una posición.
     const cleanProject = found;
-    onUpdateProject && onUpdateProject({ ...cleanProject, startDate: iso });
+    onUpdateProject && onUpdateProject({ ...cleanProject, sessionDate: iso });
     setDragging(null); setDragOverDate(null); lastOverRef.current = null;
   };
   return (
@@ -1163,7 +1163,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
                 {onQuickCreate && (
                   <QuickAddCard
                     onCreate={onQuickCreate}
-                    context={{ startDate: iso }}
+                    context={{ sessionDate: iso }}
                     variant="mini"
                     label="Nueva tarea para este día"
                   />
@@ -1201,7 +1201,7 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
         {onQuickCreate && (
           <QuickAddCard
             onCreate={onQuickCreate}
-            context={{ startDate: iso }}
+            context={{ sessionDate: iso }}
             label="Nueva tarea para este día"
           />
         )}

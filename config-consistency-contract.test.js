@@ -17,9 +17,11 @@ assert.match(views, /allProjects = projects/);
 assert.match(views, /projectCount=\{totalItems\.length\}/);
 assert.match(views, /allProjects\.filter\(x => x\.status === statusId\)/);
 assert.match(clients, /columns\.length \? columns/);
-assert.match(app, /startDate: today, sessionDate: today/);
+assert.match(app, /sessionDate: today/);
+assert.doesNotMatch(app, /startDate: today/);
 assert.match(functions, /completedStatuses\.has\(data\.status\)/);
-assert.match(functions, /startDate: today/);
+assert.match(functions, /sessionDate: today/);
+assert.doesNotMatch(functions, /startDate: today/);
 assert.match(app, /columns: \[\.\.\.columns, sourceStatus\]/);
 assert.match(app, /localStorage\.removeItem\(storageKey\)/);
 
