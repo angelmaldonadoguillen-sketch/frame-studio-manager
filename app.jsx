@@ -3121,7 +3121,7 @@ const App = () => {
             {filtered.length === 0 && state.view !== 'kanban' && state.view !== 'calendar' && state.view !== 'gallery' ? (
               <EmptyState />
             ) : (
-              <>
+              <CardEditingContext.Provider value={{ columns: state.kanbanColumns, types: state.customTypes.length ? state.customTypes : PROJECT_TYPES, members: workspaceMembers(state.workspaces.find(w => w.id === wsId)), shared: state.workspaces.find(w => w.id === wsId)?.kind === 'team', update: (id, patch) => { const current = state.projects.find(p => p.id === id); if (current) handleUpdateProject({ ...current, ...patch }); } }}>
                 {state.view === 'kanban'   && <KanbanView
                   projects={filtered}
                   allProjects={state.projects}
@@ -3141,7 +3141,7 @@ const App = () => {
                 {state.view === 'calendar' && <CalendarView projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} onUpdateProject={handleUpdateProject} onQuickCreate={handleQuickCreate} previewFields={state.previewFields} />}
                 {state.view === 'gallery'  && <GalleryView  projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} onQuickCreate={handleQuickCreate} previewFields={state.previewFields} />}
                 {state.view === 'list'     && <ListView     projects={filtered} onOpenProject={(id) => dispatch({ type: 'open_project', id })} onDeleteProject={handleDeleteProject} onDuplicateProject={handleDuplicateProject} onToggleFavorite={handleToggleFavorite} />}
-              </>
+              </CardEditingContext.Provider>
             )}
           </div>
         </main>

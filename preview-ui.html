@@ -202,7 +202,7 @@
       const alternarTema = () => setTema(window.setFrameTheme(tema === 'dark' ? 'light' : 'dark'));
 
       return (
-      <div>
+      <CardEditingContext.Provider value={{ columns: STATUSES, types: PROJECT_TYPES, members: [], shared: false, update: (id, patch) => setData(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p)) }}><div>
         <div className="harness-bar">
           <b>Banco de pruebas</b>
           <span>· componentes reales · datos falsos · sin Firestore</span>
@@ -289,7 +289,7 @@
             ))}
           </div>
         </div>
-      </div>
+      </div></CardEditingContext.Provider>
       );
     };
 

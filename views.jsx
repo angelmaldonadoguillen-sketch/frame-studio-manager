@@ -9,11 +9,46 @@
 // y es el único lugar de la tarjeta donde el color grita. Devuelve también
 // el tono, así que urgencia y color salen siempre del mismo cálculo y no
 // pueden desincronizarse (antes había badges URG/VENC con su propia lógica).
+const CardEditingContext = React.createContext(null);
+
+// Un mismo editor para tarjetas y filas; nunca modifica la sesión al editar entrega.
+const CardQuickFields = ({ project, previewFields = {} }) => {
+  const ctx = React.useContext(CardEditingContext);
+  if (!ctx) return null;
+  const set = (key, value) => ctx.update(project.id, { [key]: value });
+  const choices = (items, current) => items.some(x => x.id === current) ? items : [{ id: current, label: current }, ...items];
+  const stop = e => e.stopPropagation();
+  return <div className="frame-quick-fields" onClick={stop} onPointerDown={stop} onKeyDown={stop} draggable={false} onDragStart={e => { e.preventDefault(); e.stopPropagation(); }}>
+    {previewFields.deadline !== false && <label>Entrega
+      <input aria-label="Fecha de entrega" type="date" value={project.deadline || ''} onChange={e => set('deadline', e.target.value)} />
+      {!project.deadline && <span>Sin fecha</span>}
+    </label>}
+    <div className="frame-quick-pair">
+      {previewFields.estado !== false && <label>Estado<select aria-label="Estado" value={project.status} onChange={e => set('status', e.target.value)}>{choices(ctx.columns, project.status).map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>}
+      {previewFields.prioridad !== false && <label>Prioridad<select aria-label="Prioridad" value={project.priority} onChange={e => set('priority', e.target.value)}>{PRIORITIES.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>}
+    </div>
+    {previewFields.progreso !== false && <details><summary>Checklist · {(project.checklist || []).filter(x => x.done).length} de {(project.checklist || []).length}</summary>
+      {!project.checklist?.length && <span>Sin pendientes definidos. Agregalos en el detalle.</span>}
+      {(project.checklist || []).map((item, index) => <label key={item.id || index} className="frame-quick-check"><input type="checkbox" checked={!!item.done} onChange={e => set('checklist', project.checklist.map((x, i) => i === index ? { ...x, done: e.target.checked } : x))} />{item.text}</label>)}
+    </details>}
+    {previewFields.tags && project.tags?.length > 0 && <div>{project.tags.slice(0, 2).map(t => '#' + t).join(' ')}{project.tags.length > 2 ? ' +' + (project.tags.length - 2) : ''}</div>}
+    <details><summary>Editar campos</summary>
+      <label>Título<input aria-label="Título" key={project.id + project.title} defaultValue={project.title} onBlur={e => { const title = e.target.value.trim(); if (title) set('title', title); else e.target.value = project.title; }} /></label>
+      <label>Cliente<input aria-label="Cliente" key={project.id + project.client} defaultValue={project.client || ''} onBlur={e => set('client', e.target.value.trim())} /></label>
+      <label>Tipo<select aria-label="Tipo" value={project.type} onChange={e => set('type', e.target.value)}>{choices(ctx.types, project.type).map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+      <label>Tags (separados por coma)<input aria-label="Tags" key={JSON.stringify(project.tags)} defaultValue={(project.tags || []).join(', ')} onBlur={e => set('tags', [...new Set(e.target.value.split(',').map(x => x.trim()).filter(Boolean))])} /></label>
+      {ctx.shared && <fieldset><legend>Responsables</legend>{ctx.members.map(member => <label key={member.id} className="frame-quick-check"><input type="checkbox" checked={(project.assignees || []).includes(member.id)} onChange={e => set('assignees', e.target.checked ? [...(project.assignees || []), member.id] : project.assignees.filter(id => id !== member.id))} />{member.name}</label>)}</fieldset>}
+    </details>
+    {!!project.deliverables?.length && <span>{project.deliverables.length} recursos · abrir detalle</span>}
+  </div>;
+};
+
 const deliveryCounter = (project) => {
   if (isClosed(project)) {
     return { value: '✓', label: project.status === 'archived' ? 'Archivada' : getStatus(project.status).label, color: 'var(--text-muted)' };
   }
   const d = daysUntil(project.deadline);
+  if (!project.deadline || !Number.isFinite(d)) return { value: '—', label: 'Sin fecha', color: 'var(--text-muted)' };
   if (d < 0)  return { value: '+' + Math.abs(d), label: 'Vencido',    color: 'var(--danger)' };
   if (d === 0) return { value: 'Hoy',            label: 'Entrega',    color: 'var(--accent)' };
   if (d <= 3)  return { value: d + ' d',         label: 'Restantes',  color: 'var(--warn)' };
@@ -21,7 +56,8 @@ const deliveryCounter = (project) => {
 };
 
 const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete, onDuplicate, onToggleFavorite, previewFields = {} }) => {
-  const pf = previewFields;
+  const editing = React.useContext(CardEditingContext);
+  const pf = editing && !editing.shared ? { ...previewFields, responsables: false, presupuesto: false } : previewFields;
   const t = getType(project.type);
   const progress = progressOf(project);
   const [confirmDel, setConfirmDel] = React.useState(false);
@@ -63,10 +99,10 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
 
           {/* Tipo: un punto del color + la palabra. El color pasa a ser
               identificador, no decoración a todo el ancho. */}
-          {pf.tipo !== false && (
+          {(pf.tipo !== false || pf.estado !== false) && (
             <div className="flex items-center gap-1.5 mb-1" style={{ color: 'var(--text-muted)' }}>
               <span className="rounded-full flex-shrink-0" style={{ width: 5, height: 5, background: t.color }} />
-              <span className="text-[11px] font-medium truncate">{t.label}</span>
+              {pf.tipo !== false && <span className="text-[11px] font-medium truncate">{t.label}</span>}
               {pf.estado !== false && (
                 <>
                   <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>·</span>
@@ -167,6 +203,7 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
           )}
         </div>
       )}
+      <CardQuickFields project={project} previewFields={previewFields} />
     </div>
   );
 };
@@ -917,7 +954,9 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
 // ── Tarjeta vertical estilo Notion para vista semanal ────────────
 // Cada property en su propia fila → el título puede wrappear libremente
 // y la tarjeta se adapta a cualquier ancho de columna sin aplastar nada.
-const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDragEnd, dragging, onToggleFavorite, onDelete, onDuplicate, previewFields: pf = {} }) => {
+const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDragEnd, dragging, onToggleFavorite, onDelete, onDuplicate, previewFields = {} }) => {
+  const editing = React.useContext(CardEditingContext);
+  const pf = editing && !editing.shared ? { ...previewFields, responsables: false, presupuesto: false } : previewFields;
   const [confirmDel, setConfirmDel] = React.useState(false);
   const t        = getType(project.type);
   const st       = getStatus(project.status);
@@ -1035,7 +1074,7 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
           <div className="flex items-center justify-between gap-1 mt-0.5">
             {pf.responsables !== false ? <AvatarStack ids={project.assignees} size={16} max={3} /> : <span />}
             {pf.deadline !== false && displayedDate && (
-              <div className="flex items-center gap-0.5 text-[10px] font-mono" style={{ color: 'var(--text-muted)' }} title="Fecha de inicio">
+              <div className="flex items-center gap-0.5 text-[10px] font-mono" style={{ color: 'var(--text-muted)' }} title="Sesión de trabajo (no cambia la entrega)">
                 <Icon name="calendar" size={9} />
                 {fmtDate(displayedDate)}
               </div>
@@ -1044,6 +1083,7 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
         )}
 
       </div>
+      <CardQuickFields project={project} previewFields={pf} />
     </div>
   );
 };
@@ -1288,7 +1328,8 @@ const GalleryAddCard = ({ onCreate }) => {
 };
 
 const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite, previewFields = {} }) => {
-  const pf = previewFields;
+  const editing = React.useContext(CardEditingContext);
+  const pf = editing && !editing.shared ? { ...previewFields, responsables: false, presupuesto: false } : previewFields;
   const t = getType(project.type);
   const progress = progressOf(project);
   const counter  = deliveryCounter(project);
@@ -1412,6 +1453,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
           </div>
         )}
       </div>
+      <CardQuickFields project={project} previewFields={previewFields} />
     </div>
   );
 };
@@ -1437,6 +1479,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
           <div className="w-1 h-8 rounded-full" style={{ background: t.color }}></div>
           <div className="min-w-0">
             <div className="font-medium truncate">{p.title}</div>
+            <CardQuickFields project={p} />
             <div className="text-[11px] text-[var(--text-muted)] font-mono">
               {p.tags.slice(0, 2).map(tag => '#' + tag).join(' ')}
             </div>
