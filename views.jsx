@@ -203,7 +203,6 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
           )}
         </div>
       )}
-      <CardQuickFields project={project} previewFields={previewFields} />
     </div>
   );
 };
@@ -1083,7 +1082,6 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
         )}
 
       </div>
-      <CardQuickFields project={project} previewFields={pf} />
     </div>
   );
 };
@@ -1453,7 +1451,6 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
           </div>
         )}
       </div>
-      <CardQuickFields project={project} previewFields={previewFields} />
     </div>
   );
 };
@@ -1479,7 +1476,6 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
           <div className="w-1 h-8 rounded-full" style={{ background: t.color }}></div>
           <div className="min-w-0">
             <div className="font-medium truncate">{p.title}</div>
-            <CardQuickFields project={p} />
             <div className="text-[11px] text-[var(--text-muted)] font-mono">
               {p.tags.slice(0, 2).map(tag => '#' + tag).join(' ')}
             </div>
