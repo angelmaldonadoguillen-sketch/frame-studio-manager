@@ -41,7 +41,7 @@ const {chromium}=require(path.join(deps,'playwright'));
   // Section design affects the same page that preview renders.
   await page.locator('.fp-tree-select').nth(1).click();
   await page.getByRole('button',{name:'Diseño',exact:true}).click();
-  await page.getByLabel('Espaciado',{exact:true}).selectOption('airy');
+  await page.getByRole('button',{name:'Amplio',exact:true}).click();
   assert.equal(await page.locator('.fp-site-gallery').evaluate(e=>getComputedStyle(e).paddingTop),'64px');
   await page.getByRole('button',{name:'2 columnas',exact:true}).click();
   await page.getByLabel('Relación de aspecto',{exact:true}).selectOption('portrait');
@@ -56,8 +56,7 @@ const {chromium}=require(path.join(deps,'playwright'));
   await page.getByLabel('Relación de aspecto',{exact:true}).selectOption('original');
   assert.equal(await page.locator('.fp-site-gallery img').first().evaluate(e=>getComputedStyle(e).aspectRatio),'auto');
   assert.equal(await page.locator('.fp-site-gallery img').first().evaluate(e=>Math.abs(e.getBoundingClientRect().width/e.getBoundingClientRect().height-e.naturalWidth/e.naturalHeight)<.01),true);
-  await page.getByRole('button',{name:'Contenido',exact:true}).click();
-  await page.getByLabel('Mostrar sección en la página').uncheck();
+  await page.locator('.fp-tree-section').nth(1).getByRole('button',{name:/^Ocultar /}).click();
   assert.equal(await page.locator('.fp-site-gallery').count(),0);
   await page.getByRole('button',{name:'Deshacer',exact:true}).click();
   assert.equal(await page.locator('.fp-site-gallery').count(),1);

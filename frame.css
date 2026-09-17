@@ -558,6 +558,9 @@
 .fp-tree-select span,.fp-tree-child span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .fp-tree-select > svg { color:var(--text-dim); }
 .fp-tree-row .fp-collapse { padding:6px; min-height:30px; }
+.fp-tree-row .fp-eye { padding:6px; min-height:30px; color:var(--text-dim); }
+.fp-tree-section[data-hidden="true"] > .fp-tree-row .fp-eye { opacity:1; }
+@media (hover:hover) { .fp-tree-row .fp-eye { opacity:0; } .fp-tree-row:hover .fp-eye,.fp-tree-row .fp-eye:focus-visible { opacity:1; } }
 .fp-tree-children { margin:3px 10px 8px 30px; border-left:1px solid var(--border-2); padding-left:8px; }
 .fp-tree-child,.fp-tree-add { display:flex; gap:8px; align-items:center; width:100%; padding:8px; border-radius:5px; min-height:32px; font-size:11px!important; color:var(--text-dim)!important; }
 .fp-tree-child:hover,.fp-tree-add:hover { background:var(--accent-soft-weak); }
@@ -644,10 +647,13 @@
 .fp-field input::placeholder,.fp-field textarea::placeholder { color:var(--text-muted); }
 .fp-field small,.fp-help { color:var(--text-dim); font-size:11px; line-height:1.6; }
 .fp-editor .fp-field-error { color:var(--danger); font-size:11px; margin:8px 0; }
-.fp-field-pair { display:grid; grid-template-columns:minmax(0,1fr) 85px; gap:10px; }
 .fp-check { display:flex; align-items:center; gap:10px; font-size:12px; margin:16px 0; min-height:32px; }
 .fp-check input { width:16px; height:16px; accent-color:var(--accent); flex-shrink:0; }
-.fp-visibility { padding-top:20px; border-top:1px solid var(--border); margin-top:28px; }
+.fp-check input[role="switch"] { appearance:none; position:relative; width:32px; height:18px; margin:0; border-radius:999px; background:var(--surface-3); border:1px solid var(--border-2); cursor:pointer; }
+.fp-check input[role="switch"]::after { content:""; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:var(--text-dim); transition:transform .15s ease; }
+.fp-check input[role="switch"]:checked { background:var(--accent); border-color:var(--accent); }
+.fp-check input[role="switch"]:checked::after { transform:translateX(14px); background:#fff; }
+.fp-check input[role="switch"]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .fp-section-blocks { margin-top:24px; }
 .fp-section-blocks h3 { display:flex; justify-content:space-between; font-size:12px; margin-bottom:12px; }
 .fp-section-blocks h3 span { color:var(--text-dim); }
@@ -668,6 +674,7 @@
 .fp-segmented { display:flex; padding:3px; gap:3px; background:var(--bg); border:1px solid var(--border); border-radius:7px; }
 .fp-segmented button { flex:1; min-height:32px; text-align:center; padding:7px 4px; border-radius:4px; font-size:11px; }
 .fp-segmented button[aria-pressed="true"] { background:var(--surface-3); color:var(--text); }
+.fp-segmented button > svg { margin:auto; display:block; }
 .fp-variant-options { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .fp-variant-options button { border:1px solid var(--border); border-radius:7px; padding:6px; }
 .fp-variant-options button[aria-pressed="true"] { border-color:var(--accent-border); background:var(--accent-soft); }
@@ -920,8 +927,9 @@
 @media(max-width:600px) {
   .fp-topbar { padding:10px; gap:8px; flex-wrap:wrap; }
   .fp-brand-group { flex:1; }
-  .fp-brand > span { margin-left:4px; }
-  .fp-document-name { max-width:130px; }
+  .fp-brand > span { display:none; }
+  .fp-brand-group > div { min-width:0; }
+  .fp-document-name { max-width:100%; }
   .fp-mark { display:none; }
   .fp-top-actions { flex:0 0 auto; gap:3px; }
   .fp-top-actions .fp-history { display:none; }
@@ -932,7 +940,9 @@
   .fp-editor .fp-publish-button { padding:8px 10px; }
   .fp-sidebar,.fp-inspector { width:100%; }
   .fp-tree-select,.fp-tree-child,.fp-tree-add { min-height:44px; font-size:13px!important; }
-  .fp-tree-row .fp-grip,.fp-tree-row .fp-collapse { min-width:28px; min-height:44px; }
+  .fp-tree-row .fp-grip,.fp-tree-row .fp-collapse,.fp-tree-row .fp-eye { min-width:28px; min-height:44px; }
+  .fp-segmented button { min-height:40px; }
+  .fp-check { min-height:44px; }
   .fp-inspector-head { padding:12px 18px; }
   .fp-editor :is(.fp-field input,.fp-field textarea,.fp-field select) { font-size:16px; min-height:44px; }
   .fp-inspector-foot .fp-button { min-width:44px; min-height:44px; }
