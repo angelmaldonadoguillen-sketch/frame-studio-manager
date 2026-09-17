@@ -12,7 +12,6 @@ const FP_META = {
   navigation:['menu','Enlaces para recorrer tu sitio.'],
   footer:['layout','Un cierre con tu información y enlaces.']
 };
-const fpNormalize=text=>String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 // www.sitio.com → https://…, correo → mailto:, teléfono → tel:. Lo que no se reconoce queda igual.
 const fpLink=value=>{const v=String(value||'').trim();if(!v||/^(https?:|mailto:|tel:)/i.test(v))return v;if(/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(v))return 'mailto:'+v;if(/^\+?[\d\s().-]{7,}$/.test(v))return 'tel:'+v.replace(/[^\d+]/g,'');if(/^(www\.)?[\w-]+(\.[\w-]+)+([/?#].*)?$/i.test(v))return 'https://'+v;return v;};
 const fpHttps=value=>{const v=String(value||'').trim();if(/^http:\/\//i.test(v))return 'https://'+v.slice(7);if(v&&!/^[a-z]+:/i.test(v)&&/^(www\.)?[\w-]+(\.[\w-]+)+\//i.test(v))return 'https://'+v;return v;};
@@ -82,7 +81,7 @@ const FPInserter=({draft,onPick,onClose})=>{
     return()=>{document.removeEventListener('mousedown',outside);document.removeEventListener('keydown',esc);};
   },[]);
   const page=FramePortfolio.pageStyle(draft),tint={background:page.background,color:page.color,'--fp-site-accent':page['--fp-site-accent']};
-  return <div className="fp-inserter" ref={ref} role="dialog" aria-label="Agregar sección aquí" onClick={e=>e.stopPropagation()}><div className="fp-inserter-grid">{FramePortfolio.modules.map(m=><button type="button" key={m.type} disabled={draft.sections.length>=50} onClick={()=>onPick(m.type)}><span className="fp-inserter-thumb" style={tint}><FPThumb type={m.type} variant={m.variants[0]}/></span><span>{m.label}</span></button>)}</div></div>;
+  return <div className="fp-inserter" ref={ref} role="dialog" aria-label="Agregar sección aquí" onClick={e=>e.stopPropagation()}><div className="fp-inserter-grid">{FP_ORDER.map(type=>FramePortfolio.modules.find(m=>m.type===type)).map(m=><button type="button" key={m.type} disabled={draft.sections.length>=50} onClick={()=>onPick(m.type)}><span className="fp-inserter-thumb" style={tint}><FPThumb type={m.type} variant={m.variants[0]}/></span><span>{m.label}</span></button>)}</div></div>;
 };
 const FPImageLink=({value,onChange})=>{
   const isLink=!!value&&!value.startsWith('data:'),[open,setOpen]=React.useState(isLink);
@@ -121,10 +120,18 @@ const PortfolioFontLoader=({draft})=>{
 const FPFontSelect=({label,value,onChange})=><FPField label={label}><select value={value||'theme'} onChange={e=>onChange(e.target.value)}><option value="theme">Fuente del tema</option><optgroup label="Sans serif">{FramePortfolio.fontOptions.filter(font=>font.category==='sans').map(font=><option key={font.id} value={font.id}>{font.name}</option>)}</optgroup><optgroup label="Serif">{FramePortfolio.fontOptions.filter(font=>font.category==='serif').map(font=><option key={font.id} value={font.id}>{font.name}</option>)}</optgroup></select></FPField>;
 const FPSiteStyleSettings=({draft,edit})=>{
   const style=draft.siteStyle||{},maxWidth=style.maxWidth||1200,previewStyle=FramePortfolio.pageStyle(draft);
+  const width=FP_WIDTHS.reduce((best,option)=>Math.abs(option[0]-maxWidth)<Math.abs(best[0]-maxWidth)?option:best)[0];
   const update=patch=>edit(d=>({...d,siteStyle:{...d.siteStyle,...patch}}),Object.keys(patch)[0]);
-  return <div className="fp-site-style-settings"><h3>Tipografía y ancho</h3><label className="fp-page-width"><span>Ancho del contenido <output>{maxWidth}px</output></span><input type="range" min="640" max="1600" step="20" value={maxWidth} aria-label="Ancho de la página" onChange={e=>update({maxWidth:Number(e.target.value)})}/></label><FPFontSelect label="Fuente de títulos" value={style.headingFont} onChange={headingFont=>update({headingFont})}/><FPFontSelect label="Fuente de texto" value={style.bodyFont} onChange={bodyFont=>update({bodyFont})}/><div className="fp-font-preview" style={previewStyle} aria-label="Vista previa de tipografías"><strong>Ideas que toman forma.</strong><span>Diseño, dirección de arte y experiencias visuales.</span></div><FPButton disabled={!draft.siteStyle} onClick={()=>edit(d=>{const next={...d};delete next.siteStyle;return next;})}>Restablecer tipografía y ancho</FPButton></div>;
+  return <div className="fp-site-style-settings"><h3>Tipografía y ancho</h3><div className="fp-field" role="group" aria-label="Ancho del contenido"><span>Ancho del contenido</span><div className="fp-width-options">{FP_WIDTHS.map(([value,label])=><button type="button" key={value} aria-pressed={width===value} onClick={()=>update({maxWidth:value})}><span className="fp-width-thumb" aria-hidden="true"><i style={{width:Math.round(value/1600*100)+'%'}}/></span>{label}</button>)}</div></div><FPFontSelect label="Fuente de títulos" value={style.headingFont} onChange={headingFont=>update({headingFont})}/><FPFontSelect label="Fuente de texto" value={style.bodyFont} onChange={bodyFont=>update({bodyFont})}/><div className="fp-font-preview" style={previewStyle} aria-label="Vista previa de tipografías"><strong>Ideas que toman forma.</strong><span>Diseño, dirección de arte y experiencias visuales.</span></div><FPButton disabled={!draft.siteStyle} onClick={()=>edit(d=>{const next={...d};delete next.siteStyle;return next;})}>Restablecer tipografía y ancho</FPButton></div>;
 };
+const FP_WIDTHS=[[760,'Angosto'],[1200,'Normal'],[1440,'Amplio']];
 const FP_STORAGE_LIMIT=1024*1024*1024;
+// Errores de subida en palabras de persona. Los de la función ya vienen en español.
+const fpUploadError=(err,fallback)=>{const code=String(err?.code||'');
+  if(code==='functions/resource-exhausted')return 'Alcanzaste el límite de 1 GB de tu portfolio.';
+  if(['functions/unauthenticated','functions/permission-denied','functions/invalid-argument'].includes(code)&&err.message)return err.message;
+  if(code.startsWith('functions/')||code.startsWith('storage/'))return 'El servicio de archivos no está respondiendo. Tu borrador no se perdió; intentá de nuevo más tarde.';
+  return err?.message||fallback;};
 const fpBytes=value=>{const bytes=Math.max(0,Number(value)||0);if(bytes<1024)return bytes+' B';if(bytes<1024*1024)return (bytes/1024).toFixed(bytes<10240?1:0)+' KB';return (bytes/1024/1024).toFixed(bytes<104857600?1:0)+' MB';};
 const PortfolioLoadingScreen=({profileName,onExit})=><main className="fp-entry-loading" aria-busy="true" aria-live="polite"><div className="fp-entry-mark" aria-hidden="true">F</div><div className="fp-entry-copy"><span>FRAME PORTFOLIO</span><h1>Abriendo tu editor</h1><p>{profileName?'Preparando el portfolio de '+profileName+'.':'Preparando tus módulos, estilos y recursos.'}</p><div className="fp-entry-progress"><i/></div></div>{onExit&&<button type="button" onClick={onExit}>Volver a FRAME</button>}</main>;
 const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview=false,initialDraft,canPublish=true,profileName=''})=>{
@@ -152,13 +159,13 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   const [motionReplay,setMotionReplay]=React.useState({id:null,token:0});
   const [reducedMotion,setReducedMotion]=React.useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   React.useEffect(()=>{const media=window.matchMedia('(prefers-reduced-motion: reduce)'),change=()=>setReducedMotion(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
-  const [insertAt,setInsertAt]=React.useState(null),[catalog,setCatalog]=React.useState(false),[query,setQuery]=React.useState(''),[moduleType,setModuleType]=React.useState('hero'),[variant,setVariant]=React.useState('center');
+  const [insertAt,setInsertAt]=React.useState(null),[canvasZoom,setCanvasZoom]=React.useState(1);
   const [busy,setBusy]=React.useState(false),[uploadError,setUploadError]=React.useState(''),[uploadProgress,setUploadProgress]=React.useState(0);
   const [logoProgress,setLogoProgress]=React.useState(0),[logoError,setLogoError]=React.useState('');
   const [usage,setUsage]=React.useState({usedBytes:0,reservedBytes:0,loading:!localPreview});
   const [confirmUnpublish,setConfirmUnpublish]=React.useState(false),[publishing,setPublishing]=React.useState(false);
   const [publication,setPublication]=React.useState({loading:!localPreview&&canPublish,published:false,contentHash:'',updatedAt:null,error:''});
-  const catalogRef=React.useRef(null),importRef=React.useRef(null),imageRef=React.useRef(null),logoRef=React.useRef(null),rootRef=React.useRef(null),mounted=React.useRef(true),uploadToken=React.useRef(0);
+  const canvasRef=React.useRef(null),importRef=React.useRef(null),imageRef=React.useRef(null),logoRef=React.useRef(null),rootRef=React.useRef(null),mounted=React.useRef(true),uploadToken=React.useRef(0);
   const section=draft.sections.find(s=>s.id===selected),item=section?.content.items.find(i=>i.id===itemId);
   const definition=FramePortfolio.modules.find(m=>m.type===section?.type);
   React.useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;uploadToken.current++;};},[]);
@@ -191,7 +198,11 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   React.useEffect(()=>{if(FramePortfolio.valid(draft)){try{const json=JSON.stringify(draft);if(json===savedJSON)sessionStorage.removeItem(key+'_pending');else sessionStorage.setItem(key+'_pending',json);}catch(_){}}},[draft,key,savedJSON]);
   React.useEffect(()=>{if(itemId&&!item)setItemId(null);if(selected&&!section)setSelected(draft.sections[0]?.id);},[draft,itemId,selected]);
   React.useEffect(()=>{if(!initializing)requestAnimationFrame(()=>rootRef.current?.focus({preventScroll:true}));},[initializing]);
-  React.useEffect(()=>{if(catalog)catalogRef.current.showModal();else catalogRef.current?.close();},[catalog]);
+  React.useLayoutEffect(()=>{
+    const el=canvasRef.current;if(!el||!preview||device!=='desktop'){setCanvasZoom(1);return;}
+    const measure=()=>{const style=getComputedStyle(el);setCanvasZoom(Math.min(1,(el.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight))/1440));};
+    measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();
+  },[preview,device]);
   React.useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),notice.undo?7000:4500);return()=>clearTimeout(timer);},[notice]);
   // El menú ⋯ se cierra al tocar afuera o con Escape
   React.useEffect(()=>{
@@ -313,7 +324,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
     finally{setPublishing(false);}
   };
   const copyPublicUrl=async()=>{try{await navigator.clipboard.writeText(publicUrl);setNotice('Enlace copiado');}catch(_){setError('No se pudo copiar automáticamente. Seleccioná el enlace y copialo.');}};
-  const openCatalog=()=>{setQuery('');setCatalog(true);};
+  const addAtEnd=()=>{setPreview(false);setPane('preview');setInsertAt(draftRef.current.sections.length);};
   const insertSection=(type,at)=>{
     if(draftRef.current.sections.length>=50)return;const s=FramePortfolio.make(type);
     edit(d=>{const list=d.sections.slice();list.splice(Math.min(at,list.length),0,s);return {...d,sections:list};});
@@ -323,10 +334,6 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
       el.scrollIntoView({block:'nearest'});if(!title)return;title.focus({preventScroll:true});
       const range=document.createRange();range.selectNodeContents(title);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
     }));
-  };
-  const addSection=()=>{
-    if(draft.sections.length>=50)return;const s=FramePortfolio.make(moduleType);s.variant=variant;
-    edit(d=>({...d,sections:[...d.sections,s]}));choose(s.id);setCatalog(false);setNotice('Sección agregada');
   };
   const addItem=()=>{
     if(!section||section.content.items.length>=100)return;const next=FramePortfolio.item();next.title='';
@@ -382,7 +389,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
       setUploadProgress(55);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.82));if(!blob)throw new Error('No se pudo optimizar la imagen.');
       const data=await uploadAsset(blob,'content',token,setUploadProgress);if(localPreview&&data.length>250000)throw new Error('Esta imagen es muy pesada para el borrador de prueba. Elegí una más pequeña o usá un enlace.');
       if(mounted.current&&uploadToken.current===token){setUploadProgress(100);edit(d=>({...d,sections:d.sections.map(s=>s.id===sid?{...s,content:{...s.content,items:s.content.items.map(i=>i.id===iid?{...i,image:data}:i)}}:s)}));setNotice('Imagen cargada');}
-    }catch(err){if(mounted.current){setUploadProgress(0);setUploadError(err?.code==='functions/resource-exhausted'?'Alcanzaste el límite de 1 GB de tu portfolio.':err.message||'No se pudo cargar la imagen.');}}finally{if(url)URL.revokeObjectURL(url);if(mounted.current)setBusy(false);}
+    }catch(err){if(mounted.current){setUploadProgress(0);setUploadError(fpUploadError(err,'No se pudo cargar la imagen.'));}}finally{if(url)URL.revokeObjectURL(url);if(mounted.current)setBusy(false);}
   };
   const uploadLogo=async file=>{
     if(!file||busy)return;const token=++uploadToken.current;setBusy(true);setLogoError('');setLogoProgress(2);let url;
@@ -408,11 +415,9 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
       }
       data=await uploadAsset(blob,'logo',token,setLogoProgress);if(!FramePortfolio.safeLogo(data))throw new Error('El logo no pasó la validación de seguridad.');
       if(mounted.current&&token===uploadToken.current){edit(d=>({...d,logo:{src:data,desktopWidth:d.logo?.desktopWidth||140,mobileWidth:d.logo?.mobileWidth||104}}));setLogoProgress(100);setNotice('Logo listo');}
-    }catch(err){if(mounted.current){setLogoProgress(0);setLogoError(err?.code==='functions/resource-exhausted'?'Alcanzaste el límite de 1 GB de tu portfolio.':err.message||'No se pudo cargar el logo.');}}finally{if(url?.startsWith('blob:'))URL.revokeObjectURL(url);if(mounted.current)setBusy(false);}
+    }catch(err){if(mounted.current){setLogoProgress(0);setLogoError(fpUploadError(err,'No se pudo cargar el logo.'));}}finally{if(url?.startsWith('blob:'))URL.revokeObjectURL(url);if(mounted.current)setBusy(false);}
   };
   if(initializing)return <PortfolioLoadingScreen profileName={profileName} onExit={onExit}/>;
-  const definitionList=FP_ORDER.map(t=>FramePortfolio.modules.find(m=>m.type===t));
-  const filtered=definitionList.filter(m=>fpNormalize(m.label).includes(fpNormalize(query)));
   const total=item?section.content.items.length:draft.sections.length;
   const mediaType=section&&['gallery','image-text','hero','services','video'].includes(section.type);
   const visibleSections=draft.sections.filter(s=>!s.hidden),leadingNavigation=visibleSections[0]?.type==='navigation'?visibleSections[0]:null;
@@ -453,13 +458,13 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
               <div className="fp-tree-row"><button className="fp-grip" draggable aria-label={'Arrastrar '+s.content.title} title="Arrastrar o usar ↑ ↓ para reordenar" aria-keyshortcuts="ArrowUp ArrowDown" onKeyDown={e=>nudge(e,s.id)} onDragStart={e=>{setDragging(s.id);e.dataTransfer.setData('text/plain',s.id);e.dataTransfer.effectAllowed='move';}} onDragEnd={()=>{setDragging(null);setDropTarget(null);}}><FPIcon name="grip" size={14}/></button><button className="fp-tree-select" aria-pressed={selected===s.id&&!itemId} onClick={()=>choose(s.id)}><FPIcon name={FP_META[s.type][0]} size={17}/><span>{s.content.title||FramePortfolio.modules.find(m=>m.type===s.type).label}</span></button><FPButton className="fp-eye" icon={s.hidden?'hidden':'eye'} label={(s.hidden?'Mostrar ':'Ocultar ')+(s.content.title||'sección')} aria-pressed={!!s.hidden} onClick={()=>edit(d=>({...d,sections:d.sections.map(x=>x.id===s.id?{...x,hidden:!x.hidden}:x)}))}/>{s.content.items.length>0&&<FPButton className="fp-collapse" icon={open?'down':'forward'} label={(open?'Plegar ':'Expandir ')+(s.content.title||'sección')} aria-expanded={open} onClick={()=>setCollapsed(c=>({...c,[s.id]:open}))}/>}</div>
               {open&&<div className="fp-tree-children">{s.content.items.map((i,n)=><div key={i.id} className="fp-tree-block-row" data-dragging={dragBlock?.id===i.id} data-drop={dropTarget?.id===i.id?dropTarget.side:undefined} onDragOver={e=>{if(!dragBlock)return;e.stopPropagation();if(dragBlock.sid!==s.id)return;e.preventDefault();const side=dragBlock.id===i.id?null:n>s.content.items.findIndex(x=>x.id===dragBlock.id)?'after':'before';if(dropTarget?.id!==i.id||dropTarget?.side!==side)setDropTarget(side?{id:i.id,side}:null);}} onDrop={e=>{if(dragBlock){e.stopPropagation();e.preventDefault();dropBlock(s.id,i.id);}}}><button className="fp-block-grip" draggable aria-label={'Arrastrar bloque '+(i.title||n+1)} title="Arrastrar o usar ↑ ↓ para reordenar" aria-keyshortcuts="ArrowUp ArrowDown" onKeyDown={e=>nudge(e,s.id,i.id)} onDragStart={e=>{e.stopPropagation();setDragBlock({sid:s.id,id:i.id});e.dataTransfer.setData('text/plain',i.id);e.dataTransfer.effectAllowed='move';}} onDragEnd={()=>{setDragBlock(null);setDropTarget(null);}}><FPIcon name="grip" size={12}/></button><button className="fp-tree-child" aria-label={'Seleccionar bloque '+(n+1)+' de '+s.content.title} aria-pressed={selected===s.id&&itemId===i.id} onClick={()=>choose(s.id,i.id)}><FPIcon name={['gallery','hero','image-text','video'].includes(s.type)?'image':'text'} size={14}/><span>{i.title||'Bloque '+(n+1)}</span></button></div>)}{s.id===selected&&s.type!=='text'&&<button className="fp-tree-add" disabled={s.content.items.length>=100} onClick={()=>{setItemId(null);addItem();}}><FPIcon name="plus" size={14}/>Agregar bloque</button>}</div>}
             </div>;})}
-            <FPButton icon="plus" className="fp-add-section" disabled={draft.sections.length>=50} onClick={openCatalog}>Agregar sección</FPButton>
+            <FPButton icon="plus" className="fp-add-section" disabled={draft.sections.length>=50} onClick={addAtEnd}>Agregar sección</FPButton>
           </div>
         </>}
       </aside>
       <main className="fp-stage" aria-label="Lienzo del portfolio">
         
-        <div className={'fp-canvas-scroll '+(device==='mobile'?'fp-device-mobile':'')}><div className="fp-browser-frame">
+        <div ref={canvasRef} className={'fp-canvas-scroll '+(device==='mobile'?'fp-device-mobile':'')}><div className="fp-browser-frame" style={preview&&device==='desktop'?{width:1440,maxWidth:'none',zoom:canvasZoom}:undefined}>
           <div className="frame-portfolio-page" style={FramePortfolio.pageStyle(draft)}>
             {leadingNavigation?null:<PortfolioBrand draft={draft}/>} 
             {visibleSections.map(s=>{const at=draft.sections.findIndex(x=>x.id===s.id);return <React.Fragment key={s.id}>
@@ -507,17 +512,11 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
             </>}
           </div>
           <div className="fp-inspector-foot"><div><FPButton icon="copy" label={item?'Duplicar bloque':'Duplicar sección'} disabled={total>=(item?100:50)} onClick={duplicate}/><FPButton className="fp-danger" icon="trash" label={item?'Quitar bloque':'Quitar sección'} onClick={remove}/></div></div>
-        </>:<div className="fp-inspector-empty"><FPIcon name="layout" size={30}/><FPButton icon="plus" onClick={openCatalog}>Agregar sección</FPButton></div>}
+        </>:<div className="fp-inspector-empty"><FPIcon name="layout" size={30}/><FPButton icon="plus" onClick={addAtEnd}>Agregar sección</FPButton></div>}
       </aside>
     </div>
     {!preview&&<nav className="fp-mobile-nav" aria-label="Paneles del editor">{[['sections','layout','Secciones'],['preview','eye','Página'],['properties','settings','Ajustes']].map(([id,icon,label])=><button key={id} aria-pressed={pane===id} onClick={()=>setPane(id)}><FPIcon name={icon}/>{label}</button>)}</nav>}
     {notice&&<div className="fp-toast" role="status"><FPIcon name="check" size={16}/>{notice.text||notice}{notice.undo&&<button type="button" className="fp-toast-action" aria-label="Deshacer último cambio" onClick={()=>travel('undo')}>Deshacer</button>}</div>}
-    <dialog className="fp-catalog" ref={catalogRef} aria-labelledby="fp-catalog-title" onCancel={()=>setCatalog(false)} onClose={()=>setCatalog(false)} onMouseDown={e=>{if(e.target!==e.currentTarget)return;const box=e.currentTarget.getBoundingClientRect();if(e.clientX<box.left||e.clientX>box.right||e.clientY<box.top||e.clientY>box.bottom)setCatalog(false);}}>
-      <header><div><h2 id="fp-catalog-title">Agregar sección</h2></div><FPButton icon="close" label="Cerrar catálogo" onClick={()=>setCatalog(false)}/></header>
-      <div className="fp-catalog-body"><div className="fp-catalog-list"><label className="fp-search"><FPIcon name="search" size={16}/><input aria-label="Buscar módulos" autoFocus value={query} placeholder="Buscar una sección" onChange={e=>{const next=e.target.value,matches=definitionList.filter(m=>fpNormalize(m.label).includes(fpNormalize(next)));setQuery(next);if(matches.length&&!matches.some(m=>m.type===moduleType)){setModuleType(matches[0].type);setVariant(matches[0].variants[0]);}}} onKeyDown={e=>{if(e.key==='Enter'&&filtered.length){e.preventDefault();addSection();}}}/></label>{filtered.map(m=><button key={m.type} aria-pressed={moduleType===m.type} onClick={()=>{setModuleType(m.type);setVariant(m.variants[0]);}}><FPIcon name={FP_META[m.type][0]}/>{m.label}<FPIcon name="back" size={14}/></button>)}{!filtered.length&&<p className="fp-help">No hay secciones con ese nombre.</p>}</div>
-      {filtered.length?<div className="fp-catalog-preview"><h3>{FramePortfolio.modules.find(m=>m.type===moduleType).label}</h3><FPThumb type={moduleType} variant={variant}/><h4>Elegí una presentación</h4><div className="fp-catalog-variants">{FramePortfolio.modules.find(m=>m.type===moduleType).variants.map(v=><button key={v} aria-pressed={v===variant} onClick={()=>setVariant(v)}>{FP_LABELS[v]}</button>)}</div></div>:<div className="fp-catalog-preview"/>}</div>
-      <footer><span/><FPButton className="fp-primary" icon="plus" disabled={draft.sections.length>=50||!filtered.length} onClick={addSection}>Agregar a la página</FPButton></footer>
-    </dialog>
   </section>;
 };
 

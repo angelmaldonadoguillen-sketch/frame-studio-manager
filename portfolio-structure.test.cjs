@@ -55,21 +55,19 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     await page.keyboard.press('ArrowUp');
     assert.deepEqual(await names(),before);
 
-    // Catálogo: la vista previa sigue a la búsqueda y Enter agrega lo que se ve
+    // «Agregar sección» del panel abre el mismo selector de un clic, al final de la página
+    assert.equal(await page.locator('dialog.fp-catalog').count(),0,'ya no hay catálogo aparte');
     await page.locator('.fp-add-section').click();
-    await page.getByLabel('Buscar módulos').fill('precios');
-    assert.equal(await page.locator('.fp-catalog-preview h3').innerText(),'Precios y paquetes');
-    await page.keyboard.press('Enter');
-    assert.equal(await page.locator('.fp-catalog').evaluate(e=>e.open),false);
+    const inserter=page.locator('.fp-inserter');
+    assert.equal(await inserter.count(),1);
+    assert.ok(await inserter.evaluate(e=>{const box=e.getBoundingClientRect();return box.top<innerHeight&&box.bottom>0;}),'queda a la vista');
+    assert.deepEqual((await inserter.locator('.fp-inserter-grid > button').allInnerTexts()).slice(0,3),['Portada','Galería','Texto']);
+    await inserter.getByRole('button',{name:'Precios y paquetes',exact:true}).click();
     assert.equal((await names()).at(-1),'Precios y paquetes');
     await page.getByRole('button',{name:'Deshacer',exact:true}).click();
-    // Sin resultados no se puede agregar nada; el fondo cierra
-    await page.locator('.fp-add-section').click();
-    await page.getByLabel('Buscar módulos').fill('zzz');
-    assert.equal(await page.getByRole('button',{name:'Agregar a la página',exact:true}).isDisabled(),true);
-    assert.equal(await page.locator('.fp-catalog-preview h3').count(),0);
-    await page.mouse.click(20,450);
-    assert.equal(await page.locator('.fp-catalog').evaluate(e=>e.open),false);
+    // El botón no apila el ícono sobre el texto
+    const add=await page.locator('.fp-add-section').evaluate(e=>{const icon=e.querySelector('svg').getBoundingClientRect(),box=e.getBoundingClientRect();return {row:Math.abs((icon.top+icon.height/2)-(box.top+box.height/2))<3,height:box.height};});
+    assert.equal(add.row,true);
 
     // "+": abrir otro cierra el anterior y queda uno solo, en el lugar nuevo
     await page.locator('.fp-insert-line > button').nth(1).click();

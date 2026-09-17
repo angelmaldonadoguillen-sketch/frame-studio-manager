@@ -12,7 +12,8 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
   await page.goto(origin+'/?demo=full');
   assert.equal(await page.locator('link[data-frame-portfolio-fonts]').count(),0);
   await page.getByRole('button',{name:'Tema',exact:true}).click();
-  await page.getByLabel('Ancho de la página').fill('760');
+  const width=name=>page.getByRole('group',{name:'Ancho del contenido'}).getByRole('button',{name,exact:true});
+  await width('Angosto').click();
   await page.getByLabel('Fuente de títulos').selectOption('fraunces');
   await page.getByLabel('Fuente de texto').selectOption('inter');
   assert.equal(await page.locator('.fp-site-section').first().evaluate(e=>getComputedStyle(e).maxWidth),'760px');
@@ -25,12 +26,12 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.getByRole('button',{name:'Guardar borrador',exact:true}).click();await page.reload();
   await page.getByRole('button',{name:'Tema',exact:true}).click();
-  assert.equal(await page.getByLabel('Ancho de la página').inputValue(),'760');
+  assert.equal(await width('Angosto').getAttribute('aria-pressed'),'true');
   assert.equal(await page.getByLabel('Fuente de títulos').inputValue(),'fraunces');
   assert.equal(await page.getByLabel('Fuente de texto').inputValue(),'inter');
   await page.getByRole('button',{name:'Restablecer tipografía y ancho',exact:true}).click();
-  assert.equal(await page.getByLabel('Ancho de la página').inputValue(),'1200');assert.equal(await fontLink.count(),0);
-  await page.getByRole('button',{name:'Deshacer',exact:true}).click();assert.equal(await page.getByLabel('Ancho de la página').inputValue(),'760');
+  assert.equal(await width('Normal').getAttribute('aria-pressed'),'true');assert.equal(await fontLink.count(),0);
+  await page.getByRole('button',{name:'Deshacer',exact:true}).click();assert.equal(await width('Angosto').getAttribute('aria-pressed'),'true');
   assert.deepEqual(errors,[]);
   console.log('Portfolio theme style: content width, heading/body Google Fonts, single dynamic request, mobile fit, persistence, reset and undo OK');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}

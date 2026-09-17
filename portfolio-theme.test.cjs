@@ -43,7 +43,40 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     await page.getByRole('button',{name:'Escritorio',exact:true}).click();
     assert.equal(await page.locator('.frame-portfolio-page .fp-site-logo').first().evaluate(e=>Math.round(e.getBoundingClientRect().width)),140);
 
+    // El área para subir el logo se ve (la regla general de botones le borraba borde y fondo)
+    await page.getByRole('button',{name:'Quitar logo',exact:true}).click();
+    const drop=await page.locator('.fp-logo-drop').evaluate(e=>{const style=getComputedStyle(e);return {border:style.borderTopStyle,width:style.borderTopWidth,background:style.backgroundColor};});
+    assert.equal(drop.border,'dashed');assert.equal(drop.width,'1px');assert.notEqual(drop.background,'rgba(0, 0, 0, 0)');
+
+    // Ancho del contenido en una laptop: la vista previa de escritorio muestra la página a 1440 reducida,
+    // así Angosto, Normal y Amplio se notan aunque el lienzo mida menos
+    await page.setViewportSize({width:1280,height:800});
+    const width=name=>page.getByRole('group',{name:'Ancho del contenido'}).getByRole('button',{name,exact:true});
+    const ratio=()=>page.evaluate(()=>{const page=document.querySelector('.frame-portfolio-page').getBoundingClientRect(),section=document.querySelectorAll('.fp-site-section')[2].getBoundingClientRect();return section.width/page.width;});
+    for(const [name,expected] of [['Angosto',760/1440],['Normal',1200/1440],['Amplio',1]]){
+      await width(name).click();
+      await page.getByRole('button',{name:'Vista previa',exact:true}).click();
+      assert.ok(Math.abs(await ratio()-expected)<.01,name+': ocupa '+(await ratio()).toFixed(2)+' de la página');
+      await page.keyboard.press('Escape');
+    }
+    await page.getByRole('button',{name:'Vista previa',exact:true}).click();
+    const desktop=await page.locator('.fp-browser-frame').evaluate(e=>({width:getComputedStyle(e).width,gutter:getComputedStyle(document.querySelectorAll('.fp-site-section')[2]).paddingLeft,fits:e.getBoundingClientRect().right<=document.querySelector('.fp-canvas-scroll').getBoundingClientRect().right+1}));
+    assert.equal(desktop.width,'1440px');assert.ok(Math.abs(parseFloat(desktop.gutter)-86.4)<1,'márgenes de escritorio real: '+desktop.gutter);assert.equal(desktop.fits,true,'entra sin desplazarse de costado');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.fp-browser-frame').evaluate(e=>e.style.zoom||''),'','al editar el lienzo vuelve a tamaño real');
+
+    // Errores de subida en español, no «internal»
+    const account=await browser.newPage({viewport:{width:1440,height:900}});account.on('pageerror',error=>errors.push(error.message));
+    await account.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+    await account.goto(origin+'/?account');await account.locator('.fp-editor').waitFor();
+    await account.getByRole('button',{name:'Tema',exact:true}).click();
+    for(const [code,message,shown] of [['functions/internal','internal','El servicio de archivos no está respondiendo. Tu borrador no se perdió; intentá de nuevo más tarde.'],['functions/resource-exhausted','quota','Alcanzaste el límite de 1 GB de tu portfolio.'],['functions/permission-denied','Tu perfil de FRAME no está habilitado para subir archivos.','Tu perfil de FRAME no está habilitado para subir archivos.']]){
+      await account.evaluate(([code,message])=>{window.storage=window.storage||{ref:()=>({})};window.functions.httpsCallable=()=>async()=>{const error=new Error(message);error.code=code;throw error;};},[code,message]);
+      await account.locator('.fp-logo-settings input[type=file]').setInputFiles(svg);
+      await account.locator('.fp-logo-settings [role=alert]').getByText(shown).waitFor();
+    }
+
     assert.deepEqual(errors,[]);
-    console.log('Portfolio theme: palette next to appearance, custom colors explained and releasable with undo, logo mobile width in mobile view OK');
+    console.log('Portfolio theme: palette next to appearance, custom colors explained and releasable with undo, logo mobile width, visible logo drop zone, real desktop preview for content width, upload errors in Spanish OK');
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));fs.rmSync(tmp,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});
