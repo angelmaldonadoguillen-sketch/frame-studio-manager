@@ -11,11 +11,12 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     const origin='http://127.0.0.1:'+server.address().port;
     await page.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
     await page.goto(origin+'/?demo=full');
-    await page.getByRole('button',{name:'Publicar prueba',exact:true}).click();
-    const dialog=page.getByRole('dialog',{name:'Publicar portfolio'});
-    await dialog.getByRole('button',{name:'Publicar prueba',exact:true}).click();
-    await page.getByText('Publicado y actualizado',{exact:true}).waitFor();
-    await page.screenshot({path:'test-results/portfolio-publish-dialog.png'});
+    // Publicar publica en un clic; el enlace vive en su propio botón
+    await page.getByRole('button',{name:'Publicar',exact:true}).click();
+    await page.getByRole('button',{name:'Publicado',exact:true}).waitFor();
+    assert.equal(await page.getByRole('dialog').count(),0);
+    await page.getByRole('button',{name:'Compartir enlace',exact:true}).click();
+    await page.screenshot({path:'test-results/portfolio-publish-share.png'});
     const url=await page.locator('#fp-public-url').inputValue();
     assert.match(url,/\?view=published&source=demo-full_local$/);
     assert.ok(await page.evaluate(()=>localStorage.getItem('frame_portfolio_v1_demo-full_local_published')));
@@ -26,6 +27,6 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     await page.setViewportSize({width:390,height:844});
     await page.screenshot({path:'test-results/portfolio-public-mobile.png',fullPage:true});
     assert.deepEqual(errors,[]);
-    console.log('Portfolio publish: confirmation, stable link and public rendering OK');
+    console.log('Portfolio publish: one-click publish, share link and public rendering OK');
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

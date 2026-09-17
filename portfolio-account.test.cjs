@@ -23,8 +23,8 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     assert.equal(await page.evaluate(()=>sessionStorage.getItem('frame_portfolio_v2_account-user_pending')),null);
     assert.equal(await page.evaluate(()=>window.__frameRecords.has('frame_portfolio_drafts/local')),false);
     await page.getByRole('button',{name:'Publicar',exact:true}).click();
-    await page.getByRole('button',{name:'Publicar ahora'}).click();
     await page.waitForFunction(()=>window.__frameRecords.has('frame_portfolios/account-user'));
+    await page.getByRole('button',{name:'Compartir enlace',exact:true}).click();
     assert.equal(await page.locator('#fp-public-url').inputValue(),origin+'/?portfolio=account-user');
     assert.deepEqual(errors,[]);
     console.log('Portfolio account: loading transition, profile ownership, cloud draft and user-scoped publication OK');
