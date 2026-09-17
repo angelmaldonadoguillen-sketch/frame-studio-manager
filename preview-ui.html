@@ -195,6 +195,7 @@
       // el checklist. El banco mostraba la interfaz pero no reaccionaba.
       const [data, setData] = React.useState(PROJECTS);
       const upd = (p) => setData(d => d.map(x => x.id === p.id ? p : x));
+      const mover = (id, status) => setData(d => d.map(x => x.id === id ? { ...x, status } : x));
 
       // Ahora que FRAME tiene dos temas, el banco tiene que poder mostrar los
       // dos: un componente puede leerse bien en oscuro y perderse en claro.
@@ -266,6 +267,33 @@
             onDeleteCustomType={()=>{}}
           />
         )}
+
+        <div className="harness-sec" style={{ maxWidth: 'none' }}>
+          <div className="harness-h">KanbanView — mover tarjetas de columna</div>
+          <div style={{ display:'flex', gap:8, marginBottom:10, flexWrap:'wrap' }}>
+            {[['p1','producing','Reel ID Motos → En producción'],
+              ['p4','editing','Behind the scenes → Edición'],
+              ['p3','delivered','Institucional → Entregado']].map(([id, status, label]) => (
+              <button key={id+status} data-mover={id+':'+status} onClick={() => mover(id, status)}
+                style={{ padding:'6px 10px', borderRadius:6, background:'var(--surface-2)', color:'var(--text)', fontSize:12 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ height: 460 }}>
+            <KanbanView
+              projects={data}
+              allProjects={data}
+              columns={STATUSES.filter(s => s.id !== 'archived')}
+              onOpenProject={setOpenId}
+              onUpdateProject={upd}
+              onDeleteProject={()=>{}}
+              onDuplicateProject={()=>{}}
+              onToggleFavorite={()=>{}}
+              previewFields={PF}
+            />
+          </div>
+        </div>
 
         <div className="harness-sec" style={{ maxWidth: 'none' }}>
           <div className="harness-h">ListView — la vista de tabla</div>

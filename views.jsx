@@ -55,6 +55,95 @@ const deliveryCounter = (project) => {
   return         { value: d + ' d',              label: 'Restantes',  color: 'var(--text-muted)' };
 };
 
+// ── Movimiento de tarjetas ──────────────────────────────────────
+// Al cambiar de columna, de día o de orden, el navegador vuelve a dibujar la
+// tarjeta directamente en su lugar nuevo: aparece y desaparece, y hay que
+// buscarla con la vista. Acá se anota dónde estaba cada tarjeta antes del
+// repintado y se la anima desde ahí hasta donde quedó (técnica FLIP), así se
+// ve el viaje. La recién llegada entra con un leve ascenso y la que se acaba
+// de mover deja un destello para no perderle el rastro.
+//
+// Se anima con la API del navegador y no con CSS porque el punto de partida
+// solo se conoce en el momento: no hay clase que lo pueda describir.
+const CARD_MOVE = { duration: 320, easing: 'cubic-bezier(.2,.8,.2,1)' };
+const frameStillMode = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Destello al llegar: dice cuál es la tarjeta que se acaba de mover sin
+// empujar a las vecinas, porque el contorno no ocupa lugar.
+const cardLanded = card => card.animate([{ outlineColor: 'var(--accent)' }, { outlineColor: 'transparent' }], { duration: 700, easing: 'ease-out' });
+
+// Dónde está la tarjeta dentro de la página, en medidas de maquetado. No se
+// usa getBoundingClientRect porque esa cuenta desde la ventana: si entre un
+// repintado y otro se movió el scroll, todas las tarjetas parecerían haber
+// viajado. offsetLeft/offsetTop no se enteran del scroll.
+const cardSpot = card => {
+  let x = 0, y = 0, node = card;
+  while (node) { x += node.offsetLeft; y += node.offsetTop; node = node.offsetParent; }
+  return { x, y, width: card.offsetWidth, height: card.offsetHeight, parent: card.parentElement };
+};
+
+// Viaje entre columnas o entre días: la columna recorta lo que se sale de su
+// área, así que la tarjeta no puede viajar por dentro. Vuela una copia por
+// encima de todo y la original espera escondida hasta que aterriza.
+const flyCard = (card, dx, dy) => {
+  const here = card.getBoundingClientRect();
+  const clone = card.cloneNode(true);
+  clone.removeAttribute('data-card-id');
+  clone.setAttribute('data-card-flight', '');
+  clone.setAttribute('aria-hidden', 'true');
+  clone.style.cssText = `position:fixed;left:${here.left + dx}px;top:${here.top + dy}px;width:${here.width}px;height:${here.height}px;margin:0;z-index:70;pointer-events:none;transform-origin:top left;`;
+  document.body.appendChild(clone);
+  card.style.visibility = 'hidden';
+  const trip = clone.animate([
+    { transform: 'translate(0,0)' },
+    { transform: `translate(${-dx}px, ${-dy}px)` },
+  ], { duration: 380, easing: CARD_MOVE.easing });
+  const land = () => { clone.remove(); card.style.visibility = ''; cardLanded(card); };
+  trip.finished.then(land, land);
+};
+
+const useCardMotion = (ref) => {
+  const previous = React.useRef(new Map());
+  const anotar = () => {
+    const root = ref.current;
+    const cards = root ? Array.from(root.querySelectorAll('[data-card-id]')) : [];
+    return new Map(cards.map(card => [card.dataset.cardId, cardSpot(card)]));
+  };
+  React.useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const current = anotar();
+    const known = previous.current.size > 0;
+    if (known && !frameStillMode() && typeof Element.prototype.animate === 'function') {
+      root.querySelectorAll('[data-card-id]').forEach(card => {
+        const was = previous.current.get(card.dataset.cardId), now = current.get(card.dataset.cardId);
+        if (!was) {
+          card.animate([{ opacity: 0, transform: 'translateY(10px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 240, easing: CARD_MOVE.easing });
+          return;
+        }
+        const dx = was.x - now.x, dy = was.y - now.y;
+        // Menos de 2px no es un movimiento. Si además cambió de tamaño, la
+        // medida anterior es de otra maquetación (la ventana cambió de ancho,
+        // o los estilos llegaron tarde) y animarla se vería como un salto.
+        if (Math.hypot(dx, dy) < 2) return;
+        if (Math.abs(was.width - now.width) > 24 || Math.abs(was.height - now.height) > 24) return;
+        if (was.parent !== now.parent) { flyCard(card, dx, dy); return; }
+        card.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], CARD_MOVE);
+      });
+    }
+    previous.current = current;
+  });
+  // Si cambia el tamaño del tablero, lo anotado deja de servir: se vuelve a
+  // medir sin animar, para no arrastrar posiciones de la maquetación anterior.
+  React.useEffect(() => {
+    const root = ref.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => { previous.current = anotar(); });
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+};
+
 const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, dragging, compact, onDelete, onDuplicate, onToggleFavorite, previewFields = {} }) => {
   const editing = React.useContext(CardEditingContext);
   const pf = editing && !editing.shared ? { ...previewFields, responsables: false, presupuesto: false } : previewFields;
@@ -78,6 +167,7 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
 
   return (
     <div
+      data-card-id={project.id}
       onClick={onClick}
       draggable={draggable}
       onDragStart={onDragStart}
@@ -539,6 +629,7 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
     setAddingCol(false);
   };
 
+  useCardMotion(boardScrollRef);
   return (
     <div
       ref={boardScrollRef}
@@ -563,7 +654,7 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
               key={s.id}
               className="flex flex-col w-[280px] flex-shrink-0 rounded-xl border transition"
               style={{
-                background: 'var(--surface)',
+                background: isCardOver ? 'var(--accent-soft-weak)' : 'var(--surface)',
                 borderColor: isColOver ? 'var(--accent)' : isCardOver ? colorAlpha(s.color, 53) : 'var(--border)',
                 boxShadow: isColOver ? '0 0 0 2px var(--accent)' : 'none',
                 opacity: isBeingDragged ? 0.4 : 1,
@@ -732,6 +823,8 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
   const [dragging, setDragging]       = useState(null); // { id, kind }
   const [dragOverDate, setDragOverDate] = useState(null);
   const lastOverRef = useRef(null);
+  const monthGridRef = useRef(null);
+  useCardMotion(monthGridRef);
 
   const year = refDate.getFullYear();
   const month = refDate.getMonth();
@@ -878,7 +971,7 @@ const CalendarView = ({ projects, onOpenProject, onDeleteProject, onDuplicatePro
               <div key={d} className="px-3 py-2 text-[10px] font-semibold tracking-[0.18em] uppercase text-[var(--text-muted)]">{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7" ref={monthGridRef}>
             {monthGrid.map((dt, i) => {
               const inMonth = dt.getMonth() === month;
               const iso = localISO(dt);
@@ -970,6 +1063,7 @@ const WeekCard = ({ project, calendarDate, onClick, draggable, onDragStart, onDr
 
   return (
     <div
+      data-card-id={project.id}
       onClick={onClick}
       draggable={draggable}
       onDragStart={onDragStart}
@@ -1090,6 +1184,8 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
   const [dragging, setDragging]         = React.useState(null); // { id, kind }
   const [dragOverDate, setDragOverDate] = React.useState(null);
   const lastOverRef                     = React.useRef(null);
+  const weekGridRef                     = React.useRef(null);
+  useCardMotion(weekGridRef);
 
   const start = new Date(refDate);
   const day   = (start.getDay() + 6) % 7; // Monday-first offset
@@ -1135,7 +1231,7 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
   return (
     // overflow-x-auto: scroll horizontal cuando las 7 columnas no caben
     // Cada columna tiene min-width 190px para que las tarjetas no se aplasten
-    <div className="flex-1 overflow-x-auto overflow-y-hidden">
+    <div className="flex-1 overflow-x-auto overflow-y-hidden" ref={weekGridRef}>
       <div className="flex h-full" style={{ minWidth: 'calc(7 * 160px)' }}>
         {days.map((dt, i) => {
           const iso        = localISO(dt);
@@ -1218,8 +1314,10 @@ const WeekView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onD
 const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, onQuickCreate, previewFields = {} }) => {
   const iso = localISO(refDate);
   const items = projectsByDate[iso] || [];
+  const dayListRef = React.useRef(null);
+  useCardMotion(dayListRef);
   return (
-    <div className="flex-1 overflow-y-auto p-8 max-w-3xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto p-8 max-w-3xl mx-auto w-full" ref={dayListRef}>
       <div className="text-[11px] tracking-[0.18em] uppercase text-[var(--text-muted)] mb-2">
         {refDate.toLocaleDateString('es-ES', { weekday: 'long' })}
       </div>
@@ -1250,9 +1348,11 @@ const DayView = ({ refDate, projectsByDate, onOpenProject, onDeleteProject, onDu
 
 // ── GALLERY VIEW ────────────────────────────────────────────────
 const GalleryView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite, onQuickCreate, previewFields = {} }) => {
+  const gridRef = React.useRef(null);
+  useCardMotion(gridRef);
   if (projects.length === 0 && !onQuickCreate) return <EmptyState />;
   return (
-    <div className="h-full overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto p-6" ref={gridRef}>
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
         {projects.map(p => <GalleryCard key={p.id} project={p} onClick={() => onOpenProject(p.id)} onDelete={onDeleteProject} onDuplicate={onDuplicateProject} onToggleFavorite={onToggleFavorite} previewFields={previewFields} />)}
         {/* Alta rápida: tarjeta vacía al final de la grilla */}
@@ -1344,6 +1444,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
 
   return (
     <div
+      data-card-id={project.id}
       onClick={onClick}
       className="group lift surf surf-hover cursor-pointer overflow-hidden select-none"
     >
@@ -1468,6 +1569,7 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
   return (
     <tr
       key={p.id}
+      data-card-id={p.id}
       onClick={() => onOpenProject(p.id)}
       className="group cursor-pointer border-b border-app hover:bg-[var(--surface-2)] transition-colors select-none"
     >
@@ -1559,9 +1661,11 @@ const ListRow = ({ p, onOpenProject, onDeleteProject, onDuplicateProject, onTogg
 };
 
 const ListView = ({ projects, onOpenProject, onDeleteProject, onDuplicateProject, onToggleFavorite }) => {
+  const tableRef = React.useRef(null);
+  useCardMotion(tableRef);
   if (projects.length === 0) return <EmptyState />;
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-auto" ref={tableRef}>
       <table className="w-full text-[13px]">
         <thead className="sticky top-0 z-10 surface" style={{ background: 'var(--surface)' }}>
           <tr className="text-[10px] tracking-[0.18em] uppercase text-[var(--text-muted)]">
