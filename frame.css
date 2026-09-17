@@ -789,6 +789,10 @@
 .fp-site-hero.fp-variant-center { text-align:center; }
 .fp-site-items { display:grid; grid-template-columns:repeat(var(--fp-columns,3),minmax(0,1fr)); gap:clamp(18px,2vw,28px); margin-top:28px; }
 .fp-site-item { min-width:0; position:relative; }
+.fp-inline { cursor:text; border-radius:3px; outline:1px solid transparent; outline-offset:4px; transition:outline-color .12s ease; }
+.fp-inline:hover { outline-color:color-mix(in srgb,currentColor 25%,transparent); }
+.fp-inline:focus { outline:2px solid color-mix(in srgb,currentColor 55%,transparent); }
+.fp-inline:empty::before { content:attr(data-placeholder); opacity:.35; pointer-events:none; }
 .fp-site-item img { width:100%; display:block; object-fit:cover; aspect-ratio:var(--fp-image-ratio,4/3); border-radius:var(--fp-image-radius,0); }
 .fp-site-item h3 { font-family:var(--fp-font-heading,inherit); font-size:18px; line-height:1.3; font-weight:500; margin:14px 0 8px; }
 .fp-site-item .fp-site-copy { font-size:15px; line-height:1.65; }

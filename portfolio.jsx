@@ -58,6 +58,14 @@ const FPShare=({url,title,onCopy})=>{
   </div>;
 };
 const FPSegmented=({label,value,options,onChange})=><div className="fp-field" role="group" aria-label={label}><span>{label}</span><div className="fp-segmented">{options.map(([option,text,icon])=><button type="button" key={option} aria-label={icon?text:undefined} title={icon?text:undefined} aria-pressed={value===option} onClick={()=>onChange(option)}>{icon?<FPIcon name={icon} size={16}/>:text}</button>)}</div></div>;
+const FPInline=({as:Tag='span',value,placeholder,multiline=false,maxLength,onChange,onFocus,className=''})=>{
+  const ref=React.useRef(null);
+  React.useLayoutEffect(()=>{const el=ref.current;if(el&&document.activeElement!==el&&el.textContent!==(value||''))el.textContent=value||'';},[value]);
+  return <Tag ref={ref} className={('fp-inline '+className).trim()} contentEditable="plaintext-only" suppressContentEditableWarning spellCheck aria-multiline={multiline} aria-placeholder={placeholder} data-placeholder={placeholder}
+    onClick={e=>e.stopPropagation()} onFocus={onFocus}
+    onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'||(e.key==='Enter'&&!multiline)){e.preventDefault();e.currentTarget.blur();}}}
+    onInput={e=>{const el=e.currentTarget;let text=el.textContent;if(!multiline&&text.includes('\n'))text=text.replace(/\n/g,' ');if(maxLength&&text.length>maxLength)text=text.slice(0,maxLength);if(text!==el.textContent)el.textContent=text;onChange(text);}}/>;
+};
 const FPField=({label,children,hint})=><label className="fp-field"><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>;
 const FPThumb=({type,variant})=><div className={'fp-thumb fp-thumb-'+type+' fp-thumb-'+variant} aria-hidden="true"><div className="fp-thumb-title"/><div className="fp-thumb-lines"><i/><i/></div><div className="fp-thumb-media">{[0,1,2].map(n=><span key={n}>{type==='video'?<FPIcon name="play" size={26}/>:<><i/><i/></>}</span>)}</div></div>;
 
@@ -408,7 +416,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
             {leadingNavigation?null:<PortfolioBrand draft={draft}/>} 
             {visibleSections.map(s=><div id={'fp-section-'+s.id} key={s.id} className="fp-canvas-section" data-selected={!preview&&s.id===selected&&!itemId} role={preview?undefined:'button'} tabIndex={preview?undefined:0} aria-label={preview?undefined:'Editar sección '+s.content.title} onClick={preview?undefined:()=>choose(s.id,null,true)} onKeyDown={preview?undefined:e=>{if(e.target===e.currentTarget&&['Enter',' '].includes(e.key)){e.preventDefault();choose(s.id,null,true);}}}>
               {!preview&&<span className="fp-selection-label">{FramePortfolio.modules.find(m=>m.type===s.type).label}</span>}
-              <PortfolioModule loadingMode={draft.loadingMode||'progressive'} section={s} brandDraft={s.id===leadingNavigation?.id?draft:null} mobile={device==='mobile'} editing={!preview} replayToken={motionReplay.id===s.id?motionReplay.token:0} selectedItem={s.id===selected?itemId:null} onSelectItem={preview?undefined:id=>choose(s.id,id,true)}/>
+              <PortfolioModule loadingMode={draft.loadingMode||'progressive'} section={s} brandDraft={s.id===leadingNavigation?.id?draft:null} mobile={device==='mobile'} editing={!preview} replayToken={motionReplay.id===s.id?motionReplay.token:0} selectedItem={s.id===selected?itemId:null} onSelectItem={preview?undefined:id=>choose(s.id,id,true)} active={!preview&&s.id===selected} onFocusText={id=>{setSelected(s.id);setItemId(id);setTab('content');}} onEditText={preview?undefined:(patch,id)=>edit(d=>({...d,sections:d.sections.map(x=>x.id!==s.id?x:{...x,content:id?{...x.content,items:x.content.items.map(i=>i.id===id?{...i,...patch}:i)}:{...x.content,...patch}})}),'inline-'+s.id+'-'+(id||'')+'-'+Object.keys(patch)[0])}/>
             </div>)}
             {!draft.sections.some(s=>!s.hidden)&&<div className="fp-empty-page"><FPIcon name="layout" size={36}/><h2>Un espacio para tu trabajo.</h2>{!preview&&<FPButton icon="plus" onClick={openCatalog}>Agregar sección</FPButton>}</div>}
             {!preview&&<button className="fp-canvas-add" disabled={draft.sections.length>=50} onClick={openCatalog}><FPIcon name="plus" size={16}/>Agregar sección</button>}
@@ -498,7 +506,10 @@ const usePortfolioMotion=(ref,effect,speed,editing,replayToken)=>{
     return()=>{observer?.disconnect();media.removeEventListener('change',changed);cancel();};
   },[effect,speed,editing,replayToken]);
 };
-const PortfolioModule=({section:s,brandDraft,mobile,editing=false,selectedItem,onSelectItem,replayToken=0,loadingMode='progressive'})=>{
+const PortfolioModule=({section:s,brandDraft,mobile,editing=false,selectedItem,onSelectItem,active=false,onFocusText,onEditText,replayToken=0,loadingMode='progressive'})=>{
+  const inline=editing&&!!onEditText;
+  const title=(Tag,value,show,onChange,id)=>inline&&(value||show)?<FPInline as={Tag} value={value} placeholder="Título" maxLength={200} onChange={onChange} onFocus={()=>onFocusText?.(id)}/>:value&&<Tag>{value}</Tag>;
+  const copy=(value,show,onChange,id,quote=false)=>inline&&(value||show)?(quote?<blockquote className="fp-site-copy"><FPInline as="p" multiline value={value} placeholder="Escribí aquí…" maxLength={20000} onChange={onChange} onFocus={()=>onFocusText?.(id)}/></blockquote>:<FPInline as="p" className="fp-site-copy" multiline value={value} placeholder="Escribí aquí…" maxLength={20000} onChange={onChange} onFocus={()=>onFocusText?.(id)}/>):value&&(quote?<blockquote className="fp-site-copy"><p>{value}</p></blockquote>:<p className="fp-site-copy">{value}</p>);
   const motionRef=React.useRef(null);
   const effect=FramePortfolio.motionOptions(s.type).includes(s.design?.animation)?s.design.animation:'none';
   usePortfolioMotion(motionRef,!editing&&loadingMode==='static'?'none':effect,s.design?.motionSpeed||'smooth',editing,replayToken);
@@ -506,18 +517,18 @@ const PortfolioModule=({section:s,brandDraft,mobile,editing=false,selectedItem,o
   const align=s.design?.align||(s.variant==='center'?'center':'left'),sectionY={compact:16,normal:32,airy:64}[s.design?.spacing];
   return <Tag aria-label={s.type==='navigation'?(s.content.title||'Navegación del portfolio'):undefined} data-module={s.type} data-variant={s.variant} data-align={align} data-has-items={s.content.items.length>0} data-loading-mode={editing?'editor':loadingMode} ref={motionRef} className={'fp-site-section fp-site-'+s.type+' fp-variant-'+s.variant+(mobile?' fp-site-narrow':'')} style={{'--fp-columns':s.design?.columns,'--fp-image-ratio':{original:'auto',wide:'16/9',landscape:'4/3',square:'1',social:'4/5',portrait:'3/4',story:'9/16'}[s.design?.imageRatio],'--fp-image-radius':s.design?.imageRadius===undefined?undefined:s.design.imageRadius+'px','--fp-mosaic-span':s.design?.columns===1?1:2,'--fp-section-y':sectionY===undefined?undefined:sectionY+'px',textAlign:align}}>
     {s.type==='contact'&&s.variant==='banner'?<div className="fp-contact-intro">
-      {s.content.title&&<h2>{s.content.title}</h2>}
-      {s.content.text&&<p className="fp-site-copy">{s.content.text}</p>}
+      {title('h2',s.content.title,active,v=>onEditText({title:v}),null)}
+      {copy(s.content.text,active,v=>onEditText({text:v}),null)}
     </div>:<>
-      {s.type==='navigation'&&brandDraft?<PortfolioNavigationBrand draft={brandDraft} label={s.content.title}/>:s.content.title&&<h2>{s.content.title}</h2>}
-      {s.content.text&&(s.type==='text'&&s.variant==='quote'?<blockquote className="fp-site-copy"><p>{s.content.text}</p></blockquote>:<p className="fp-site-copy">{s.content.text}</p>)}
+      {s.type==='navigation'&&brandDraft?<PortfolioNavigationBrand draft={brandDraft} label={s.content.title}/>:title('h2',s.content.title,active,v=>onEditText({title:v}),null)}
+      {copy(s.content.text,active,v=>onEditText({text:v}),null,s.type==='text'&&s.variant==='quote')}
     </>}
-    {editing&&!s.content.text&&!s.content.items.length&&<div className="fp-site-placeholder">{['gallery','hero','image-text','video'].includes(s.type)?<FPIcon name={FP_META[s.type][0]} size={32}/>:<FPIcon name={FP_META[s.type][0]} size={28}/>}</div>}
+    {editing&&!active&&!s.content.text&&!s.content.items.length&&<div className="fp-site-placeholder">{['gallery','hero','image-text','video'].includes(s.type)?<FPIcon name={FP_META[s.type][0]} size={32}/>:<FPIcon name={FP_META[s.type][0]} size={28}/>}</div>}
     {!!s.content.items.length&&<div className="fp-site-items" role={!editing&&s.variant==='carousel'?'region':undefined} aria-label={!editing&&s.variant==='carousel'?'Galería desplazable':undefined} tabIndex={!editing&&s.variant==='carousel'?0:undefined}>{s.content.items.map(i=><div key={i.id} className={'fp-site-item'+(i.featured?' fp-featured':'')} data-selected={editing&&selectedItem===i.id} role={editing?'button':undefined} tabIndex={editing?0:undefined} aria-label={editing?'Editar bloque '+(i.title||'sin título'):undefined} onClick={editing?e=>{e.stopPropagation();onSelectItem?.(i.id);}:undefined} onKeyDown={editing?e=>{if(e.target===e.currentTarget&&['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();onSelectItem?.(i.id);}}:undefined}>
       {editing&&<span className="fp-block-label">Bloque</span>}
       {s.type==='video'&&<PortfolioVideo loading={loadingMode==='static'?'eager':'lazy'} item={i} vertical={s.variant==='vertical'} editing={editing}/>}
       {media&&(FramePortfolio.safeImage(i.image)?<PortfolioImage src={i.image} title={i.title} loading={loadingMode==='static'?'eager':'lazy'}/>:editing&&s.type!=='services'&&<div className="fp-media-placeholder"><FPIcon name="image" size={26}/><span>Agregar imagen</span></div>)}
-      <div className="fp-site-item-copy">{i.title&&<h3>{i.title}</h3>}{i.text&&<p className="fp-site-copy">{i.text}</p>}
+      <div className="fp-site-item-copy">{title('h3',i.title,selectedItem===i.id,v=>onEditText({title:v},i.id),i.id)}{copy(i.text,selectedItem===i.id,v=>onEditText({text:v},i.id),i.id)}
       {s.type==='prices'&&<><strong className="fp-price">{i.price?(i.from?'Desde ':'')+(i.currency||'USD')+' '+i.price:'Consultar precio'}</strong><ul>{(i.inclusions||'').split('\n').filter(Boolean).map((line,n)=><li key={n}><FPIcon name="check" size={14}/>{line}</li>)}</ul></>}
       {FramePortfolio.safeLink(i.link)&&(editing?<span className="fp-site-link">{s.type==='prices'?'Solicitar cotización':i.title||'Ver más'} <FPIcon name="external" size={14}/></span>:<a className="fp-site-link" href={FramePortfolio.safeLink(i.link)} target="_blank" rel="noopener noreferrer">{s.type==='prices'?'Solicitar cotización':i.title||'Ver más'} <FPIcon name="external" size={14}/></a>)}</div>
     </div>)}</div>}
