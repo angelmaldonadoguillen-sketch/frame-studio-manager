@@ -133,7 +133,7 @@ const fpUploadError=(err,fallback)=>{const code=String(err?.code||'');
   if(code.startsWith('functions/')||code.startsWith('storage/'))return 'El servicio de archivos no está respondiendo. Tu borrador no se perdió; intentá de nuevo más tarde.';
   return err?.message||fallback;};
 const fpBytes=value=>{const bytes=Math.max(0,Number(value)||0);if(bytes<1024)return bytes+' B';if(bytes<1024*1024)return (bytes/1024).toFixed(bytes<10240?1:0)+' KB';return (bytes/1024/1024).toFixed(bytes<104857600?1:0)+' MB';};
-const PortfolioLoadingScreen=({profileName,onExit})=><main className="fp-entry-loading" aria-busy="true" aria-live="polite"><div className="fp-entry-mark" aria-hidden="true">F</div><div className="fp-entry-copy"><span>FRAME PORTFOLIO</span><h1>Abriendo tu editor</h1><p>{profileName?'Preparando el portfolio de '+profileName+'.':'Preparando tus módulos, estilos y recursos.'}</p><div className="fp-entry-progress"><i/></div></div>{onExit&&<button type="button" onClick={onExit}>Volver a FRAME</button>}</main>;
+const PortfolioLoadingScreen=({profileName,onExit})=><main className="fp-entry-loading" aria-busy="true" aria-live="polite"><div className="fp-entry-mark" aria-hidden="true"><FrameMark size={40}/></div><div className="fp-entry-copy"><span>FRAME PORTFOLIO</span><h1>Abriendo tu editor</h1><p>{profileName?'Preparando el portfolio de '+profileName+'.':'Preparando tus módulos, estilos y recursos.'}</p><div className="fp-entry-progress"><i/></div></div>{onExit&&<button type="button" onClick={onExit}>Volver a FRAME</button>}</main>;
 const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview=false,initialDraft,canPublish=true,profileName=''})=>{
   const key=localPreview?'frame_portfolio_v1_'+userId+'_'+legacyWorkspaceId:'frame_portfolio_v2_'+userId;
   const legacyKey='frame_portfolio_v1_'+userId+'_'+legacyWorkspaceId;
@@ -424,7 +424,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   return <section className="fp-editor" ref={rootRef} tabIndex="-1" aria-label="Editor de portfolio" data-preview={preview} data-pane={pane}>
     <PortfolioFontLoader draft={draft}/>
     <header className="fp-topbar">
-      <div className="fp-brand-group">{onExit?<FPButton icon="back" label="Volver a FRAME" onClick={onExit}/>:<span className="fp-mark"><FPIcon name="layout" size={22}/></span>}<div><span className="fp-brand">FRAME <span>Portfolio</span></span><span className="fp-document-name">{draft.title||'Sin título'}</span></div></div>
+      <div className="fp-brand-group">{onExit?<FPButton icon="back" label="Volver a FRAME" onClick={onExit}/>:<span className="fp-mark"><FrameMark size={24}/></span>}<div><span className="fp-brand"><FrameWordmark height={13} label="FRAME"/><span>Portfolio</span></span><span className="fp-document-name">{draft.title||'Sin título'}</span></div></div>
       <div className="fp-devices" aria-label="Tamaño de vista previa"><FPButton icon="desktop" label="Escritorio" aria-pressed={device==='desktop'} onClick={()=>setDevice('desktop')}/><FPButton icon="phone" label="Móvil" aria-pressed={device==='mobile'} onClick={()=>setDevice('mobile')}/></div>
       <div className="fp-top-actions">
         <div className="fp-history"><FPButton icon="undo" label="Deshacer" disabled={!past.current.length||busy} onClick={()=>travel('undo')}/><FPButton icon="redo" label="Rehacer" disabled={!future.current.length||busy} onClick={()=>travel('redo')}/></div>

@@ -1,8 +1,9 @@
 // Genera los PNG del manifiesto sin dependencias externas.
 //
-// La "F" se dibuja con tres rectángulos en vez de tipografía: así el ícono
-// sale idéntico en cualquier máquina, sin depender de qué fuente esté
-// instalada ni de cómo la sustituya el sistema.
+// El ícono son los seis bloques del logo (FRAME LOOOGO.svg / brand.jsx),
+// dibujados como rectángulos: sale idéntico en cualquier máquina, sin
+// depender de fuentes ni de un conversor de SVG. Cada pixel se muestrea
+// 4×4 veces para que los bordes y las esquinas salgan suaves.
 //
 //   node .claude/gen-icons.js
 const fs = require('fs');
@@ -10,7 +11,7 @@ const zlib = require('zlib');
 const path = require('path');
 
 const ACENTO = [0xd4, 0xff, 0x4f];
-const TINTA  = [0x0a, 0x0a, 0x0b];
+const TINTA  = [0x1d, 0x1d, 0x1b];   // color del logo original
 
 // ── PNG mínimo (RGBA, sin filtros) ───────────────────────────────
 const crcTabla = (() => {
@@ -57,7 +58,7 @@ const png = (ancho, alto, pixeles) => {
 
 // ── El ícono ─────────────────────────────────────────────────────
 // radio: 0 = cuadrado a sangre (para 'maskable' y para iOS, que pone su
-// propio redondeo). escala: qué proporción del lienzo ocupa la F.
+// propio redondeo). escala: qué proporción del alto del lienzo ocupa la marca.
 const icono = (lado, radio, escala) => {
   const px = Buffer.alloc(lado * lado * 4);
   const r = radio * lado;
@@ -71,26 +72,34 @@ const icono = (lado, radio, escala) => {
     return dx * dx + dy * dy <= r * r;
   };
 
-  // La F: barra vertical, brazo de arriba, brazo del medio.
-  const alto  = lado * escala;
-  const ancho = alto * 0.62;
-  const x0 = (lado - ancho) / 2;
-  const y0 = (lado - alto) / 2;
-  const grosor = alto * 0.21;
-  const barras = [
-    [x0, y0, grosor, alto],                                  // vertical
-    [x0, y0, ancho, grosor],                                 // brazo superior
-    [x0, y0 + (alto - grosor) * 0.47, ancho * 0.78, grosor], // brazo medio
-  ];
-  const enLaF = (x, y) => barras.some(([bx, by, bw, bh]) =>
-    x >= bx && x < bx + bw && y >= by && y < by + bh);
+  // La marca: columna de cuatro bloques y dos a la derecha, en unidades del SVG.
+  const CAJA = { ancho: 37.99, alto: 47.39 };
+  const BLOQUES = [[0, 0], [0, 12.62], [19.86, 0], [0, 25.24], [0, 37.86], [19.86, 24.9]];
+  const unidad = lado * escala / CAJA.alto;
+  const x0 = (lado - CAJA.ancho * unidad) / 2;
+  const y0 = (lado - CAJA.alto * unidad) / 2;
+  const bw = 18.13 * unidad, bh = 9.53 * unidad, rb = 0.93 * unidad;
+  const enBloque = (x, y) => BLOQUES.some(([bx, by]) => {
+    const l = x0 + bx * unidad, t = y0 + by * unidad;
+    if (x < l || x >= l + bw || y < t || y >= t + bh) return false;
+    const cx = Math.min(Math.max(x, l + rb), l + bw - rb), cy = Math.min(Math.max(y, t + rb), t + bh - rb);
+    return (x - cx) ** 2 + (y - cy) ** 2 <= rb * rb;
+  });
 
+  const N = 4; // muestras por lado de cada pixel
   for (let y = 0; y < lado; y++) {
     for (let x = 0; x < lado; x++) {
       const i = (y * lado + x) * 4;
-      if (!dentro(x + 0.5, y + 0.5)) { px[i + 3] = 0; continue; }
-      const c = enLaF(x + 0.5, y + 0.5) ? TINTA : ACENTO;
-      px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255;
+      let fondo = 0, marca = 0;
+      for (let sy = 0; sy < N; sy++) for (let sx = 0; sx < N; sx++) {
+        const px_ = x + (sx + 0.5) / N, py_ = y + (sy + 0.5) / N;
+        if (!dentro(px_, py_)) continue;
+        if (enBloque(px_, py_)) marca++; else fondo++;
+      }
+      const total = fondo + marca;
+      if (!total) { px[i + 3] = 0; continue; }
+      for (let c = 0; c < 3; c++) px[i + c] = Math.round((TINTA[c] * marca + ACENTO[c] * fondo) / total);
+      px[i + 3] = Math.round(total / (N * N) * 255);
     }
   }
   return png(lado, lado, px);
@@ -101,8 +110,8 @@ const salidas = [
   // 'any': lleva su propio redondeo porque se muestra tal cual.
   ['icon-192.png',          icono(192, 0.22, 0.60)],
   ['icon-512.png',          icono(512, 0.22, 0.60)],
-  // 'maskable': a sangre y con la F chica — el sistema recorta los bordes
-  // y hay que dejarle margen o se come parte de la letra.
+  // 'maskable': a sangre y con la marca chica — el sistema recorta los
+  // bordes y hay que dejarle margen o se come parte de los bloques.
   ['icon-maskable-512.png', icono(512, 0,    0.40)],
   // iOS no admite transparencia acá y pone su propio redondeo.
   ['apple-touch-icon.png',  icono(180, 0,    0.60)],

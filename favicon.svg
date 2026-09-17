@@ -1,4 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="FRAME">
   <rect width="32" height="32" rx="7" fill="#151518"/>
-  <path d="M9 6.5h15v4.5H14v4h8v4.5h-8v6H9z" fill="#fff"/>
+  <g transform="translate(8.4 6.52) scale(0.4)" fill="#fff">
+    <rect width="18.13" height="9.53" rx=".93"/>
+    <rect y="12.62" width="18.13" height="9.53" rx=".93"/>
+    <rect x="19.86" width="18.13" height="9.53" rx=".93"/>
+    <rect y="25.24" width="18.13" height="9.53" rx=".93"/>
+    <rect y="37.86" width="18.13" height="9.53" rx=".93"/>
+    <rect x="19.86" y="24.9" width="18.13" height="9.53" rx=".93"/>
+  </g>
 </svg>

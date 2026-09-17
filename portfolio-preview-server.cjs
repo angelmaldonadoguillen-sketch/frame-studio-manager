@@ -71,7 +71,7 @@ function createServer(){
           ReactDOM.createRoot(document.getElementById('root')).render(<PortfolioEditor userId={editorUser} workspaceId="local" profileName={accountMode?'Ana Creativa':''} initialDraft={example} localPreview={!accountMode}/>);
         }
       `;
-      return res.end(babel.transform(fs.readFileSync(path.join(root,'portfolio.jsx'),'utf8')+mount,{presets:['react']}).code);
+      return res.end(babel.transform(fs.readFileSync(path.join(root,'brand.jsx'),'utf8')+fs.readFileSync(path.join(root,'portfolio.jsx'),'utf8')+mount,{presets:['react']}).code);
     }
     if(url.pathname!=='/'){res.writeHead(404);return res.end();}
     res.setHeader('Content-Type','text/html; charset=utf-8');

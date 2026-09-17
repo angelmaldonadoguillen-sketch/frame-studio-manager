@@ -58,7 +58,7 @@ assert.match(modal, /resolveThemeColor\(user\.color\)/);
 assert.match(clients, /resolveThemeColor\(client\.color\)/);
 assert.match(clients, /resolveThemeColor\(matched\.color\)/);
 assert.match(auth, /frame-auth-stage/);
-assert.match(auth, /frame-auth-mark/);
+assert.match(auth, /<FrameLogo /);
 assert.match(auth, /color:\s*'var\(--accent-on\)'/);
 assert.doesNotMatch(auth, /d4ff4f|212\s*,\s*255\s*,\s*79/i);
 assert.match(modal, /const StatusPill = \(\{ status, size = 'sm', solid = false \}\)/);

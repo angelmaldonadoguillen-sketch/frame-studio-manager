@@ -593,16 +593,15 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace, 
           className={`flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity ${collapsed ? '' : 'flex-1'}`}
           title="Ir al inicio"
         >
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent)' }}>
-            <span className="font-display font-black text-lg" style={{ color: 'var(--accent-on)', letterSpacing: '-0.03em' }}>F</span>
-          </div>
-          {!collapsed && (
+          {collapsed ? (
+            <FrameMark size={26} label="FRAME" className="flex-shrink-0" />
+          ) : (
             /* whitespace-nowrap: "Studio Manager" con esa separación entre
                letras no entra en lo que sobra al lado del chevrón, y se
                partía en dos renglones desalineados. */
             <div className="min-w-0 leading-tight">
-              <div className="font-display font-bold text-[15px] whitespace-nowrap" style={{ letterSpacing: '-0.02em' }}>FRAME</div>
-              <div className="text-[9px] tracking-[0.16em] text-[var(--text-muted)] uppercase whitespace-nowrap">Studio Manager</div>
+              <FrameLogo height={22} className="block" />
+              <div className="text-[9px] tracking-[0.16em] text-[var(--text-muted)] uppercase whitespace-nowrap mt-1.5">Studio Manager</div>
             </div>
           )}
         </button>
@@ -1477,9 +1476,7 @@ const NewProjectModal = ({ onCreate, onClose, clients = [], onCreateClient, cust
 // ── Pantalla: esperando aprobación ──────────────────────────────
 const PendingApprovalScreen = ({ member, onSignOut }) => (
   <div className="h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: 'var(--bg)', position: 'relative', zIndex: 1 }}>
-    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--accent)', boxShadow: '0 0 40px var(--accent-soft)' }}>
-      <span className="font-display font-black text-[26px]" style={{ color: 'var(--accent-on)', letterSpacing: '-0.04em' }}>F</span>
-    </div>
+    <FrameMark size={44} label="FRAME" />
     <div className="flex gap-1.5">
       {[0, 1, 2].map(i => (
         <div key={i} className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--text-muted)', animationDelay: `${i * 200}ms` }}></div>
@@ -1553,9 +1550,7 @@ const RejectedScreen = ({ member, onSignOut }) => (
 // ── Loading screen ───────────────────────────────────────────────
 const LoadingScreen = () => (
   <div className="h-screen flex items-center justify-center flex-col gap-4" style={{ background: 'var(--bg)' }}>
-    <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)' }}>
-      <span className="font-display font-black text-2xl" style={{ color: 'var(--accent-on)', letterSpacing: '-0.03em' }}>F</span>
-    </div>
+    <FrameMark size={40} label="FRAME" />
     <div className="text-[13px] text-[var(--text-muted)] font-mono tracking-wider">Conectando con Firebase…</div>
     <div className="flex gap-1.5">
       {[0,1,2].map(i => (

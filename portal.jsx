@@ -238,7 +238,7 @@ const ClientPortal = ({ token }) => {
   if (unavailable || !portal) return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--bg)' }}>
       <div className="surf-panel max-w-md w-full p-8 text-center">
-        <div className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center font-display font-bold text-xl" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>F</div>
+        <FrameMark size={40} label="FRAME" className="mx-auto mb-4 block" />
         <h1 className="font-display text-xl font-bold mb-2">Enlace no disponible</h1>
         <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>Este seguimiento no existe o el estudio dejó de compartirlo. Solicitá un enlace actualizado.</p>
       </div>

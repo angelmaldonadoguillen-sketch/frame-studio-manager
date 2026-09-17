@@ -135,21 +135,8 @@ const LoginScreen = () => {
 
         {/* Logo + título */}
         <div className="text-center mb-8 anim-fade-in">
-          <div className="frame-auth-mark w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span
-              className="font-display font-black text-[30px]"
-              style={{ letterSpacing: '-0.04em' }}
-            >
-              F
-            </span>
-          </div>
-          <div
-            className="font-display font-black text-[30px]"
-            style={{ letterSpacing: '-0.04em' }}
-          >
-            FRAME
-          </div>
-          <div className="text-[11px] text-[var(--text-muted)] mt-1">
+          <FrameLogo height={44} className="frame-auth-logo mx-auto block" />
+          <div className="text-[11px] text-[var(--text-muted)] mt-3">
             Studio manager
           </div>
         </div>
