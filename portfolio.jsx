@@ -12,11 +12,12 @@ const FP_META = {
   navigation:['menu','Enlaces para recorrer tu sitio.'],
   footer:['layout','Un cierre con tu información y enlaces.']
 };
+const fpNormalize=text=>String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const FP_ORDER = ['hero','gallery','text','image-text','video','services','prices','contact','navigation','footer'];
 const FPIcon=({name,size=18})=>{
   const paths={
     plus:'M12 5v14M5 12h14', close:'m6 6 12 12M6 18 18 6', back:'m14 6-6 6 6 6',
-    down:'m6 9 6 6 6-6', up:'m6 15 6-6 6 6', undo:'M8 4 3 9l5 5M3 9h11a6 6 0 0 1 0 12',
+    down:'m6 9 6 6 6-6', up:'m6 15 6-6 6 6', forward:'m10 6 6 6-6 6', undo:'M8 4 3 9l5 5M3 9h11a6 6 0 0 1 0 12',
     redo:'m16 4 5 5-5 5m5-5H10a6 6 0 0 0 0 12', desktop:'M3 4h18v13H3zM8 21h8m-4-4v4',
     phone:'M7 2h10v20H7zM11 18h2', eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Zm10-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
     hidden:'m3 3 18 18M9 5a11 11 0 0 1 13 7 16 16 0 0 1-4 5M6 6a16 16 0 0 0-4 6s4 7 10 7a12 12 0 0 0 5-1',
@@ -70,7 +71,7 @@ const FPInline=({as:Tag='span',value,placeholder,multiline=false,maxLength,onCha
 const FPInserter=({draft,onPick,onClose})=>{
   const ref=React.useRef(null),close=React.useRef(onClose);close.current=onClose;
   React.useEffect(()=>{
-    const outside=e=>{if(!ref.current?.contains(e.target))close.current();},esc=e=>{if(e.key==='Escape'){e.preventDefault();close.current();}};
+    const outside=e=>{if(!ref.current?.contains(e.target)&&!e.target.closest?.('.fp-insert-line,.fp-canvas-add'))close.current();},esc=e=>{if(e.key==='Escape'){e.preventDefault();close.current();}};
     document.addEventListener('mousedown',outside);document.addEventListener('keydown',esc);
     ref.current?.querySelector('button')?.focus({preventScroll:true});ref.current?.scrollIntoView({block:'nearest'});
     return()=>{document.removeEventListener('mousedown',outside);document.removeEventListener('keydown',esc);};
@@ -136,7 +137,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   const [selected,setSelected]=React.useState(draft.sections[0]?.id),[itemId,setItemId]=React.useState(null);
   const [tab,setTab]=React.useState('content'),[rail,setRail]=React.useState('sections'),[pane,setPane]=React.useState('preview');
   const [preview,setPreview]=React.useState(false),[device,setDevice]=React.useState(()=>window.matchMedia('(max-width: 600px)').matches?'mobile':'desktop');
-  const [collapsed,setCollapsed]=React.useState({}),[dragging,setDragging]=React.useState(null);
+  const [collapsed,setCollapsed]=React.useState({}),[dragging,setDragging]=React.useState(null),[dropTarget,setDropTarget]=React.useState(null);
   const [dragBlock,setDragBlock]=React.useState(null);
   const [motionReplay,setMotionReplay]=React.useState({id:null,token:0});
   const [reducedMotion,setReducedMotion]=React.useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -336,11 +337,11 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
     edit(d=>({...d,sections:bid?d.sections.map(s=>s.id!==sid?s:{...s,content:{...s.content,items:FramePortfolio.move(s.content.items,bid,offset)}}):FramePortfolio.move(d.sections,sid,offset)}));
   };
   const dropSection=(targetId)=>{
-    if(!dragging||dragging===targetId){setDragging(null);return;}
+    setDropTarget(null);if(!dragging||dragging===targetId){setDragging(null);return;}
     edit(d=>{const list=d.sections.slice(),from=list.findIndex(s=>s.id===dragging),to=list.findIndex(s=>s.id===targetId);if(from<0||to<0)return d;const [entry]=list.splice(from,1);list.splice(to,0,entry);return {...d,sections:list};});setDragging(null);
   };
   const dropBlock=(sid,targetId)=>{
-    if(!dragBlock||dragBlock.sid!==sid||dragBlock.id===targetId){setDragBlock(null);return;}
+    setDropTarget(null);if(!dragBlock||dragBlock.sid!==sid||dragBlock.id===targetId){setDragBlock(null);return;}
     edit(d=>({...d,sections:d.sections.map(s=>{
       if(s.id!==sid)return s;
       const items=s.content.items.slice(),from=items.findIndex(i=>i.id===dragBlock.id),to=items.findIndex(i=>i.id===targetId);
@@ -400,7 +401,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   };
   if(initializing)return <PortfolioLoadingScreen profileName={profileName} onExit={onExit}/>;
   const definitionList=FP_ORDER.map(t=>FramePortfolio.modules.find(m=>m.type===t));
-  const filtered=definitionList.filter(m=>m.label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(query.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()));
+  const filtered=definitionList.filter(m=>fpNormalize(m.label).includes(fpNormalize(query)));
   const total=item?section.content.items.length:draft.sections.length;
   const mediaType=section&&['gallery','image-text','hero','services','video'].includes(section.type);
   const visibleSections=draft.sections.filter(s=>!s.hidden),leadingNavigation=visibleSections[0]?.type==='navigation'?visibleSections[0]:null;
@@ -435,11 +436,10 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
         </div>:<>
           <div className="fp-tree-heading"><span>Página de inicio</span><span>{draft.sections.length}</span></div>
           <div className="fp-tree" aria-label="Secciones">
-            {draft.sections.map(s=><div className="fp-tree-section" key={s.id} data-selected={s.id===selected} data-hidden={s.hidden} data-dragging={dragging===s.id} onDragOver={e=>{if(dragging){e.preventDefault();e.dataTransfer.dropEffect='move';}}} onDrop={e=>{e.preventDefault();dropSection(s.id);}}>
-              <div className="fp-tree-row"><button className="fp-grip" draggable aria-label={'Arrastrar '+s.content.title} title="Arrastrar o usar ↑ ↓ para reordenar" aria-keyshortcuts="ArrowUp ArrowDown" onKeyDown={e=>nudge(e,s.id)} onDragStart={e=>{setDragging(s.id);e.dataTransfer.setData('text/plain',s.id);e.dataTransfer.effectAllowed='move';}} onDragEnd={()=>setDragging(null)}><FPIcon name="grip" size={14}/></button><button className="fp-tree-select" aria-pressed={selected===s.id&&!itemId} onClick={()=>choose(s.id)}><FPIcon name={FP_META[s.type][0]} size={17}/><span>{s.content.title||FramePortfolio.modules.find(m=>m.type===s.type).label}</span></button><FPButton className="fp-eye" icon={s.hidden?'hidden':'eye'} label={(s.hidden?'Mostrar ':'Ocultar ')+(s.content.title||'sección')} aria-pressed={!!s.hidden} onClick={()=>edit(d=>({...d,sections:d.sections.map(x=>x.id===s.id?{...x,hidden:!x.hidden}:x)}))}/>{s.content.items.length>0&&<FPButton className="fp-collapse" icon={collapsed[s.id]?'back':'down'} label={(collapsed[s.id]?'Expandir ':'Plegar ')+s.content.title} aria-expanded={!collapsed[s.id]} onClick={()=>setCollapsed(c=>({...c,[s.id]:!c[s.id]}))}/>}</div>
-              {!collapsed[s.id]&&<div className="fp-tree-children">{s.content.items.map((i,n)=><div key={i.id} className="fp-tree-block-row" data-dragging={dragBlock?.id===i.id} onDragOver={e=>{if(dragBlock){e.stopPropagation();e.preventDefault();}}} onDrop={e=>{if(dragBlock){e.stopPropagation();e.preventDefault();dropBlock(s.id,i.id);}}}><button className="fp-block-grip" draggable aria-label={'Arrastrar bloque '+(i.title||n+1)} title="Arrastrar o usar ↑ ↓ para reordenar" aria-keyshortcuts="ArrowUp ArrowDown" onKeyDown={e=>nudge(e,s.id,i.id)} onDragStart={e=>{e.stopPropagation();setDragBlock({sid:s.id,id:i.id});e.dataTransfer.setData('text/plain',i.id);e.dataTransfer.effectAllowed='move';}} onDragEnd={()=>setDragBlock(null)}><FPIcon name="grip" size={12}/></button><button className="fp-tree-child" aria-label={'Seleccionar bloque '+(n+1)+' de '+s.content.title} aria-pressed={selected===s.id&&itemId===i.id} onClick={()=>choose(s.id,i.id)}><FPIcon name={['gallery','hero','image-text','video'].includes(s.type)?'image':'text'} size={14}/><span>{i.title||'Bloque sin título'}</span></button></div>)}{s.id===selected&&s.type!=='text'&&<button className="fp-tree-add" disabled={s.content.items.length>=100} onClick={()=>{setItemId(null);addItem();}}><FPIcon name="plus" size={14}/>Agregar bloque</button>}</div>}
-            </div>)}
-            
+            {draft.sections.map((s,sectionIndex)=>{const open=collapsed[s.id]===undefined?s.id===selected:!collapsed[s.id];return <div className="fp-tree-section" key={s.id} data-selected={s.id===selected} data-hidden={s.hidden} data-dragging={dragging===s.id} data-drop={dropTarget?.id===s.id?dropTarget.side:undefined} onDragOver={e=>{if(!dragging)return;e.preventDefault();e.dataTransfer.dropEffect='move';const side=dragging===s.id?null:sectionIndex>draft.sections.findIndex(x=>x.id===dragging)?'after':'before';if(dropTarget?.id!==s.id||dropTarget?.side!==side)setDropTarget(side?{id:s.id,side}:null);}} onDrop={e=>{e.preventDefault();dropSection(s.id);}}>
+              <div className="fp-tree-row"><button className="fp-grip" draggable aria-label={'Arrastrar '+s.content.title} title="Arrastrar o usar ↑ ↓ para reordenar" aria-keyshortcuts="ArrowUp ArrowDown" onKeyDown={e=>nudge(e,s.id)} onDragStart={e=>{setDragging(s.id);e.dataTransfer.setData('text/plain',s.id);e.dataTransfer.effectAllowed='move';}} onDragEnd={()=>{setDragging(null);setDropTarget(null);}}><FPIcon name="grip" size={14}/></button><button className="fp-tree-select" aria-pressed={selected===s.id&&!itemId} onClick={()=>choose(s.id)}><FPIcon name={FP_META[s.type][0]} size={17}/><span>{s.content.title||FramePortfolio.modules.find(m=>m.type===s.type).label}</span></button><FPButton className="fp-eye" icon={s.hidden?'hidden':'eye'} label={(s.hidden?'Mostrar ':'Ocultar ')+(s.content.title||'sección')} aria-pressed={!!s.hidden} onClick={()=>edit(d=>({...d,sections:d.sections.map(x=>x.id===s.id?{...x,hidden:!x.hidden}:x)}))}/>{s.content.items.length>0&&<FPButton className="fp-collapse" icon={open?'down':'forward'} label={(open?'Plegar ':'Expandir ')+(s.content.title||'sección')} aria-expanded={open} onClick={()=>setCollapsed(c=>({...c,[s.id]:open}))}/>}</div>
+              {open&&<div className="fp-tree-children">{s.content.items.map((i,n)=><div key={i.id} className="fp-tree-block-row" data-dragging={dragBlock?.id===i.id} data-drop={dropTarget?.id===i.id?dropTarget.side:undefined} onDragOver={e=>{if(!dragBlock)return;e.stopPropagation();if(dragBlock.sid!==s.id)return;e.preventDefault();const side=dragBlock.id===i.id?null:n>s.content.items.findIndex(x=>x.id===dragBlock.id)?'after':'before';if(dropTarget?.id!==i.id||dropTarget?.side!==side)setDropTarget(side?{id:i.id,side}:null);}} onDrop={e=>{if(dragBlock){e.stopPropagation();e.preventDefault();dropBlock(s.id,i.id);}}}><button className="fp-block-grip" draggable aria-label={'Arrastrar bloque '+(i.title||n+1)} title="Arrastrar o usar ↑ ↓ para reordenar" aria-keyshortcuts="ArrowUp ArrowDown" onKeyDown={e=>nudge(e,s.id,i.id)} onDragStart={e=>{e.stopPropagation();setDragBlock({sid:s.id,id:i.id});e.dataTransfer.setData('text/plain',i.id);e.dataTransfer.effectAllowed='move';}} onDragEnd={()=>{setDragBlock(null);setDropTarget(null);}}><FPIcon name="grip" size={12}/></button><button className="fp-tree-child" aria-label={'Seleccionar bloque '+(n+1)+' de '+s.content.title} aria-pressed={selected===s.id&&itemId===i.id} onClick={()=>choose(s.id,i.id)}><FPIcon name={['gallery','hero','image-text','video'].includes(s.type)?'image':'text'} size={14}/><span>{i.title||'Bloque sin título'}</span></button></div>)}{s.id===selected&&s.type!=='text'&&<button className="fp-tree-add" disabled={s.content.items.length>=100} onClick={()=>{setItemId(null);addItem();}}><FPIcon name="plus" size={14}/>Agregar bloque</button>}</div>}
+            </div>;})}
             <FPButton icon="plus" className="fp-add-section" disabled={draft.sections.length>=50} onClick={openCatalog}>Agregar sección</FPButton>
           </div>
         </>}
@@ -457,7 +457,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
             </div></React.Fragment>;})}
             {!preview&&insertAt===draft.sections.length&&<FPInserter draft={draft} onPick={type=>insertSection(type,draft.sections.length)} onClose={()=>setInsertAt(null)}/>}
             {!draft.sections.some(s=>!s.hidden)&&<div className="fp-empty-page"><FPIcon name="layout" size={36}/><h2>Un espacio para tu trabajo.</h2>{!preview&&insertAt!==draft.sections.length&&<FPButton icon="plus" onClick={()=>setInsertAt(draft.sections.length)}>Agregar sección</FPButton>}</div>}
-            {!preview&&insertAt!==draft.sections.length&&<button className="fp-canvas-add" disabled={draft.sections.length>=50} onClick={()=>setInsertAt(draft.sections.length)}><FPIcon name="plus" size={16}/>Agregar sección</button>}
+            {!preview&&insertAt!==draft.sections.length&&draft.sections.some(s=>!s.hidden)&&<button className="fp-canvas-add" disabled={draft.sections.length>=50} onClick={()=>setInsertAt(draft.sections.length)}><FPIcon name="plus" size={16}/>Agregar sección</button>}
           </div>
         </div></div>
       </main>
@@ -499,11 +499,11 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
     </div>
     {!preview&&<nav className="fp-mobile-nav" aria-label="Paneles del editor">{[['sections','layout','Secciones'],['preview','eye','Página'],['properties','settings','Ajustes']].map(([id,icon,label])=><button key={id} aria-pressed={pane===id} onClick={()=>setPane(id)}><FPIcon name={icon}/>{label}</button>)}</nav>}
     {notice&&<div className="fp-toast" role="status"><FPIcon name="check" size={16}/>{notice.text||notice}{notice.undo&&<button type="button" className="fp-toast-action" aria-label="Deshacer último cambio" onClick={()=>travel('undo')}>Deshacer</button>}</div>}
-    <dialog className="fp-catalog" ref={catalogRef} aria-labelledby="fp-catalog-title" onCancel={()=>setCatalog(false)} onClose={()=>setCatalog(false)}>
+    <dialog className="fp-catalog" ref={catalogRef} aria-labelledby="fp-catalog-title" onCancel={()=>setCatalog(false)} onClose={()=>setCatalog(false)} onMouseDown={e=>{if(e.target!==e.currentTarget)return;const box=e.currentTarget.getBoundingClientRect();if(e.clientX<box.left||e.clientX>box.right||e.clientY<box.top||e.clientY>box.bottom)setCatalog(false);}}>
       <header><div><h2 id="fp-catalog-title">Agregar sección</h2></div><FPButton icon="close" label="Cerrar catálogo" onClick={()=>setCatalog(false)}/></header>
-      <div className="fp-catalog-body"><div className="fp-catalog-list"><label className="fp-search"><FPIcon name="search" size={16}/><input aria-label="Buscar módulos" autoFocus value={query} placeholder="Buscar una sección" onChange={e=>setQuery(e.target.value)}/></label>{filtered.map(m=><button key={m.type} aria-pressed={moduleType===m.type} onClick={()=>{setModuleType(m.type);setVariant(m.variants[0]);}}><FPIcon name={FP_META[m.type][0]}/>{m.label}<FPIcon name="back" size={14}/></button>)}{!filtered.length&&<p className="fp-help">No hay secciones con ese nombre.</p>}</div>
-      <div className="fp-catalog-preview"><h3>{FramePortfolio.modules.find(m=>m.type===moduleType).label}</h3><FPThumb type={moduleType} variant={variant}/><h4>Elegí una presentación</h4><div className="fp-catalog-variants">{FramePortfolio.modules.find(m=>m.type===moduleType).variants.map(v=><button key={v} aria-pressed={v===variant} onClick={()=>setVariant(v)}>{FP_LABELS[v]}</button>)}</div></div></div>
-      <footer><span/><FPButton className="fp-primary" icon="plus" disabled={draft.sections.length>=50} onClick={addSection}>Agregar a la página</FPButton></footer>
+      <div className="fp-catalog-body"><div className="fp-catalog-list"><label className="fp-search"><FPIcon name="search" size={16}/><input aria-label="Buscar módulos" autoFocus value={query} placeholder="Buscar una sección" onChange={e=>{const next=e.target.value,matches=definitionList.filter(m=>fpNormalize(m.label).includes(fpNormalize(next)));setQuery(next);if(matches.length&&!matches.some(m=>m.type===moduleType)){setModuleType(matches[0].type);setVariant(matches[0].variants[0]);}}} onKeyDown={e=>{if(e.key==='Enter'&&filtered.length){e.preventDefault();addSection();}}}/></label>{filtered.map(m=><button key={m.type} aria-pressed={moduleType===m.type} onClick={()=>{setModuleType(m.type);setVariant(m.variants[0]);}}><FPIcon name={FP_META[m.type][0]}/>{m.label}<FPIcon name="back" size={14}/></button>)}{!filtered.length&&<p className="fp-help">No hay secciones con ese nombre.</p>}</div>
+      {filtered.length?<div className="fp-catalog-preview"><h3>{FramePortfolio.modules.find(m=>m.type===moduleType).label}</h3><FPThumb type={moduleType} variant={variant}/><h4>Elegí una presentación</h4><div className="fp-catalog-variants">{FramePortfolio.modules.find(m=>m.type===moduleType).variants.map(v=><button key={v} aria-pressed={v===variant} onClick={()=>setVariant(v)}>{FP_LABELS[v]}</button>)}</div></div>:<div className="fp-catalog-preview"/>}</div>
+      <footer><span/><FPButton className="fp-primary" icon="plus" disabled={draft.sections.length>=50||!filtered.length} onClick={addSection}>Agregar a la página</FPButton></footer>
     </dialog>
   </section>;
 };
