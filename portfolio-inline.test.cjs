@@ -33,6 +33,24 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     const itemTitle=page.locator('.fp-site-gallery .fp-site-item h3.fp-inline').first();
     await itemTitle.click();await page.keyboard.press('End');await page.keyboard.type(' 2');
     assert.equal(await page.getByLabel('Nombre',{exact:true}).inputValue(),'FORMA 2');
+    // "+" entre secciones: un clic en la miniatura la inserta ahí y deja escribiendo el título
+    const before=await page.locator('.fp-tree-select').count();
+    await page.locator('.fp-insert-line > button').nth(2).hover();
+    await page.getByRole('button',{name:'Agregar sección aquí'}).nth(2).click();
+    const inserter=page.getByRole('dialog',{name:'Agregar sección aquí'});
+    assert.equal(await inserter.locator('.fp-inserter-grid > button').count(),10);
+    await inserter.getByRole('button',{name:'Servicios',exact:true}).click();
+    assert.equal(await inserter.count(),0);
+    assert.equal(await page.locator('.fp-tree-select').count(),before+1);
+    await page.waitForFunction(()=>document.activeElement?.classList.contains('fp-inline')&&getSelection().toString()==='Servicios');
+    await page.keyboard.type('Lo que hacemos');
+    assert.equal(await page.locator('.fp-tree-select').nth(2).innerText(),'Lo que hacemos');
+    assert.equal(await page.getByLabel('Título',{exact:true}).inputValue(),'Lo que hacemos');
+    // Escape cierra el selector sin agregar nada
+    await page.locator('.fp-canvas-add').click();
+    await page.keyboard.press('Escape');
+    assert.equal(await inserter.count(),0);
+    assert.equal(await page.locator('.fp-tree-select').count(),before+1);
     // La vista previa no deja nada editable
     await page.getByRole('button',{name:'Vista previa',exact:true}).click();
     assert.equal(await page.locator('[contenteditable]').count(),0);

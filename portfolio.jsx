@@ -66,6 +66,17 @@ const FPInline=({as:Tag='span',value,placeholder,multiline=false,maxLength,onCha
     onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'||(e.key==='Enter'&&!multiline)){e.preventDefault();e.currentTarget.blur();}}}
     onInput={e=>{const el=e.currentTarget;let text=el.textContent;if(!multiline&&text.includes('\n'))text=text.replace(/\n/g,' ');if(maxLength&&text.length>maxLength)text=text.slice(0,maxLength);if(text!==el.textContent)el.textContent=text;onChange(text);}}/>;
 };
+const FPInserter=({draft,onPick,onClose})=>{
+  const ref=React.useRef(null),close=React.useRef(onClose);close.current=onClose;
+  React.useEffect(()=>{
+    const outside=e=>{if(!ref.current?.contains(e.target))close.current();},esc=e=>{if(e.key==='Escape'){e.preventDefault();close.current();}};
+    document.addEventListener('mousedown',outside);document.addEventListener('keydown',esc);
+    ref.current?.querySelector('button')?.focus({preventScroll:true});ref.current?.scrollIntoView({block:'nearest'});
+    return()=>{document.removeEventListener('mousedown',outside);document.removeEventListener('keydown',esc);};
+  },[]);
+  const page=FramePortfolio.pageStyle(draft),tint={background:page.background,color:page.color,'--fp-site-accent':page['--fp-site-accent']};
+  return <div className="fp-inserter" ref={ref} role="dialog" aria-label="Agregar sección aquí" onClick={e=>e.stopPropagation()}><div className="fp-inserter-grid">{FramePortfolio.modules.map(m=><button type="button" key={m.type} disabled={draft.sections.length>=50} onClick={()=>onPick(m.type)}><span className="fp-inserter-thumb" style={tint}><FPThumb type={m.type} variant={m.variants[0]}/></span><span>{m.label}</span></button>)}</div></div>;
+};
 const FPField=({label,children,hint})=><label className="fp-field"><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>;
 const FPThumb=({type,variant})=><div className={'fp-thumb fp-thumb-'+type+' fp-thumb-'+variant} aria-hidden="true"><div className="fp-thumb-title"/><div className="fp-thumb-lines"><i/><i/></div><div className="fp-thumb-media">{[0,1,2].map(n=><span key={n}>{type==='video'?<FPIcon name="play" size={26}/>:<><i/><i/></>}</span>)}</div></div>;
 
@@ -129,7 +140,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   const [motionReplay,setMotionReplay]=React.useState({id:null,token:0});
   const [reducedMotion,setReducedMotion]=React.useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   React.useEffect(()=>{const media=window.matchMedia('(prefers-reduced-motion: reduce)'),change=()=>setReducedMotion(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
-  const [catalog,setCatalog]=React.useState(false),[query,setQuery]=React.useState(''),[moduleType,setModuleType]=React.useState('hero'),[variant,setVariant]=React.useState('center');
+  const [insertAt,setInsertAt]=React.useState(null),[catalog,setCatalog]=React.useState(false),[query,setQuery]=React.useState(''),[moduleType,setModuleType]=React.useState('hero'),[variant,setVariant]=React.useState('center');
   const [busy,setBusy]=React.useState(false),[uploadError,setUploadError]=React.useState(''),[uploadProgress,setUploadProgress]=React.useState(0);
   const [logoProgress,setLogoProgress]=React.useState(0),[logoError,setLogoError]=React.useState('');
   const [usage,setUsage]=React.useState({usedBytes:0,reservedBytes:0,loading:!localPreview});
@@ -277,6 +288,16 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   const publicationError=publication.error;
   const copyPublicUrl=async()=>{try{await navigator.clipboard.writeText(publicUrl);setNotice('Enlace copiado');}catch(_){setError('No se pudo copiar automáticamente. Seleccioná el enlace y copialo.');}};
   const openCatalog=()=>{setQuery('');setCatalog(true);};
+  const insertSection=(type,at)=>{
+    if(draftRef.current.sections.length>=50)return;const s=FramePortfolio.make(type);
+    edit(d=>{const list=d.sections.slice();list.splice(Math.min(at,list.length),0,s);return {...d,sections:list};});
+    setInsertAt(null);setSelected(s.id);setItemId(null);setTab('content');setNotice('Sección agregada');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      const el=document.getElementById('fp-section-'+s.id),title=el?.querySelector('.fp-inline');if(!el)return;
+      el.scrollIntoView({block:'nearest'});if(!title)return;title.focus({preventScroll:true});
+      const range=document.createRange();range.selectNodeContents(title);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+    }));
+  };
   const addSection=()=>{
     if(draft.sections.length>=50)return;const s=FramePortfolio.make(moduleType);s.variant=variant;
     edit(d=>({...d,sections:[...d.sections,s]}));choose(s.id);setCatalog(false);setNotice('Sección agregada');
@@ -414,12 +435,15 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
         <div className={'fp-canvas-scroll '+(device==='mobile'?'fp-device-mobile':'')}><div className="fp-browser-frame">
           <div className="frame-portfolio-page" style={FramePortfolio.pageStyle(draft)}>
             {leadingNavigation?null:<PortfolioBrand draft={draft}/>} 
-            {visibleSections.map(s=><div id={'fp-section-'+s.id} key={s.id} className="fp-canvas-section" data-selected={!preview&&s.id===selected&&!itemId} role={preview?undefined:'button'} tabIndex={preview?undefined:0} aria-label={preview?undefined:'Editar sección '+s.content.title} onClick={preview?undefined:()=>choose(s.id,null,true)} onKeyDown={preview?undefined:e=>{if(e.target===e.currentTarget&&['Enter',' '].includes(e.key)){e.preventDefault();choose(s.id,null,true);}}}>
+            {visibleSections.map(s=>{const at=draft.sections.findIndex(x=>x.id===s.id);return <React.Fragment key={s.id}>
+              {!preview&&(insertAt===at?<FPInserter draft={draft} onPick={type=>insertSection(type,at)} onClose={()=>setInsertAt(null)}/>:<div className="fp-insert-line"><button type="button" aria-label="Agregar sección aquí" title="Agregar sección aquí" disabled={draft.sections.length>=50} onClick={e=>{e.stopPropagation();setInsertAt(at);}}><span><FPIcon name="plus" size={14}/></span></button></div>)}
+              <div id={'fp-section-'+s.id} className="fp-canvas-section" data-selected={!preview&&s.id===selected&&!itemId} role={preview?undefined:'button'} tabIndex={preview?undefined:0} aria-label={preview?undefined:'Editar sección '+s.content.title} onClick={preview?undefined:()=>choose(s.id,null,true)} onKeyDown={preview?undefined:e=>{if(e.target===e.currentTarget&&['Enter',' '].includes(e.key)){e.preventDefault();choose(s.id,null,true);}}}>
               {!preview&&<span className="fp-selection-label">{FramePortfolio.modules.find(m=>m.type===s.type).label}</span>}
               <PortfolioModule loadingMode={draft.loadingMode||'progressive'} section={s} brandDraft={s.id===leadingNavigation?.id?draft:null} mobile={device==='mobile'} editing={!preview} replayToken={motionReplay.id===s.id?motionReplay.token:0} selectedItem={s.id===selected?itemId:null} onSelectItem={preview?undefined:id=>choose(s.id,id,true)} active={!preview&&s.id===selected} onFocusText={id=>{setSelected(s.id);setItemId(id);setTab('content');}} onEditText={preview?undefined:(patch,id)=>edit(d=>({...d,sections:d.sections.map(x=>x.id!==s.id?x:{...x,content:id?{...x.content,items:x.content.items.map(i=>i.id===id?{...i,...patch}:i)}:{...x.content,...patch}})}),'inline-'+s.id+'-'+(id||'')+'-'+Object.keys(patch)[0])}/>
-            </div>)}
-            {!draft.sections.some(s=>!s.hidden)&&<div className="fp-empty-page"><FPIcon name="layout" size={36}/><h2>Un espacio para tu trabajo.</h2>{!preview&&<FPButton icon="plus" onClick={openCatalog}>Agregar sección</FPButton>}</div>}
-            {!preview&&<button className="fp-canvas-add" disabled={draft.sections.length>=50} onClick={openCatalog}><FPIcon name="plus" size={16}/>Agregar sección</button>}
+            </div></React.Fragment>;})}
+            {!preview&&insertAt===draft.sections.length&&<FPInserter draft={draft} onPick={type=>insertSection(type,draft.sections.length)} onClose={()=>setInsertAt(null)}/>}
+            {!draft.sections.some(s=>!s.hidden)&&<div className="fp-empty-page"><FPIcon name="layout" size={36}/><h2>Un espacio para tu trabajo.</h2>{!preview&&insertAt!==draft.sections.length&&<FPButton icon="plus" onClick={()=>setInsertAt(draft.sections.length)}>Agregar sección</FPButton>}</div>}
+            {!preview&&insertAt!==draft.sections.length&&<button className="fp-canvas-add" disabled={draft.sections.length>=50} onClick={()=>setInsertAt(draft.sections.length)}><FPIcon name="plus" size={16}/>Agregar sección</button>}
           </div>
         </div></div>
       </main>
