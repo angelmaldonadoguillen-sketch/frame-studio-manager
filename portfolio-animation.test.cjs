@@ -49,7 +49,8 @@ const {chromium}=require(path.join(deps,'playwright'));
     await page.getByRole('button',{name:'Diseño',exact:true}).click();
     await page.getByLabel('Efecto de animación').selectOption('none');
     await page.getByRole('button',{name:'Vista previa',exact:true}).click();
-    assert.equal(await hero.evaluate(e=>e.getAnimations().length),0);
+    // Solo cuentan las animaciones de entrada; con reducir movimiento FRAME deja transiciones de 0,01 ms
+    assert.equal(await hero.evaluate(e=>e.getAnimations().filter(a=>!(a instanceof CSSTransition)).length),0);
     assert.deepEqual(errors,[]);
     console.log('Portfolio motion: opt-in, manual replay, layout stability, stagger timing, save/reload, preview and live reduced-motion cancellation OK');
   } finally {if(browser)await browser.close();await new Promise(r=>server.close(r));}

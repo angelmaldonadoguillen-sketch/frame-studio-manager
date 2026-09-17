@@ -221,28 +221,30 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
     const next=source.current.pop();target.current=[...target.current,draftRef.current].slice(-30);group.current=null;
     draftRef.current=next;setDraft(next);setNotice('');
   };
+  const firstInvalid=d=>{for(const s of d.sections)for(const i of s.content.items)if(!FramePortfolio.valid({...d,sections:[{...s,content:{...s.content,items:[i]}}]}))return [s.id,i.id];return null;};
   const save=async()=>{
-    if(blocked||busy||saving)return;
-    if(saved){setSaveRevision(n=>n+1);return;}
-    if(!FramePortfolio.valid(draftRef.current)){setError('Revisá los enlaces y precios antes de guardar. Tu borrador sigue aquí.');return;}
+    if(blocked||busy||saving)return false;
+    if(saved){setSaveRevision(n=>n+1);return true;}
+    if(!FramePortfolio.valid(draftRef.current)){const bad=firstInvalid(draftRef.current);if(bad){setSelected(bad[0]);setItemId(bad[1]);setTab('content');}setError(bad?'Corregí el campo marcado en rojo para continuar.':'El portfolio tiene datos que no se pueden guardar. Exportá un respaldo para no perderlos.');return false;}
     setSaving(true);setError('');group.current=null;const json=JSON.stringify(draftRef.current);
     try {localStorage.setItem(key,json);if(!localPreview)localStorage.setItem(key+'_unsynced','1');}
-    catch(_){setSaveRevision(0);setError('No se pudo crear la copia local. Exportá un respaldo para conservar tu trabajo.');setSaving(false);return;}
-    if(localPreview){sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);setSaving(false);return;}
+    catch(_){setSaveRevision(0);setError('No se pudo crear la copia local. Exportá un respaldo para conservar tu trabajo.');setSaving(false);return false;}
+    if(localPreview){sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);setSaving(false);return true;}
     try{
       if(!window.db||!userId)throw new Error('offline');
       const prepared=FramePortfolio.encodeDraft(draftRef.current),version=crypto.randomUUID().replaceAll('-',''),batch=window.db.batch(),root=window.db.collection('frame_portfolio_drafts').doc(userId);
       prepared.payloads.forEach((payload,index)=>batch.set(root.collection('chunks').doc(String(index).padStart(2,'0')),{ownerId:userId,index,version,payload}));
       for(let index=prepared.payloads.length;index<FramePortfolio.PUBLIC_MAX_CHUNKS;index++)batch.delete(root.collection('chunks').doc(String(index).padStart(2,'0')));
       batch.set(root,{ownerId:userId,title:prepared.draft.title||'Portfolio',chunkCount:prepared.payloads.length,version,contentHash:prepared.hash,schemaVersion:1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-      await batch.commit();try{localStorage.removeItem(key+'_unsynced');}catch(_){}sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);
-    }catch(err){setSaveRevision(0);setError(err?.code==='permission-denied'?'Firebase todavía no permite guardar el portfolio en tu cuenta. Conservamos una copia local y los cambios pendientes.':'No se pudo sincronizar con tu cuenta. Conservamos una copia local para reintentar.');}
+      await batch.commit();try{localStorage.removeItem(key+'_unsynced');}catch(_){}sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);return true;
+    }catch(err){setSaveRevision(0);setError(err?.code==='permission-denied'?'Firebase todavía no permite guardar el portfolio en tu cuenta. Conservamos una copia local y los cambios pendientes.':'No se pudo sincronizar con tu cuenta. Conservamos una copia local para reintentar.');return false;}
     finally{setSaving(false);}
   };
   React.useEffect(()=>{
     const warn=e=>{if(!saved){e.preventDefault();e.returnValue='';}};
     const keyboard=e=>{
       const active=document.activeElement;
+      if(e.key==='Escape'&&preview&&!e.defaultPrevented&&!rootRef.current?.querySelector('dialog[open],details[open],.fp-share-pop')){setPreview(false);return;}
       if(!(e.ctrlKey||e.metaKey)||e.altKey||(active&&active!==document.body&&!rootRef.current?.contains(active)))return;
       const k=e.key.toLowerCase();
       if(k==='s'){e.preventDefault();save();return;}
@@ -251,7 +253,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
     };
     window.addEventListener('beforeunload',warn);window.addEventListener('keydown',keyboard);
     return()=>{window.removeEventListener('beforeunload',warn);window.removeEventListener('keydown',keyboard);};
-  },[saved,blocked,busy,saving,draft]);
+  },[saved,blocked,busy,saving,draft,preview]);
   const exportDraft=()=>{
     let content=JSON.stringify(draftRef.current,null,2);try{if(blocked)content=localStorage.getItem(key)||content;}catch(_){}
     const url=URL.createObjectURL(new Blob([content],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='frame-portfolio-borrador.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -275,9 +277,12 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   let currentHash='';try{currentHash=FramePortfolio.publicationHash(draft);}catch(_){}
   const publicationCurrent=publication.published&&publication.contentHash===currentHash;
   const publishRemote=async()=>{
-    if(localPreview){publishTest();return;}
-    if(publishing||blocked||!canPublish||!window.db)return;
+    if(publishing||blocked||(!canPublish&&!localPreview))return;
     setPublishing(true);setError('');
+    if(!saved&&!(await save())){setPublishing(false);return;}
+    try{FramePortfolio.publicationDraft(draftRef.current);}catch(err){setError(err.message);setPublishing(false);return;}
+    if(localPreview){publishTest();setPublishing(false);return;}
+    if(!window.db){setError('No hay conexión con tu cuenta. Intentá publicar de nuevo en un momento.');setPublishing(false);return;}
     try {
       const prepared=FramePortfolio.encodePublication(draftRef.current),version=crypto.randomUUID().replaceAll('-',''),batch=window.db.batch(),root=window.db.collection('frame_portfolios').doc(userId);
       prepared.payloads.forEach((payload,index)=>batch.set(root.collection('chunks').doc(String(index).padStart(2,'0')),{ownerId:userId,index,version,payload}));
@@ -285,7 +290,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
       batch.set(root,{ownerId:userId,title:prepared.draft.title||'Portfolio',published:true,chunkCount:prepared.payloads.length,version,contentHash:prepared.hash,schemaVersion:1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
       await batch.commit();
       setPublication({loading:false,published:true,contentHash:prepared.hash,updatedAt:new Date(),error:''});setNotice(publication.published?'Página pública actualizada':'Portfolio publicado');
-    }catch(err){setError(err?.code==='permission-denied'?'Firebase rechazó la publicación. Hay que activar las reglas nuevas antes de usarla.':err.message||'No se pudo publicar. Intentá nuevamente.');}
+    }catch(err){setError(err?.code==='permission-denied'?'Firebase rechazó la publicación. Hay que activar las reglas nuevas antes de usarla.':'No se pudo publicar. Revisá tu conexión e intentá nuevamente.');}
     finally{setPublishing(false);}
   };
   const unpublish=async()=>{
@@ -296,7 +301,6 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
     catch(err){setError(err?.code==='permission-denied'?'No tenés permiso para retirar esta página.':'No se pudo retirar la página. Intentá nuevamente.');}
     finally{setPublishing(false);}
   };
-  const publicationError=publication.error;
   const copyPublicUrl=async()=>{try{await navigator.clipboard.writeText(publicUrl);setNotice('Enlace copiado');}catch(_){setError('No se pudo copiar automáticamente. Seleccioná el enlace y copialo.');}};
   const openCatalog=()=>{setQuery('');setCatalog(true);};
   const insertSection=(type,at)=>{
@@ -403,19 +407,19 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   return <section className="fp-editor" ref={rootRef} tabIndex="-1" aria-label="Editor de portfolio" data-preview={preview} data-pane={pane}>
     <PortfolioFontLoader draft={draft}/>
     <header className="fp-topbar">
-      <div className="fp-brand-group">{onExit?<FPButton icon="back" label="Volver a FRAME" onClick={onExit}/>:<span className="fp-mark"><FPIcon name="layout" size={22}/></span>}<div><span className="fp-brand">FRAME <span>Portfolio</span></span><span className="fp-document-name">{draft.title||'Sin título'}</span></div><span className={'fp-badge'+(publicationCurrent?' is-live':'')}>{publication.published?(publicationCurrent?'Publicado':'Cambios sin publicar'):'Borrador'}</span></div>
+      <div className="fp-brand-group">{onExit?<FPButton icon="back" label="Volver a FRAME" onClick={onExit}/>:<span className="fp-mark"><FPIcon name="layout" size={22}/></span>}<div><span className="fp-brand">FRAME <span>Portfolio</span></span><span className="fp-document-name">{draft.title||'Sin título'}</span></div></div>
       <div className="fp-devices" aria-label="Tamaño de vista previa"><FPButton icon="desktop" label="Escritorio" aria-pressed={device==='desktop'} onClick={()=>setDevice('desktop')}/><FPButton icon="phone" label="Móvil" aria-pressed={device==='mobile'} onClick={()=>setDevice('mobile')}/></div>
       <div className="fp-top-actions">
         <div className="fp-history"><FPButton icon="undo" label="Deshacer" disabled={!past.current.length||busy} onClick={()=>travel('undo')}/><FPButton icon="redo" label="Rehacer" disabled={!future.current.length||busy} onClick={()=>travel('redo')}/></div>
         <FPButton icon={preview?'layout':'eye'} label={preview?'Volver al editor':'Vista previa'} aria-pressed={preview} onClick={()=>{setPreview(!preview);setPane('preview');}}><span className="fp-preview-word">{preview?'Editar':'Vista previa'}</span></FPButton>
         <FPSaveButton revision={saveRevision} saved={saved} saving={saving} onClick={save} disabled={blocked||busy||saving||saved}/>
         {publication.published&&<FPShare url={publicUrl} title={draft.title||'Portfolio'} onCopy={copyPublicUrl}/>}
-        <FPButton icon={publicationCurrent?'check':'upload'} className={'fp-publish-button'+(publicationCurrent?' fp-published':'')} disabled={publication.loading||publishing||publicationCurrent||blocked||!currentHash||(!canPublish&&!localPreview)} onClick={publishRemote}>{publication.loading?'Consultando…':publishing?'Publicando…':publication.published?(publicationCurrent?'Publicado':'Actualizar'):'Publicar'}</FPButton>
+        <FPButton icon={publicationCurrent?'check':'upload'} className={'fp-publish-button'+(publicationCurrent?' fp-published':'')} disabled={publication.loading||publishing||saving||publicationCurrent||blocked||(!canPublish&&!localPreview)} onClick={publishRemote}>{publication.loading?'Consultando…':publishing?(saving?'Guardando…':'Publicando…'):publication.published?(publicationCurrent?'Publicado':'Actualizar'):'Publicar'}</FPButton>
         <details className="fp-more" onToggle={e=>{if(!e.currentTarget.open)setConfirmUnpublish(false);}}><summary aria-label="Más opciones" title="Más opciones"><FPIcon name="more"/></summary><div><button className="fp-mobile-history" disabled={!past.current.length||busy} onClick={()=>travel('undo')}>Deshacer cambio</button><button className="fp-mobile-history" disabled={!future.current.length||busy} onClick={()=>travel('redo')}>Rehacer cambio</button><button onClick={e=>{e.currentTarget.closest('details').open=false;exportDraft();}}>Exportar respaldo</button><button onClick={e=>{e.currentTarget.closest('details').open=false;importRef.current.click();}}>Importar respaldo</button>{publication.published&&(confirmUnpublish?<div className="fp-more-confirm"><span>¿Retirar la página pública?</span><div><button onClick={()=>setConfirmUnpublish(false)}>Cancelar</button><button className="fp-danger" disabled={publishing} onClick={async e=>{const menu=e.currentTarget.closest('details');await unpublish();setConfirmUnpublish(false);if(menu)menu.open=false;}}>Retirar</button></div></div>:<button className="fp-danger" onClick={()=>setConfirmUnpublish(true)}>Retirar página</button>)}</div></details>
       </div>
     </header>
     <input hidden type="file" accept=".json,application/json" ref={importRef} onChange={importDraft}/>
-    {!error&&publicationError&&<div className="fp-alert" role="alert">{publicationError}</div>}
+    {!error&&publication.error&&<div className="fp-alert" role="alert">{publication.error}<FPButton icon="close" label="Cerrar aviso" onClick={()=>setPublication(value=>({...value,error:''}))}/></div>}
     {error&&<div className="fp-alert" role="alert">{error}<FPButton icon="close" label="Cerrar aviso" onClick={()=>setError('')}/></div>}
     <div className="fp-workspace">
       <aside className="fp-sidebar" aria-label="Estructura de la página">
