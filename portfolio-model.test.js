@@ -82,3 +82,19 @@ assert.ok(encoded.payloads.every(chunk=>chunk.length<=P.PUBLIC_CHUNK_SIZE));
 assert.throws(()=>P.decodePublication([encoded.payloads[0].slice(1)]),/verificar/);
 assert.throws(()=>P.encodePublication({...draft,sections:[hidden]}),/al menos una sección/);
 console.log('portfolio-publish: public projection, UTF-8 chunks, hash and corruption checks passed');
+
+// Fondo de sección y controles de diseño por módulo
+assert.equal(P.valid({...draft,sections:[{...gallery,design:{...design,tone:'soft'}}]}),true);
+assert.equal(P.valid({...draft,sections:[{...gallery,design:{...design,tone:'contrast'}}]}),true);
+assert.equal(P.valid({...draft,sections:[{...gallery,design:{...design,tone:'url(x)'}}]}),false);
+assert.deepEqual(P.motionOptions('video'),['fade','rise']);
+assert.deepEqual(P.motionOptions('contact'),['fade','rise']);
+assert.deepEqual(P.motionOptions('navigation'),[]);
+assert.equal(P.designControls('navigation','left').align,false);
+assert.equal(P.designControls('prices','table').columns,false);
+assert.equal(P.designControls('prices','list').radius,false);
+assert.equal(P.designControls('footer','columns').columns,true);
+assert.equal(P.designControls('services','cards').radiusDefault,8);
+assert.equal(P.designControls('gallery','grid').radiusDefault,0);
+assert.equal(P.pageStyle(draft)['--fp-site-background'],P.pageStyle(draft).background);
+console.log('portfolio-design: section background, per-module controls and motion for video/contact OK');

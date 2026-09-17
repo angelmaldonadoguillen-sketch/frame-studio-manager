@@ -58,7 +58,7 @@
     }catch(_){}
     return '';
   };
-  const motionOptions = type => ({hero:['fade','rise','zoom'],gallery:['fade','rise','stagger'],text:['fade','rise'],'image-text':['fade','rise','zoom'],services:['fade','rise','stagger'],prices:['fade','rise','stagger']}[type]||[]);
+  const motionOptions = type => ({hero:['fade','rise','zoom'],gallery:['fade','rise','stagger'],text:['fade','rise'],'image-text':['fade','rise','zoom'],services:['fade','rise','stagger'],prices:['fade','rise','stagger'],video:['fade','rise'],contact:['fade','rise']}[type]||[]);
   const fontOptions = [
     {id:'inter',name:'Inter',category:'sans',family:"'Inter', sans-serif",query:'Inter'},
     {id:'manrope',name:'Manrope',category:'sans',family:"'Manrope', sans-serif",query:'Manrope'},
@@ -74,6 +74,7 @@
   ];
   const validDesign = design => design===undefined || (!!design && typeof design==='object' && !Array.isArray(design) &&
     ['left','center','right'].includes(design.align) && ['compact','normal','airy'].includes(design.spacing) &&
+    (design.tone===undefined || ['none','soft','contrast'].includes(design.tone)) &&
     (design.columns===undefined || [1,2,3,4].includes(design.columns)) &&
     (design.imageRatio===undefined || ['original','wide','landscape','square','social','portrait','story'].includes(design.imageRatio)) &&
     (design.imageRadius===undefined || [0,8,16].includes(design.imageRadius)) &&
@@ -103,7 +104,7 @@
   const pageStyle = draft => {
     const colors=palette(draft),base=themes[draft.theme]||themes.paper,style=validSiteStyle(draft.siteStyle)?draft.siteStyle||{}:{};
     const font=id=>fontOptions.find(option=>option.id===id)?.family||base.fontFamily;
-    return {...base,background:colors.background,color:colors.text,fontFamily:font(style.bodyFont),'--fp-font-heading':font(style.headingFont),'--fp-page-width':(style.maxWidth||1200)+'px','--fp-site-surface':colors.surface,'--fp-site-accent':colors.accent};
+    return {...base,background:colors.background,color:colors.text,fontFamily:font(style.bodyFont),'--fp-font-heading':font(style.headingFont),'--fp-page-width':(style.maxWidth||1200)+'px','--fp-site-surface':colors.surface,'--fp-site-accent':colors.accent,'--fp-site-background':colors.background,'--fp-site-text':colors.text};
   };
   const fontUrl = draft => {
     const style=validSiteStyle(draft.siteStyle)?draft.siteStyle||{}:{},ids=[style.headingFont,style.bodyFont].filter(id=>id&&id!=='theme'),fonts=[...new Set(ids)].map(id=>fontOptions.find(font=>font.id===id)).filter(Boolean);
@@ -169,7 +170,15 @@
     try {const draft=decodeJSON(payloads);if(!valid(draft))throw new Error('invalid');return draft;}
     catch(_){throw new Error('El borrador guardado no se pudo verificar.');}
   };
-  const api={modules,create,make,duplicate,move,valid,item,safeLink,safeImage,safeLogo,video,themes,motionOptions,fontOptions,fontUrl,normalizeHex,palette,pageStyle,contrast,publicationDraft,publicationHash,draftHash,encodePublication,decodePublication,encodeDraft,decodeDraft,PUBLIC_CHUNK_SIZE,PUBLIC_MAX_CHUNKS,PUBLIC_MAX_BYTES};
+  const designControls = (type, variant) => ({
+    align: type!=='navigation',
+    columns: (['gallery','services','prices'].includes(type) && !['carousel','list','table'].includes(variant)) || (type==='footer' && variant==='columns'),
+    radius: ['gallery','hero','image-text','video'].includes(type) || (type==='services') || (type==='prices' && variant!=='list') || (type==='contact' && variant==='banner'),
+    radiusDefault: ((type==='services' && variant==='cards') || (type==='prices' && variant!=='list') || type==='contact') ? 8 : 0,
+    ratio: ['gallery','hero','image-text','services'].includes(type),
+    motion: motionOptions(type).length>0
+  });
+  const api={modules,designControls,create,make,duplicate,move,valid,item,safeLink,safeImage,safeLogo,video,themes,motionOptions,fontOptions,fontUrl,normalizeHex,palette,pageStyle,contrast,publicationDraft,publicationHash,draftHash,encodePublication,decodePublication,encodeDraft,decodeDraft,PUBLIC_CHUNK_SIZE,PUBLIC_MAX_CHUNKS,PUBLIC_MAX_BYTES};
   root.FramePortfolio=api;
   if(typeof module!=='undefined')module.exports=api;
 })(globalThis);
