@@ -195,7 +195,7 @@ Riesgo: **ninguno**, no se modifica nada.
 - **0.1** Abrir consola de Firebase → Firestore → Reglas. Copiar lo que hay y
   compararlo contra `firestore.rules.v2`. Si difieren, se publica v2 (que es lo
   que el código de hoy espera).
-- **0.2** Borrar `firestore.rules` del repo. Es del proyecto viejo compartido
+- **0.2** ~~Borrar `firestore.rules` del repo~~ — hecho el 2026-09-17. Era del proyecto viejo compartido
   con TOONED-OS, ya no corresponde a `frame-studio-3a18f`, y su sola presencia
   es lo que hace que no se pueda saber qué está vivo mirando el repo.
 - **0.3** Cerrar la tarea "Fase 0.3 — mover credenciales fuera del HTML" como

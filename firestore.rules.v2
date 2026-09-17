@@ -3,10 +3,13 @@ rules_version = '2';
 // ─────────────────────────────────────────────────────────────────────
 // FRAME Studio Manager — Reglas v2: tableros (workspaces)
 //
-// NO PUBLICAR TODAVÍA. Estas reglas asumen que el código ya escribe
-// workspaceId en los documentos y que existe frame_workspaces. Publicarlas
-// antes de desplegar la Fase 1 deja la app sin acceso a nada.
-// Las que están activas hoy son firestore.rules.
+// Estas son las reglas que espera el código de hoy: tableros, portal del
+// cliente y portfolio. Es el único archivo de reglas del proyecto
+// frame-studio-3a18f y el que apunta firebase.json.
+//
+// Se publican con: firebase deploy --only firestore:rules
+// Antes de publicar, correr las pruebas de contrato (node security-contract.test.js
+// y las demás *-contract*), que leen este archivo.
 //
 // ── El modelo ──
 // Dos niveles de permiso, que hoy están mezclados en uno solo:
