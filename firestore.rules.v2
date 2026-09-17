@@ -67,10 +67,6 @@ service cloud.firestore {
       return approved() && wsExists(wsId) && myUid() in ws(wsId).memberIds;
     }
 
-    function isOwner(wsId) {
-      return approved() && wsExists(wsId) && ws(wsId).ownerId == myUid();
-    }
-
     // Los datos de un proyecto/cliente viven o van a vivir en un tablero.
     // En create hay que mirar el documento entrante; en el resto, el guardado.
     function memberOfIncoming() {
@@ -324,6 +320,125 @@ service cloud.firestore {
       allow read, delete: if memberOfExisting();
       allow create:       if memberOfIncoming();
       allow update:       if memberOfExisting() && memberOfIncoming();
+    }
+
+    // ── Portfolio personal ──────────────────────────────────────
+    // El id siempre es el uid: existe exactamente una web por cuenta, sin
+    // importar desde qué tablero se abra. El borrador permanece privado y la
+    // copia pública no expone tareas, clientes ni configuración de FRAME.
+    match /frame_portfolio_drafts/{uid} {
+      function validDraft(data) {
+        return data.keys().hasOnly(['ownerId', 'title', 'chunkCount', 'version', 'contentHash', 'schemaVersion', 'updatedAt'])
+               && data.keys().hasAll(['ownerId', 'title', 'chunkCount', 'version', 'contentHash', 'schemaVersion', 'updatedAt'])
+               && data.ownerId == uid
+               && data.title is string
+               && data.title.size() > 0
+               && data.title.size() <= 200
+               && data.chunkCount is int
+               && data.chunkCount >= 1
+               && data.chunkCount <= 10
+               && data.version is string
+               && data.version.matches('^[a-f0-9]{32}$')
+               && data.contentHash is string
+               && data.contentHash.matches('^[a-f0-9]{8}$')
+               && data.schemaVersion == 1
+               && data.updatedAt == request.time;
+      }
+
+      allow get: if approved() && myUid() == uid;
+      allow list: if false;
+      allow create, update: if approved() && myUid() == uid && validDraft(request.resource.data);
+      allow delete: if approved() && myUid() == uid;
+
+      match /chunks/{chunkId} {
+        function validDraftChunk(data) {
+          return data.keys().hasOnly(['ownerId', 'index', 'version', 'payload'])
+                 && data.keys().hasAll(['ownerId', 'index', 'version', 'payload'])
+                 && data.ownerId == uid
+                 && data.index is int
+                 && data.index >= 0
+                 && data.index < 10
+                 && chunkId.matches('^0[0-9]$')
+                 && data.version is string
+                 && data.version.matches('^[a-f0-9]{32}$')
+                 && data.payload is string
+                 && data.payload.size() > 0
+                 && data.payload.size() <= 400000;
+        }
+        allow get: if approved() && myUid() == uid;
+        allow list: if false;
+        allow create, update: if approved() && myUid() == uid && validDraftChunk(request.resource.data);
+        allow delete: if approved() && myUid() == uid;
+      }
+    }
+
+    match /frame_portfolios/{uid} {
+      function validPublication(data) {
+        return data.keys().hasOnly(['ownerId', 'title', 'published', 'chunkCount', 'version', 'contentHash', 'schemaVersion', 'updatedAt'])
+               && data.keys().hasAll(['ownerId', 'title', 'published', 'chunkCount', 'version', 'contentHash', 'schemaVersion', 'updatedAt'])
+               && data.ownerId == uid
+               && data.title is string
+               && data.title.size() > 0
+               && data.title.size() <= 200
+               && data.published is bool
+               && data.chunkCount is int
+               && data.chunkCount >= 1
+               && data.chunkCount <= 10
+               && data.version is string
+               && data.version.matches('^[a-f0-9]{32}$')
+               && data.contentHash is string
+               && data.contentHash.matches('^[a-f0-9]{8}$')
+               && data.schemaVersion == 1
+               && data.updatedAt == request.time;
+      }
+
+      allow get: if resource.data.published == true || (approved() && myUid() == uid);
+      allow list: if false;
+      allow create: if approved() && myUid() == uid && validPublication(request.resource.data);
+      allow update: if approved() && myUid() == uid
+                    && request.resource.data.ownerId == resource.data.ownerId
+                    && validPublication(request.resource.data);
+      allow delete: if approved() && myUid() == uid;
+
+      match /chunks/{chunkId} {
+        function publication() {
+          return get(/databases/$(database)/documents/frame_portfolios/$(uid)).data;
+        }
+        function validChunk(data) {
+          return data.keys().hasOnly(['ownerId', 'index', 'version', 'payload'])
+                 && data.keys().hasAll(['ownerId', 'index', 'version', 'payload'])
+                 && data.ownerId == uid
+                 && data.index is int
+                 && data.index >= 0
+                 && data.index < 10
+                 && chunkId.matches('^0[0-9]$')
+                 && data.version is string
+                 && data.version.matches('^[a-f0-9]{32}$')
+                 && data.payload is string
+                 && data.payload.size() > 0
+                 && data.payload.size() <= 400000;
+        }
+
+        allow get: if (
+          publication().published == true
+          && resource.data.version == publication().version
+          && resource.data.index < publication().chunkCount
+        ) || (approved() && myUid() == uid);
+        allow list: if false;
+        allow create, update: if approved() && myUid() == uid && validChunk(request.resource.data);
+        allow delete: if approved() && myUid() == uid;
+      }
+    }
+
+    // Las funciones administradoras contabilizan bytes y crean reservas.
+    // El navegador sólo puede leer su consumo; nunca alterarlo.
+    match /frame_portfolio_usage/{uid} {
+      allow get: if approved() && myUid() == uid;
+      allow list, create, update, delete: if false;
+    }
+    match /frame_portfolio_uploads/{uid}/portfolio_assets/{assetId} {
+      allow get: if approved() && myUid() == uid;
+      allow list, create, update, delete: if false;
     }
 
     // ── Portales de cliente ─────────────────────────────────────

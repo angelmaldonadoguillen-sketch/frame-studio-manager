@@ -646,6 +646,7 @@ const Sidebar = ({ state, dispatch, onSignOut, onCreateTeam, onDeleteWorkspace, 
         {activeKind === 'team' && (
           <NavItem collapsed={collapsed} icon="users"   label="Equipo"    active={state.section === 'team'}      onClick={() => dispatch({ type: 'set_section', section: 'team' })} />
         )}
+        <NavItem collapsed={collapsed} icon="image" label="Mi portfolio" active={state.section === 'portfolio'} onClick={() => dispatch({ type: 'set_section', section: 'portfolio' })} />
         <NavItem collapsed={collapsed} icon="zap"       label="Analytics" active={state.section === 'analytics'} onClick={() => dispatch({ type: 'set_section', section: 'analytics' })} />
         <NavItem collapsed={collapsed} icon="settings"  label="Ajustes"   active={state.section === 'settings'}  onClick={() => dispatch({ type: 'set_section', section: 'settings' })} count={pendingCount || undefined} accent={pendingCount > 0} />
 
@@ -3016,6 +3017,10 @@ const App = () => {
   // En el teléfono FRAME es otra cosa: modo rápido, agregar y mirar. No es
   // esta misma pantalla angosta — es otro árbol de vistas sobre el mismo
   // estado y los mismos handlers.
+  if (state.section === 'portfolio') {
+    const portfolioOwner=state.team.find(member=>member.id===state.currentUserId)||getUser(state.currentUserId);
+    return <div style={{height:'100dvh',minHeight:0}}><PortfolioEditor key={state.currentUserId} userId={state.currentUserId} workspaceId={wsId} profileName={portfolioOwner?.name||authUser?.displayName||''} canPublish={!!authUser?.uid&&authUser.uid===state.currentUserId} onExit={() => dispatch({type:'set_section',section:'projects'})}/></div>;
+  }
   if (isMobile) {
     return (
       <MobileApp
@@ -3168,4 +3173,5 @@ const App = () => {
 };
 
 const portalToken = new URLSearchParams(window.location.search).get('portal');
-ReactDOM.createRoot(document.getElementById('root')).render(portalToken ? <ClientPortal token={portalToken} /> : <App />);
+const publishedPortfolioId = new URLSearchParams(window.location.search).get('portfolio');
+ReactDOM.createRoot(document.getElementById('root')).render(publishedPortfolioId ? <PublishedPortfolioPage publicationId={publishedPortfolioId} /> : portalToken ? <ClientPortal token={portalToken} /> : <App />);

@@ -1,9 +1,17 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onObjectFinalized, onObjectDeleted } = require('firebase-functions/v2/storage');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const crypto = require('node:crypto');
 
 initializeApp();
 const db = getFirestore();
+const PORTFOLIO_STORAGE_LIMIT = 1024 * 1024 * 1024;
+const PORTFOLIO_FILE_LIMIT = 10 * 1024 * 1024;
+const PORTFOLIO_SVG_LIMIT = 500 * 1024;
+const PORTFOLIO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml']);
+const FRAME_STORAGE_BUCKET = 'frame-studio-3a18f.firebasestorage.app';
 
 const todayInTegucigalpa = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Tegucigalpa', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -83,4 +91,128 @@ exports.purgeExpiredTrash = onSchedule({
     await batch.commit();
     if (expired.size < 400) break;
   }
+});
+
+// La reserva se hace en una transacción antes de tocar Storage. Contar sólo
+// después de subir permitiría que dos pestañas superaran el límite a la vez.
+exports.reservePortfolioAsset = onCall({ region: 'us-central1' }, async request => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Iniciá sesión para subir archivos.');
+  const uid = request.auth.uid;
+  const profile = await db.collection('frame_users').doc(uid).get();
+  if (!profile.exists || profile.data().status !== 'active') {
+    throw new HttpsError('permission-denied', 'Tu perfil de FRAME no está habilitado para subir archivos.');
+  }
+  const size = Number(request.data?.size);
+  const contentType = String(request.data?.contentType || '').toLowerCase();
+  const kind = request.data?.kind === 'logo' ? 'logo' : 'content';
+  const perFileLimit = contentType === 'image/svg+xml' ? PORTFOLIO_SVG_LIMIT : PORTFOLIO_FILE_LIMIT;
+  if (!Number.isSafeInteger(size) || size <= 0 || size > perFileLimit || !PORTFOLIO_TYPES.has(contentType)) {
+    throw new HttpsError('invalid-argument', 'El archivo no cumple los límites del portfolio.');
+  }
+
+  const assetId = crypto.randomUUID().replaceAll('-', '');
+  const path = `frame-portfolios/${uid}/${assetId}`;
+  const usageRef = db.collection('frame_portfolio_usage').doc(uid);
+  const reservationRef = db.collection('frame_portfolio_uploads').doc(uid).collection('portfolio_assets').doc(assetId);
+  const now = Timestamp.now();
+  const expiresAt = Timestamp.fromMillis(Date.now() + 30 * 60 * 1000);
+
+  await db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(usageRef);
+    const usage = snapshot.exists ? snapshot.data() : {};
+    const usedBytes = Math.max(0, Number(usage.usedBytes) || 0);
+    const reservedBytes = Math.max(0, Number(usage.reservedBytes) || 0);
+    if (usedBytes + reservedBytes + size > PORTFOLIO_STORAGE_LIMIT) {
+      throw new HttpsError('resource-exhausted', 'Alcanzaste el límite de 1 GB de tu portfolio.');
+    }
+    transaction.set(usageRef, {
+      ownerId: uid,
+      usedBytes,
+      reservedBytes: reservedBytes + size,
+      limitBytes: PORTFOLIO_STORAGE_LIMIT,
+      updatedAt: now,
+    }, { merge: true });
+    transaction.set(reservationRef, {
+      ownerId: uid, assetId, path, size, contentType, kind,
+      status: 'reserved', createdAt: now, expiresAt,
+    });
+  });
+  return { assetId, path, limitBytes: PORTFOLIO_STORAGE_LIMIT };
+});
+
+const portfolioObject = object => {
+  const match = String(object.name || '').match(/^frame-portfolios\/([^/]+)\/([a-f0-9]{32})$/);
+  return match ? { uid: match[1], assetId: match[2] } : null;
+};
+
+exports.accountPortfolioAsset = onObjectFinalized({ region: 'us-central1', bucket: FRAME_STORAGE_BUCKET }, async event => {
+  const object = event.data;
+  const identity = portfolioObject(object);
+  if (!identity) return;
+  const { uid, assetId } = identity;
+  const usageRef = db.collection('frame_portfolio_usage').doc(uid);
+  const reservationRef = db.collection('frame_portfolio_uploads').doc(uid).collection('portfolio_assets').doc(assetId);
+  await db.runTransaction(async transaction => {
+    const [reservationSnapshot, usageSnapshot] = await Promise.all([transaction.get(reservationRef), transaction.get(usageRef)]);
+    if (!reservationSnapshot.exists) return;
+    const reservation = reservationSnapshot.data();
+    if (reservation.status === 'stored') return;
+    const usage = usageSnapshot.exists ? usageSnapshot.data() : {};
+    const actualSize = Math.max(0, Number(object.size) || 0);
+    transaction.set(usageRef, {
+      ownerId: uid,
+      usedBytes: Math.max(0, Number(usage.usedBytes) || 0) + actualSize,
+      reservedBytes: Math.max(0, (Number(usage.reservedBytes) || 0) - (Number(reservation.size) || 0)),
+      limitBytes: PORTFOLIO_STORAGE_LIMIT,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.update(reservationRef, { status: 'stored', actualSize, storedAt: FieldValue.serverTimestamp() });
+  });
+});
+
+exports.releasePortfolioAsset = onObjectDeleted({ region: 'us-central1', bucket: FRAME_STORAGE_BUCKET }, async event => {
+  const identity = portfolioObject(event.data);
+  if (!identity) return;
+  const { uid, assetId } = identity;
+  const usageRef = db.collection('frame_portfolio_usage').doc(uid);
+  const reservationRef = db.collection('frame_portfolio_uploads').doc(uid).collection('portfolio_assets').doc(assetId);
+  await db.runTransaction(async transaction => {
+    const [reservationSnapshot, usageSnapshot] = await Promise.all([transaction.get(reservationRef), transaction.get(usageRef)]);
+    if (!reservationSnapshot.exists) return;
+    const reservation = reservationSnapshot.data();
+    if (reservation.status === 'deleted') return;
+    const usage = usageSnapshot.exists ? usageSnapshot.data() : {};
+    const actualSize = reservation.status === 'stored' ? Math.max(0, Number(reservation.actualSize) || Number(event.data.size) || 0) : 0;
+    const reservedSize = reservation.status === 'reserved' ? Math.max(0, Number(reservation.size) || 0) : 0;
+    transaction.set(usageRef, {
+      ownerId: uid,
+      usedBytes: Math.max(0, (Number(usage.usedBytes) || 0) - actualSize),
+      reservedBytes: Math.max(0, (Number(usage.reservedBytes) || 0) - reservedSize),
+      limitBytes: PORTFOLIO_STORAGE_LIMIT,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.update(reservationRef, { status: 'deleted', deletedAt: FieldValue.serverTimestamp() });
+  });
+});
+
+exports.releaseExpiredPortfolioReservations = onSchedule({
+  schedule: 'every 15 minutes', region: 'us-central1',
+}, async () => {
+  const expired = await db.collectionGroup('portfolio_assets').where('expiresAt', '<=', Timestamp.now()).limit(300).get();
+  await Promise.all(expired.docs.filter(doc => doc.data().status === 'reserved').map(doc => db.runTransaction(async transaction => {
+    const fresh = await transaction.get(doc.ref);
+    if (!fresh.exists || fresh.data().status !== 'reserved') return;
+    const uid = fresh.data().ownerId;
+    const usageRef = db.collection('frame_portfolio_usage').doc(uid);
+    const usageSnapshot = await transaction.get(usageRef);
+    const usage = usageSnapshot.exists ? usageSnapshot.data() : {};
+    transaction.set(usageRef, {
+      ownerId: uid,
+      usedBytes: Math.max(0, Number(usage.usedBytes) || 0),
+      reservedBytes: Math.max(0, (Number(usage.reservedBytes) || 0) - (Number(fresh.data().size) || 0)),
+      limitBytes: PORTFOLIO_STORAGE_LIMIT,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.update(doc.ref, { status: 'expired', expiredAt: FieldValue.serverTimestamp() });
+  })));
 });

@@ -598,6 +598,13 @@ const MobileApp = ({ state, dispatch, authUser, workspaces, activeWorkspaceId,
               </span>
             </button>
             <button
+              onClick={() => { setPerfil(false); dispatch({type:'set_section',section:'portfolio'}); }}
+              className="w-full py-3 mb-3 rounded-xl text-[14px] font-semibold"
+              style={{ background:'var(--surface-2)',color:'var(--text)' }}
+            >
+              Abrir Mi portfolio
+            </button>
+            <button
               onClick={onSignOut}
               className="w-full py-3 rounded-xl text-[14px] font-semibold"
               style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}

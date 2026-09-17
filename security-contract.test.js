@@ -28,6 +28,15 @@ assert.doesNotMatch(storage, /request\.resource\.contentType\.matches\('video\/\
 assert.doesNotMatch(storage, /frame_users/);
 assert.match(storage, /let projectDoc = firestore\.get[\s\S]*let workspaceDoc = firestore\.get/);
 assert.match(firestore, /function hasProjectAccess\(data\)/);
+assert.match(firestore, /match \/frame_portfolio_drafts\/\{uid\}/);
+assert.match(firestore, /match \/frame_portfolios\/\{uid\}/);
+assert.match(firestore, /allow get: if resource\.data\.published == true \|\| \(approved\(\) && myUid\(\) == uid\)/);
+assert.match(firestore, /allow list: if false;[\s\S]*match \/chunks\/\{chunkId\}/);
+assert.match(firestore, /data\.payload\.size\(\) <= 400000/);
+assert.match(firestore, /allow create, update: if approved\(\) && myUid\(\) == uid && validChunk/);
+assert.match(firestore, /match \/frame_portfolio_usage\/\{uid\}/);
+assert.match(storage, /match \/frame-portfolios\/\{uid\}\/\{assetId\}/);
+assert.match(storage, /reservation\(\)\.status == 'reserved'/);
 assert.match(firestore, /data\.workspaceIds\.size\(\) <= 5/);
 assert.match(firestore, /data\.viewerIds\.size\(\) <= 15/);
 assert.match(firestore, /function selectedWorkspaceMembers\(data\)/);

@@ -59,6 +59,34 @@ service firebase.storage {
       allow delete: if projectMember(projectId);
     }
 
+    // Recursos del portfolio personal. Antes de cada carga una función crea
+    // una reserva exacta; Storage no acepta un byte ni un MIME distinto. Así
+    // el límite agregado de 1 GB no depende de la interfaz del navegador.
+    match /frame-portfolios/{uid}/{assetId} {
+      function reservation() {
+        return firestore.get(/databases/(default)/documents/frame_portfolio_uploads/$(uid)/portfolio_assets/$(assetId)).data;
+      }
+      function validPortfolioAsset() {
+        return signedIn()
+               && request.auth.uid == uid
+               && reservation().status == 'reserved'
+               && reservation().assetId == assetId
+               && reservation().path == 'frame-portfolios/' + uid + '/' + assetId
+               && reservation().size == request.resource.size
+               && reservation().contentType == request.resource.contentType
+               && reservation().expiresAt > request.time
+               && request.resource.size > 0
+               && request.resource.size <= 10 * 1024 * 1024
+               && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml']
+               && request.resource.metadata.ownerId == uid
+               && request.resource.metadata.assetId == assetId;
+      }
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if validPortfolioAsset();
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
     // El token del portal actúa como capacidad para el chat público. La ruta
     // queda además ligada a una tarea realmente publicada en ese portal.
     match /frame-client-comments/{token}/{projectId}/{fileName} {

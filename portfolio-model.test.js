@@ -1,0 +1,84 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const P=require('./portfolio-model.js');
+const draft=P.create();
+assert.equal(P.valid(draft),true);
+const gallery=P.make('gallery');
+const copy=P.duplicate(gallery);
+assert.notEqual(copy.id,gallery.id);
+copy.content.title='Changed';
+assert.notEqual(copy.content.title,gallery.content.title);
+assert.equal(P.move([gallery,copy],copy.id,-1)[0].id,copy.id);
+assert.equal(P.move([gallery],gallery.id,-1)[0],gallery);
+assert.throws(()=>P.make('script'));
+assert.equal(P.valid({...draft,version:2}),false);
+assert.equal(P.valid({...draft,sections:[gallery,gallery]}),false);
+assert.equal(P.valid({...draft,sections:[{...gallery,variant:'evil'}]}),false);
+assert.doesNotMatch(fs.readFileSync('portfolio.jsx','utf8'),/frame_projects|frame_clients|dangerouslySetInnerHTML/);
+console.log('portfolio-model: 10 checks passed');
+assert.equal(P.safeLink('javascript:alert(1)'), '');
+assert.equal(P.safeImage('http://example.com/a.png'), '');
+assert.ok(P.safeImage('https://example.com/a.png'));
+assert.ok(P.safeLink('mailto:studio@example.com'));
+assert.equal(P.valid({...draft,sections:[null]}),false);
+const packageItem=P.item();
+packageItem.price='-1';
+assert.equal(P.valid({...draft,sections:[{...P.make('prices'),content:{title:'Prices',text:'',items:[packageItem]}}]}),false);
+console.log('portfolio-safety: 6 checks passed');
+assert.equal(P.video('https://youtu.be/dQw4w9WgXcQ'),'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+assert.equal(P.video('https://youtube.com.evil.com/watch?v=dQw4w9WgXcQ'),'');
+assert.equal(P.video('javascript:alert(1)'),'');
+assert.equal(P.video('https://vimeo.com/123456789'),'https://player.vimeo.com/video/123456789');
+assert.ok(P.safeImage('data:image/jpeg;base64,YQ=='));
+assert.equal(P.safeImage('data:image/svg+xml;base64,YQ=='),'');
+const design={align:'center',spacing:'airy',columns:2,imageRatio:'portrait',imageRadius:16};
+assert.equal(P.valid({...draft,sections:[{...gallery,design}]}),true);
+for (const imageRatio of ['original','wide','landscape','square','social','portrait','story']) {
+  assert.equal(P.valid({...draft,sections:[{...gallery,design:{...design,imageRatio}}]}),true);
+}
+for (const patch of [{columns:99},{columns:'2'},{imageRatio:'url(javascript:alert(1))'},{imageRadius:-4}]) {
+  assert.equal(P.valid({...draft,sections:[{...gallery,design:{...design,...patch}}]}),false);
+}
+assert.equal(P.valid({...draft,sections:[{...gallery,design:{align:'left',spacing:'normal'}}]}),true);
+console.log('portfolio-design: valid controls and legacy defaults accepted; invalid imported styles rejected');
+assert.equal(P.valid({...draft,sections:[{...gallery,design:{...design,animation:'stagger',motionSpeed:'smooth'}}]}),true);
+for(const patch of [{animation:'bounce'},{animation:'fade',motionSpeed:999},{animation:'zoom'}]){
+  assert.equal(P.valid({...draft,sections:[{...gallery,design:{...design,...patch}}]}),false);
+}
+assert.equal(P.valid({...draft,sections:[{...P.make('navigation'),design:{...design,animation:'fade'}}]}),false);
+assert.equal(P.normalizeHex('abc'),'#AABBCC');
+assert.equal(P.normalizeHex('#12abEF'),'#12ABEF');
+assert.equal(P.normalizeHex('red'),'');
+assert.equal(P.valid({...draft,colors:{background:'#123456',accent:'#ABCDEF'}}),true);
+for(const colors of [null,[],{text:'red'},{text:'#abc'},{background:'url(x)'},{unknown:'#123456'}])assert.equal(P.valid({...draft,colors}),false);
+assert.equal(P.pageStyle({...draft,colors:{text:'#112233'}}).color,'#112233');
+assert.equal(P.contrast('#000000','#FFFFFF'),21);
+assert.equal(P.contrast('#112233','#112233'),1);
+assert.equal(P.valid({...draft,loadingMode:'progressive'}),true);
+assert.equal(P.valid({...draft,loadingMode:'static'}),true);
+assert.equal(P.valid({...draft,loadingMode:'unknown'}),false);
+const safeSvg='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><path fill="#123" d="M0 0h20v10H0z"/></svg>').toString('base64');
+const unsafeSvg='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script></svg>').toString('base64');
+assert.equal(P.safeLogo(safeSvg),safeSvg);
+assert.equal(P.safeLogo(unsafeSvg),'');
+assert.equal(P.valid({...draft,logo:{src:safeSvg,desktopWidth:140,mobileWidth:104}}),true);
+for(const logo of [null,{src:unsafeSvg,desktopWidth:140,mobileWidth:104},{src:safeSvg,desktopWidth:20,mobileWidth:104},{src:safeSvg,desktopWidth:140,mobileWidth:999},{src:safeSvg,desktopWidth:140,mobileWidth:104,onclick:'x'}])assert.equal(P.valid({...draft,logo}),false);
+assert.equal(P.valid({...draft,siteStyle:{maxWidth:860,headingFont:'fraunces',bodyFont:'inter'}}),true);
+for(const siteStyle of [null,[],{maxWidth:400},{maxWidth:900.5},{headingFont:'comic-sans'},{bodyFont:'url(x)'},{maxWidth:900,extra:true}])assert.equal(P.valid({...draft,siteStyle}),false);
+const styled=P.pageStyle({...draft,siteStyle:{maxWidth:860,headingFont:'fraunces',bodyFont:'inter'}});
+assert.equal(styled['--fp-page-width'],'860px');assert.match(styled['--fp-font-heading'],/Fraunces/);assert.match(styled.fontFamily,/Inter/);
+assert.equal(P.fontUrl(draft),'');
+assert.match(P.fontUrl({...draft,siteStyle:{headingFont:'fraunces',bodyFont:'inter'}}),/^https:\/\/fonts\.googleapis\.com\/css2\?/);
+assert.match(P.fontUrl({...draft,siteStyle:{headingFont:'fraunces',bodyFont:'inter'}}),/display=swap$/);
+
+const hidden=P.make('text');hidden.hidden=true;hidden.content.title='No publicar';
+const visible=P.make('text');visible.content.title='Página pública';visible.content.text='Texto con acentos y emoji: diseño ✦';
+const publishable={...draft,title:'Estudio de prueba',sections:[visible,hidden]};
+const encoded=P.encodePublication(publishable),decoded=P.decodePublication(encoded.payloads);
+assert.equal(decoded.sections.length,1);
+assert.equal(decoded.sections[0].content.text,visible.content.text);
+assert.equal(encoded.hash,P.publicationHash(decoded));
+assert.ok(encoded.payloads.every(chunk=>chunk.length<=P.PUBLIC_CHUNK_SIZE));
+assert.throws(()=>P.decodePublication([encoded.payloads[0].slice(1)]),/verificar/);
+assert.throws(()=>P.encodePublication({...draft,sections:[hidden]}),/al menos una sección/);
+console.log('portfolio-publish: public projection, UTF-8 chunks, hash and corruption checks passed');

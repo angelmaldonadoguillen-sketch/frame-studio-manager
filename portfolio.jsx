@@ -1,0 +1,543 @@
+// FRAME Portfolio — editor por secciones. El documento es independiente de las tareas.
+const FP_LABELS = {simple:'Simple',columns:'Columnas',quote:'Cita',grid:'Cuadrícula',mosaic:'Mosaico',carousel:'Carrusel',cards:'Tarjetas',list:'Lista',table:'Comparación',wide:'Horizontal',vertical:'Vertical','with-text':'Video + texto',left:'A la izquierda',right:'A la derecha',banner:'Llamada a la acción',links:'Enlaces',center:'Centrada',split:'Dividida'};
+const FP_META = {
+  hero:['layout','Una primera impresión que presenta tu trabajo.'],
+  gallery:['image','Tus proyectos, en una colección visual.'],
+  text:['text','Tu historia, enfoque o proceso creativo.'],
+  'image-text':['layout','Una imagen acompañada de su historia.'],
+  video:['play','YouTube o Vimeo, con una portada propia.'],
+  services:['grid','Lo que hacés y cómo podés ayudar.'],
+  prices:['tag','Paquetes con precio y alcance claros.'],
+  contact:['mail','El siguiente paso para trabajar juntos.'],
+  navigation:['menu','Enlaces para recorrer tu sitio.'],
+  footer:['layout','Un cierre con tu información y enlaces.']
+};
+const FP_ORDER = ['hero','gallery','text','image-text','video','services','prices','contact','navigation','footer'];
+const FPIcon=({name,size=18})=>{
+  const paths={
+    plus:'M12 5v14M5 12h14', close:'m6 6 12 12M6 18 18 6', back:'m14 6-6 6 6 6',
+    down:'m6 9 6 6 6-6', up:'m6 15 6-6 6 6', undo:'M8 4 3 9l5 5M3 9h11a6 6 0 0 1 0 12',
+    redo:'m16 4 5 5-5 5m5-5H10a6 6 0 0 0 0 12', desktop:'M3 4h18v13H3zM8 21h8m-4-4v4',
+    phone:'M7 2h10v20H7zM11 18h2', eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Zm10-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
+    hidden:'m3 3 18 18M9 5a11 11 0 0 1 13 7 16 16 0 0 1-4 5M6 6a16 16 0 0 0-4 6s4 7 10 7a12 12 0 0 0 5-1',
+    image:'M3 3h18v18H3zM3 16l6-6 4 4 3-3 5 5M16 7h.01', text:'M4 5h16M12 5v15M8 20h8',
+    layout:'M3 3h18v18H3zM3 9h18M9 9v12', grid:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
+    play:'m8 4 12 8-12 8z', tag:'M3 3h9l9 9-9 9-9-9zM8 8h.01',
+    mail:'M3 5h18v14H3zM3 5l9 8 9-8', menu:'M4 6h16M4 12h16M4 18h16',
+    settings:'M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6',
+    copy:'M9 9h12v12H9zM15 5V3H3v12h2', trash:'M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7',
+    grip:'M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01',
+    check:'m5 12 4 4L19 6', search:'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6',
+    upload:'M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6', more:'M5 12h.01M12 12h.01M19 12h.01',
+    external:'M14 3h7v7m0-7L10 14M10 3H3v18h18v-7'
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]||paths.layout}/></svg>;
+};
+const FPButton=({icon,label,children,className='',...props})=><button type="button" className={'fp-button '+className} aria-label={label} title={label} {...props}>{icon&&<FPIcon name={icon}/>} {children}</button>;
+const FPSaveButton=({revision,saved,saving=false,...props})=>{
+  const [confirmed,setConfirmed]=React.useState(false);
+  React.useEffect(()=>{if(!revision){setConfirmed(false);return;}setConfirmed(true);const timer=setTimeout(()=>setConfirmed(false),2200);return()=>clearTimeout(timer);},[revision]);
+  const success=!saving&&confirmed&&saved;
+  return <FPButton {...props} className={'fp-primary fp-save-button'+(success?' fp-save-confirmed':'')} label={saving?'Guardando portfolio':'Guardar borrador'}><span key={saving?'saving':revision} className={success?'fp-save-feedback':''}>{success&&<FPIcon name="check" size={16}/>}<span>{saving?'Guardando…':success?'Guardado':'Guardar'}</span></span></FPButton>;
+};
+const FPField=({label,children,hint})=><label className="fp-field"><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>;
+const FPThumb=({type,variant})=><div className={'fp-thumb fp-thumb-'+type+' fp-thumb-'+variant} aria-hidden="true"><div className="fp-thumb-title"/><div className="fp-thumb-lines"><i/><i/></div><div className="fp-thumb-media">{[0,1,2].map(n=><span key={n}>{type==='video'?<FPIcon name="play" size={26}/>:<><i/><i/></>}</span>)}</div></div>;
+
+const FPColor=({label,value,onChange})=>{
+  const [hex,setHex]=React.useState(value);
+  const id=React.useId();
+  React.useEffect(()=>setHex(value),[value]);
+  const invalid=!FramePortfolio.normalizeHex(hex);
+  const commit=()=>{const color=FramePortfolio.normalizeHex(hex);if(color){setHex(color);onChange(color);}};
+  return <div className="fp-color-field"><label htmlFor={id}>{label}</label><div className="fp-color-inputs"><input type="color" aria-label={'Espectro: '+label} value={value} onChange={e=>onChange(e.target.value.toUpperCase())}/><input id={id} aria-label={'Hexadecimal: '+label} value={hex} spellCheck={false} maxLength={7} aria-invalid={invalid} aria-describedby={invalid?id+'-error':undefined} onChange={e=>setHex(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter')commit();if(e.key==='Escape')setHex(value);}}/></div>{invalid&&<small id={id+'-error'} role="status">Usá 3 o 6 dígitos hexadecimales, por ejemplo #336699.</small>}</div>;
+};
+const FPPalette=({draft,edit})=>{
+  const colors=FramePortfolio.palette(draft);
+  const warnings=[['Texto sobre fondo',colors.text,colors.background],['Texto sobre tarjetas',colors.text,colors.surface],['Acento sobre fondo',colors.accent,colors.background],['Acento sobre tarjetas',colors.accent,colors.surface]].filter(([,a,b])=>FramePortfolio.contrast(a,b)<4.5);
+  return <div className="fp-palette"><h3>Paleta personalizada</h3><p>Tocá una muestra para abrir el espectro o escribí un código HEX y presioná Enter.</p>{[['background','Fondo'],['text','Texto'],['surface','Tarjetas'],['accent','Acento']].map(([key,label])=><FPColor key={key} label={label} value={colors[key]} onChange={color=>edit(d=>({...d,colors:{...d.colors,[key]:color}}),'color-'+key)}/>)}<p className="fp-help">El acento se usa en enlaces, citas y paquetes destacados. Los colores no cambian la interfaz de FRAME.</p>{warnings.length>0&&<div className="fp-color-warning" role="status">Contraste bajo: {warnings.map(([label])=>label.toLowerCase()).join(', ')}. Ajustá los colores para facilitar la lectura.</div>}<FPButton disabled={!draft.colors} onClick={()=>edit(d=>{const next={...d};delete next.colors;return next;})}>Restablecer colores del tema</FPButton></div>;
+};
+const PortfolioBrand=({draft})=><div className="fp-site-brand">{FramePortfolio.safeLogo(draft.logo?.src)?<><img className="fp-site-logo" src={draft.logo.src} alt="" style={{'--fp-logo-desktop':(draft.logo.desktopWidth||140)+'px','--fp-logo-mobile':(draft.logo.mobileWidth||104)+'px'}}/><h1 className="fp-site-title fp-visually-hidden">{draft.title||'Mi portfolio'}</h1></>:<h1 className="fp-site-title">{draft.title||'Mi portfolio'}</h1>}<span>Portfolio</span></div>;
+const PortfolioNavigationBrand=({draft,label})=><div className="fp-navigation-brand">{FramePortfolio.safeLogo(draft.logo?.src)?<><img className="fp-site-logo" src={draft.logo.src} alt="" style={{'--fp-logo-desktop':(draft.logo.desktopWidth||140)+'px','--fp-logo-mobile':(draft.logo.mobileWidth||104)+'px'}}/><h1 className="fp-site-title fp-visually-hidden">{draft.title||'Mi portfolio'}</h1></>:<h1 className="fp-site-title">{label||draft.title||'Mi portfolio'}</h1>}</div>;
+const FPLogoSettings=({draft,edit,busy,error,progress,inputRef,onUpload})=>{
+  const logo=draft.logo,desktop=logo?.desktopWidth||140,mobile=logo?.mobileWidth||104;
+  const pick=file=>{if(file)onUpload(file);};
+  return <div className="fp-logo-settings" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();pick(e.dataTransfer.files?.[0]);}}><h3>Logo</h3><p>Subí tu marca y ajustá su ancho para cada pantalla.</p><button className="fp-logo-drop" disabled={busy} onClick={()=>inputRef.current?.click()}>{logo?<img src={logo.src} alt="Vista previa del logo"/>:<><FPIcon name="upload" size={22}/><strong>Subir logo</strong><span>o arrastralo aquí</span></>}</button><input hidden ref={inputRef} type="file" accept=".svg,.png,.jpg,.jpeg,.webp,.avif,image/svg+xml,image/png,image/jpeg,image/webp,image/avif" onChange={e=>{pick(e.target.files?.[0]);e.target.value='';}}/>{busy&&progress>0&&<div className="fp-upload-progress" role="progressbar" aria-label="Procesando logo" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress}><span style={{width:progress+'%'}}/></div>}{busy&&<p className="fp-help" role="status">Procesando logo… {progress}%</p>}{error&&<p className="fp-field-error" role="alert">{error}</p>}<p className="fp-help">SVG, PNG, JPG, WebP o AVIF · Hasta 10 MB. Los SVG se limpian antes de guardarse.</p>{logo&&<><label className="fp-logo-size"><span>Ancho en escritorio <output>{desktop}px</output></span><input type="range" min="64" max="320" step="4" value={desktop} aria-label="Tamaño del logo en escritorio" onChange={e=>edit(d=>({...d,logo:{...d.logo,desktopWidth:Number(e.target.value)}}),'logo-desktop')}/></label><label className="fp-logo-size"><span>Ancho en móvil <output>{mobile}px</output></span><input type="range" min="48" max="240" step="4" value={mobile} aria-label="Tamaño del logo en móvil" onChange={e=>edit(d=>({...d,logo:{...d.logo,mobileWidth:Number(e.target.value)}}),'logo-mobile')}/></label><div className="fp-media-actions"><button disabled={busy} onClick={()=>inputRef.current?.click()}>Cambiar</button><button disabled={busy} onClick={()=>edit(d=>{const next={...d};delete next.logo;return next;})}>Quitar logo</button></div></>}</div>;
+};
+const PortfolioFontLoader=({draft})=>{
+  const href=FramePortfolio.fontUrl(draft);
+  React.useEffect(()=>{let link=document.querySelector('link[data-frame-portfolio-fonts]');if(!href){link?.remove();return;}if(!link){link=document.createElement('link');link.rel='stylesheet';link.dataset.framePortfolioFonts='';document.head.appendChild(link);}if(link.href!==href)link.href=href;},[href]);
+  React.useEffect(()=>()=>document.querySelector('link[data-frame-portfolio-fonts]')?.remove(),[]);
+  return null;
+};
+const FPFontSelect=({label,value,onChange})=><FPField label={label}><select value={value||'theme'} onChange={e=>onChange(e.target.value)}><option value="theme">Fuente del tema</option><optgroup label="Sans serif">{FramePortfolio.fontOptions.filter(font=>font.category==='sans').map(font=><option key={font.id} value={font.id}>{font.name}</option>)}</optgroup><optgroup label="Serif">{FramePortfolio.fontOptions.filter(font=>font.category==='serif').map(font=><option key={font.id} value={font.id}>{font.name}</option>)}</optgroup></select></FPField>;
+const FPSiteStyleSettings=({draft,edit})=>{
+  const style=draft.siteStyle||{},maxWidth=style.maxWidth||1200,previewStyle=FramePortfolio.pageStyle(draft);
+  const update=patch=>edit(d=>({...d,siteStyle:{...d.siteStyle,...patch}}),Object.keys(patch)[0]);
+  return <div className="fp-site-style-settings"><h3>Tipografía y ancho</h3><label className="fp-page-width"><span>Ancho del contenido <output>{maxWidth}px</output></span><input type="range" min="640" max="1600" step="20" value={maxWidth} aria-label="Ancho de la página" onChange={e=>update({maxWidth:Number(e.target.value)})}/></label><p className="fp-help">En pantallas pequeñas se adapta automáticamente al ancho disponible.</p><FPFontSelect label="Fuente de títulos" value={style.headingFont} onChange={headingFont=>update({headingFont})}/><FPFontSelect label="Fuente de texto" value={style.bodyFont} onChange={bodyFont=>update({bodyFont})}/><div className="fp-font-preview" style={previewStyle} aria-label="Vista previa de tipografías"><strong>Ideas que toman forma.</strong><span>Diseño, dirección de arte y experiencias visuales.</span></div><p className="fp-help">Las fuentes de Google se descargan al abrir la página. «Fuente del tema» usa la tipografía integrada.</p><FPButton disabled={!draft.siteStyle} onClick={()=>edit(d=>{const next={...d};delete next.siteStyle;return next;})}>Restablecer tipografía y ancho</FPButton></div>;
+};
+const FP_STORAGE_LIMIT=1024*1024*1024;
+const fpBytes=value=>{const bytes=Math.max(0,Number(value)||0);if(bytes<1024)return bytes+' B';if(bytes<1024*1024)return (bytes/1024).toFixed(bytes<10240?1:0)+' KB';return (bytes/1024/1024).toFixed(bytes<104857600?1:0)+' MB';};
+const PortfolioLoadingScreen=({profileName,onExit})=><main className="fp-entry-loading" aria-busy="true" aria-live="polite"><div className="fp-entry-mark" aria-hidden="true">F</div><div className="fp-entry-copy"><span>FRAME PORTFOLIO</span><h1>Abriendo tu editor</h1><p>{profileName?'Preparando el portfolio de '+profileName+'.':'Preparando tus módulos, estilos y recursos.'}</p><div className="fp-entry-progress"><i/></div></div>{onExit&&<button type="button" onClick={onExit}>Volver a FRAME</button>}</main>;
+const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview=false,initialDraft,canPublish=true,profileName=''})=>{
+  const key=localPreview?'frame_portfolio_v1_'+userId+'_'+legacyWorkspaceId:'frame_portfolio_v2_'+userId;
+  const legacyKey='frame_portfolio_v1_'+userId+'_'+legacyWorkspaceId;
+  const pendingAtEntry=React.useRef(false);
+  const [draft,setDraft]=React.useState(()=>{
+    let pending=null,value=null;try{pending=JSON.parse(sessionStorage.getItem(key+'_pending'));}catch(_){}try{value=JSON.parse(localStorage.getItem(key));}catch(_){}
+    if(FramePortfolio.valid(pending)){pendingAtEntry.current=!FramePortfolio.valid(value)||JSON.stringify(pending)!==JSON.stringify(value);return pending;}
+    if(FramePortfolio.valid(value))return value;
+    try{if(!localPreview){const legacy=JSON.parse(localStorage.getItem(legacyKey));if(FramePortfolio.valid(legacy))return legacy;}}catch(_){}
+    if(initialDraft&&FramePortfolio.valid(initialDraft))return initialDraft;
+    const fresh=FramePortfolio.create();if(profileName)fresh.title=profileName+' — Portfolio';return fresh;
+  });
+  const draftRef=React.useRef(draft),past=React.useRef([]),future=React.useRef([]),group=React.useRef(null);
+  const [savedJSON,setSavedJSON]=React.useState(()=>{try{return localStorage.getItem(key)||'';}catch(_){return '';}});
+  const saved=JSON.stringify(draft)===savedJSON;
+  const [saveRevision,setSaveRevision]=React.useState(0),[saving,setSaving]=React.useState(false),[initializing,setInitializing]=React.useState(!localPreview);
+  const [blocked,setBlocked]=React.useState(false),[error,setError]=React.useState(''),[notice,setNotice]=React.useState('');
+  const [selected,setSelected]=React.useState(draft.sections[0]?.id),[itemId,setItemId]=React.useState(null);
+  const [tab,setTab]=React.useState('content'),[rail,setRail]=React.useState('sections'),[pane,setPane]=React.useState('preview');
+  const [preview,setPreview]=React.useState(false),[device,setDevice]=React.useState('desktop');
+  const [collapsed,setCollapsed]=React.useState({}),[dragging,setDragging]=React.useState(null);
+  const [dragBlock,setDragBlock]=React.useState(null);
+  const [motionReplay,setMotionReplay]=React.useState({id:null,token:0});
+  const [reducedMotion,setReducedMotion]=React.useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  React.useEffect(()=>{const media=window.matchMedia('(prefers-reduced-motion: reduce)'),change=()=>setReducedMotion(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
+  const [catalog,setCatalog]=React.useState(false),[query,setQuery]=React.useState(''),[moduleType,setModuleType]=React.useState('hero'),[variant,setVariant]=React.useState('center');
+  const [busy,setBusy]=React.useState(false),[uploadError,setUploadError]=React.useState(''),[uploadProgress,setUploadProgress]=React.useState(0);
+  const [logoProgress,setLogoProgress]=React.useState(0),[logoError,setLogoError]=React.useState('');
+  const [usage,setUsage]=React.useState({usedBytes:0,reservedBytes:0,loading:!localPreview});
+  const [publishOpen,setPublishOpen]=React.useState(false),[publishing,setPublishing]=React.useState(false);
+  const [publication,setPublication]=React.useState({loading:!localPreview&&canPublish,published:false,contentHash:'',updatedAt:null,error:''});
+  const catalogRef=React.useRef(null),importRef=React.useRef(null),imageRef=React.useRef(null),logoRef=React.useRef(null),rootRef=React.useRef(null),mounted=React.useRef(true),uploadToken=React.useRef(0);
+  const section=draft.sections.find(s=>s.id===selected),item=section?.content.items.find(i=>i.id===itemId);
+  const definition=FramePortfolio.modules.find(m=>m.type===section?.type);
+  React.useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;uploadToken.current++;};},[]);
+  React.useEffect(()=>{
+    try {const raw=localStorage.getItem(key);if(raw&&!FramePortfolio.valid(JSON.parse(raw))){setBlocked(true);setError('El archivo guardado no se puede leer. Exportá un respaldo o importá uno válido para recuperarlo.');}}
+    catch(_){setBlocked(true);setError('No se pudo leer el archivo guardado. Podés exportar tu trabajo como respaldo.');}
+  },[key]);
+  React.useEffect(()=>{
+    if(localPreview){setInitializing(false);return;}
+    let active=true;const started=Date.now();
+    const finish=()=>setTimeout(()=>{if(active)setInitializing(false);},Math.max(0,420-(Date.now()-started)));
+    const load=async()=>{
+      if(!window.db||!userId){if(active)setError('No se pudo conectar el portfolio con tu cuenta. Tu copia local sigue disponible.');finish();return;}
+      try{
+        const root=window.db.collection('frame_portfolio_drafts').doc(userId),snapshot=await root.get(),data=snapshot.exists?snapshot.data():null;
+        if(data&&Number.isInteger(data.chunkCount)&&data.chunkCount>0&&data.chunkCount<=FramePortfolio.PUBLIC_MAX_CHUNKS){
+          const chunks=await Promise.all(Array.from({length:data.chunkCount},(_,index)=>root.collection('chunks').doc(String(index).padStart(2,'0')).get()));
+          if(chunks.some(chunk=>!chunk.exists||chunk.data().version!==data.version))throw new Error('incomplete');
+          const cloud=FramePortfolio.decodeDraft(chunks.map(chunk=>chunk.data().payload));
+          if(FramePortfolio.draftHash(cloud)!==data.contentHash)throw new Error('incomplete');
+          if(active){setBlocked(false);setError('');}
+          if(active&&!pendingAtEntry.current){draftRef.current=cloud;setDraft(cloud);setSavedJSON(JSON.stringify(cloud));setSelected(cloud.sections[0]?.id);try{localStorage.setItem(key,JSON.stringify(cloud));sessionStorage.removeItem(key+'_pending');}catch(_){}}
+          else if(active&&pendingAtEntry.current)setNotice('Recuperamos cambios pendientes de este dispositivo. Guardá para sincronizarlos.');
+        }
+      }catch(err){if(active)setError(err?.code==='permission-denied'?'El guardado en tu cuenta todavía no está habilitado en Firebase. Tu borrador local no se perdió.':'No pudimos cargar la copia de tu cuenta. Podés continuar con el borrador de este dispositivo.');}
+      finally{finish();}
+    };
+    load();return()=>{active=false;};
+  },[key,localPreview,userId]);
+  React.useEffect(()=>{if(FramePortfolio.valid(draft)){try{const json=JSON.stringify(draft);if(json===savedJSON)sessionStorage.removeItem(key+'_pending');else sessionStorage.setItem(key+'_pending',json);}catch(_){}}},[draft,key,savedJSON]);
+  React.useEffect(()=>{if(itemId&&!item)setItemId(null);if(selected&&!section)setSelected(draft.sections[0]?.id);},[draft,itemId,selected]);
+  React.useEffect(()=>{if(!initializing)requestAnimationFrame(()=>rootRef.current?.focus({preventScroll:true}));},[initializing]);
+  React.useEffect(()=>{if(catalog)catalogRef.current.showModal();else catalogRef.current?.close();},[catalog]);
+  React.useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(timer);},[notice]);
+  React.useEffect(()=>{
+    if(localPreview){try{const value=localStorage.getItem(key+'_published');setPublication({loading:false,published:!!value,contentHash:value?FramePortfolio.publicationHash(value):'',updatedAt:null,error:''});}catch(_){setPublication({loading:false,published:false,contentHash:'',updatedAt:null,error:''});}return;}
+    if(!canPublish||!window.db||!userId){setPublication({loading:false,published:false,contentHash:'',updatedAt:null,error:''});return;}
+    let active=true;setPublication(value=>({...value,loading:true,error:''}));
+    window.db.collection('frame_portfolios').doc(userId).get().then(snapshot=>{
+      if(!active)return;const data=snapshot.exists?snapshot.data():null;
+      setPublication({loading:false,published:data?.published===true,contentHash:data?.contentHash||'',updatedAt:data?.updatedAt||null,error:''});
+    }).catch(err=>{if(active)setPublication({loading:false,published:false,contentHash:'',updatedAt:null,error:err?.code==='permission-denied'?'La publicación aún no está habilitada en Firebase.':'No se pudo consultar la publicación.'});});
+    return()=>{active=false;};
+  },[key,localPreview,canPublish,userId]);
+  React.useEffect(()=>{
+    if(localPreview||!window.db||!userId){setUsage(value=>({...value,loading:false}));return;}
+    return window.db.collection('frame_portfolio_usage').doc(userId).onSnapshot(snapshot=>{const data=snapshot.exists?snapshot.data():{};setUsage({usedBytes:Number(data.usedBytes)||0,reservedBytes:Number(data.reservedBytes)||0,loading:false});},()=>setUsage(value=>({...value,loading:false})));
+  },[localPreview,userId]);
+  const edit=(fn,field)=>{
+    const before=draftRef.current,next=fn(before);if(JSON.stringify(before)===JSON.stringify(next))return;
+    const now=Date.now();if(!field||group.current?.field!==field||now-group.current.time>800)past.current=[...past.current,before].slice(-30);
+    group.current={field,time:now};future.current=[];draftRef.current=next;setDraft(next);
+  };
+  const choose=(id,child=null,fromCanvas=false)=>{
+    setSelected(id);setItemId(child);setTab('content');setPane('properties');setUploadError('');
+    if(fromCanvas)requestAnimationFrame(()=>rootRef.current?.querySelector('.fp-inspector-title')?.focus({preventScroll:true}));
+    else requestAnimationFrame(()=>{const el=document.getElementById('fp-section-'+id);if(el&&window.innerWidth>1000)el.scrollIntoView({block:'nearest',behavior:'auto'});});
+  };
+  const updateSection=(patch,field)=>edit(d=>({...d,sections:d.sections.map(s=>s.id===selected?{...s,...patch}:s)}),field);
+  const updateDesign=patch=>updateSection({design:{align:section.variant==='center'?'center':'left',spacing:'normal',...section.design,...patch}});
+  const updateContent=(patch,field)=>edit(d=>({...d,sections:d.sections.map(s=>s.id===selected?{...s,content:{...s.content,...patch}}:s)}),field);
+  const updateItem=(patch,field)=>edit(d=>({...d,sections:d.sections.map(s=>s.id===selected?{...s,content:{...s.content,items:s.content.items.map(i=>i.id===itemId?{...i,...patch}:i)}}:s)}),field);
+  const travel=dir=>{
+    const source=dir==='undo'?past:future,target=dir==='undo'?future:past;if(!source.current.length||busy)return;
+    const next=source.current.pop();target.current=[...target.current,draftRef.current].slice(-30);group.current=null;
+    draftRef.current=next;setDraft(next);setNotice(dir==='undo'?'Cambio deshecho':'Cambio recuperado');
+  };
+  const save=async()=>{
+    if(blocked||busy||saving)return;
+    if(!FramePortfolio.valid(draftRef.current)){setError('Revisá los enlaces y precios antes de guardar. Tu borrador sigue aquí.');return;}
+    setSaving(true);setError('');const json=JSON.stringify(draftRef.current);
+    try {localStorage.setItem(key,json);}
+    catch(_){setSaveRevision(0);setError('No se pudo crear la copia local. Exportá un respaldo para conservar tu trabajo.');setSaving(false);return;}
+    if(localPreview){sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);setNotice('Portfolio guardado en este dispositivo');setSaving(false);return;}
+    try{
+      if(!window.db||!userId)throw new Error('offline');
+      const prepared=FramePortfolio.encodeDraft(draftRef.current),version=crypto.randomUUID().replaceAll('-',''),batch=window.db.batch(),root=window.db.collection('frame_portfolio_drafts').doc(userId);
+      prepared.payloads.forEach((payload,index)=>batch.set(root.collection('chunks').doc(String(index).padStart(2,'0')),{ownerId:userId,index,version,payload}));
+      for(let index=prepared.payloads.length;index<FramePortfolio.PUBLIC_MAX_CHUNKS;index++)batch.delete(root.collection('chunks').doc(String(index).padStart(2,'0')));
+      batch.set(root,{ownerId:userId,title:prepared.draft.title||'Portfolio',chunkCount:prepared.payloads.length,version,contentHash:prepared.hash,schemaVersion:1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      await batch.commit();sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);setNotice('Portfolio guardado en tu cuenta');
+    }catch(err){setSaveRevision(0);setError(err?.code==='permission-denied'?'Firebase todavía no permite guardar el portfolio en tu cuenta. Conservamos una copia local y los cambios pendientes.':'No se pudo sincronizar con tu cuenta. Conservamos una copia local para reintentar.');}
+    finally{setSaving(false);}
+  };
+  React.useEffect(()=>{
+    const warn=e=>{if(!saved){e.preventDefault();e.returnValue='';}};
+    const keyboard=e=>{
+      if(!(e.ctrlKey||e.metaKey)||!rootRef.current?.contains(document.activeElement))return;
+      if(e.key.toLowerCase()==='s'){e.preventDefault();save();}
+      if(e.target.closest('input,textarea,[contenteditable="true"]'))return;
+      if(e.key.toLowerCase()==='z'){e.preventDefault();travel(e.shiftKey?'redo':'undo');}
+    };
+    window.addEventListener('beforeunload',warn);window.addEventListener('keydown',keyboard);
+    return()=>{window.removeEventListener('beforeunload',warn);window.removeEventListener('keydown',keyboard);};
+  },[saved,blocked,busy,saving,draft]);
+  const exportDraft=()=>{
+    let content=JSON.stringify(draftRef.current,null,2);try{if(blocked)content=localStorage.getItem(key)||content;}catch(_){}
+    const url=URL.createObjectURL(new Blob([content],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='frame-portfolio-borrador.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  const importDraft=async e=>{
+    const file=e.target.files?.[0];e.target.value='';if(!file)return;
+    try {if(file.size>3000000)throw new Error('El respaldo supera 3 MB.');const value=JSON.parse(await file.text());
+      if(!FramePortfolio.valid(value))throw new Error('El respaldo contiene campos no compatibles.');
+      if(!window.confirm('¿Reemplazar el portfolio con este respaldo? Podés recuperar el anterior con Deshacer.'))return;
+      const original=localStorage.getItem(key);if(original)localStorage.setItem(key+'_recovery',original);
+      uploadToken.current++;edit(()=>value);choose(value.sections[0]?.id);setBlocked(false);setError('');setNotice('Respaldo importado');
+    }catch(err){setError(err.message);}
+  };
+  const publishTest=()=>{
+    try {if(blocked)throw new Error('Revisá el portfolio antes de crear la copia.');const prepared=FramePortfolio.encodePublication(draftRef.current),json=JSON.stringify(prepared.draft);
+      localStorage.setItem(key+'_published',json);setPublication({loading:false,published:true,contentHash:prepared.hash,updatedAt:null,error:''});
+      setNotice('Copia de prueba publicada en este navegador');
+    }catch(err){setError(err.message);}
+  };
+  const publicUrl=React.useMemo(()=>{const url=new URL(window.location.href);url.search='';url.hash='';if(localPreview){url.searchParams.set('view','published');url.searchParams.set('source',userId+'_'+legacyWorkspaceId);}else url.searchParams.set('portfolio',userId);return url.href;},[localPreview,userId,legacyWorkspaceId]);
+  let currentHash='';try{currentHash=FramePortfolio.publicationHash(draft);}catch(_){}
+  const publicationCurrent=publication.published&&publication.contentHash===currentHash;
+  const publishRemote=async()=>{
+    if(localPreview){publishTest();return;}
+    if(publishing||blocked||!canPublish||!window.db)return;
+    setPublishing(true);setError('');
+    try {
+      const prepared=FramePortfolio.encodePublication(draftRef.current),version=crypto.randomUUID().replaceAll('-',''),batch=window.db.batch(),root=window.db.collection('frame_portfolios').doc(userId);
+      prepared.payloads.forEach((payload,index)=>batch.set(root.collection('chunks').doc(String(index).padStart(2,'0')),{ownerId:userId,index,version,payload}));
+      for(let index=prepared.payloads.length;index<FramePortfolio.PUBLIC_MAX_CHUNKS;index++)batch.delete(root.collection('chunks').doc(String(index).padStart(2,'0')));
+      batch.set(root,{ownerId:userId,title:prepared.draft.title||'Portfolio',published:true,chunkCount:prepared.payloads.length,version,contentHash:prepared.hash,schemaVersion:1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      await batch.commit();
+      setPublication({loading:false,published:true,contentHash:prepared.hash,updatedAt:new Date(),error:''});setNotice(publication.published?'Página pública actualizada':'Portfolio publicado');
+    }catch(err){setError(err?.code==='permission-denied'?'Firebase rechazó la publicación. Hay que activar las reglas nuevas antes de usarla.':err.message||'No se pudo publicar. Intentá nuevamente.');}
+    finally{setPublishing(false);}
+  };
+  const unpublish=async()=>{
+    if(localPreview){try{localStorage.removeItem(key+'_published');setPublication({loading:false,published:false,contentHash:'',updatedAt:null,error:''});setNotice('Copia de prueba retirada');}catch(_){setError('No se pudo retirar la copia.');}return;}
+    if(publishing||!canPublish||!window.db||!window.confirm('¿Retirar esta página? El enlace dejará de estar disponible hasta que vuelvas a publicarla.'))return;
+    setPublishing(true);setError('');
+    try{await window.db.collection('frame_portfolios').doc(userId).update({published:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});setPublication(value=>({...value,published:false,updatedAt:new Date(),error:''}));setNotice('Página retirada');}
+    catch(err){setError(err?.code==='permission-denied'?'No tenés permiso para retirar esta página.':'No se pudo retirar la página. Intentá nuevamente.');}
+    finally{setPublishing(false);}
+  };
+  const copyPublicUrl=async()=>{try{await navigator.clipboard.writeText(publicUrl);setNotice('Enlace copiado');}catch(_){setError('No se pudo copiar automáticamente. Seleccioná el enlace y copialo.');}};
+  const openCatalog=()=>{setQuery('');setCatalog(true);};
+  const addSection=()=>{
+    if(draft.sections.length>=50)return;const s=FramePortfolio.make(moduleType);s.variant=variant;
+    edit(d=>({...d,sections:[...d.sections,s]}));choose(s.id);setCatalog(false);setNotice('Sección agregada');
+  };
+  const addItem=()=>{
+    if(!section||section.content.items.length>=100)return;const next=FramePortfolio.item();next.title='';
+    updateContent({items:[...section.content.items,next]});choose(selected,next.id);
+  };
+  const duplicate=()=>{
+    if(!section)return;
+    if(item){if(section.content.items.length>=100)return;const copy={...item,id:crypto.randomUUID()};updateContent({items:[...section.content.items,copy]});choose(selected,copy.id);}
+    else {if(draft.sections.length>=50)return;const copy=FramePortfolio.duplicate(section);edit(d=>({...d,sections:d.sections.flatMap(s=>s.id===selected?[s,copy]:[s])}));choose(copy.id);}
+    setNotice('Copia agregada');
+  };
+  const remove=()=>{
+    if(item){updateContent({items:section.content.items.filter(i=>i.id!==itemId)});setItemId(null);setNotice('Bloque quitado. Podés deshacer el cambio.');}
+    else if(section){edit(d=>({...d,sections:d.sections.filter(s=>s.id!==selected)}));setItemId(null);setSelected(draftRef.current.sections[0]?.id);setNotice('Sección quitada. Podés deshacer el cambio.');}
+  };
+  const move=(offset)=>{
+    if(item)updateContent({items:FramePortfolio.move(section.content.items,itemId,offset)});
+    else edit(d=>({...d,sections:FramePortfolio.move(d.sections,selected,offset)}));
+  };
+  const dropSection=(targetId)=>{
+    if(!dragging||dragging===targetId){setDragging(null);return;}
+    edit(d=>{const list=d.sections.slice(),from=list.findIndex(s=>s.id===dragging),to=list.findIndex(s=>s.id===targetId);if(from<0||to<0)return d;const [entry]=list.splice(from,1);list.splice(to,0,entry);return {...d,sections:list};});setDragging(null);
+  };
+  const dropBlock=(sid,targetId)=>{
+    if(!dragBlock||dragBlock.sid!==sid||dragBlock.id===targetId){setDragBlock(null);return;}
+    edit(d=>({...d,sections:d.sections.map(s=>{
+      if(s.id!==sid)return s;
+      const items=s.content.items.slice(),from=items.findIndex(i=>i.id===dragBlock.id),to=items.findIndex(i=>i.id===targetId);
+      if(from<0||to<0)return s;
+      const [entry]=items.splice(from,1);items.splice(to,0,entry);
+      return {...s,content:{...s.content,items}};
+    })}));setDragBlock(null);
+  };
+  const blobDataUrl=blob=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('No se pudo preparar el archivo.'));reader.readAsDataURL(blob);});
+  const uploadAsset=async(blob,kind,token,onProgress)=>{
+    if(localPreview)return blobDataUrl(blob);
+    if(!window.functions||!window.storage||!userId)throw new Error('La carga de archivos todavía no está disponible. Guardá y reintentá cuando tengas conexión.');
+    const reservation=await window.functions.httpsCallable('reservePortfolioAsset')({size:blob.size,contentType:blob.type,kind});
+    const {path,assetId}=reservation.data||{};if(!path||!assetId)throw new Error('No se pudo reservar espacio para el archivo.');
+    const task=window.storage.ref(path).put(blob,{contentType:blob.type,customMetadata:{ownerId:userId,assetId,kind}});
+    const snapshot=await new Promise((resolve,reject)=>task.on('state_changed',state=>{if(mounted.current&&uploadToken.current===token&&state.totalBytes)onProgress(Math.min(98,Math.round(state.bytesTransferred/state.totalBytes*38)+60));},reject,()=>resolve(task.snapshot)));
+    return snapshot.ref.getDownloadURL();
+  };
+  const uploadImage=async file=>{
+    if(!file||!item||busy)return;const sid=selected,iid=itemId,token=++uploadToken.current;setBusy(true);setUploadError('');setUploadProgress(3);let url;
+    try {
+      if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024)throw new Error('Elegí JPG, PNG o WebP de hasta 10 MB.');
+      url=URL.createObjectURL(file);const img=new Image();
+      await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('La imagen tardó demasiado. Intentá otra vez.')),15000);img.onload=()=>{clearTimeout(timer);resolve();};img.onerror=()=>{clearTimeout(timer);reject(new Error('No se pudo abrir la imagen. Elegí otro archivo.'));};img.src=url;});
+      const scale=Math.min(1,1200/Math.max(img.width,img.height)),canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      setUploadProgress(55);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.82));if(!blob)throw new Error('No se pudo optimizar la imagen.');
+      const data=await uploadAsset(blob,'content',token,setUploadProgress);if(localPreview&&data.length>250000)throw new Error('Esta imagen es muy pesada para el borrador de prueba. Elegí una más pequeña o usá un enlace.');
+      if(mounted.current&&uploadToken.current===token){setUploadProgress(100);edit(d=>({...d,sections:d.sections.map(s=>s.id===sid?{...s,content:{...s.content,items:s.content.items.map(i=>i.id===iid?{...i,image:data}:i)}}:s)}));setNotice('Imagen cargada. Guardá para sincronizar el diseño.');}
+    }catch(err){if(mounted.current){setUploadProgress(0);setUploadError(err?.code==='functions/resource-exhausted'?'Alcanzaste el límite de 1 GB de tu portfolio.':err.message||'No se pudo cargar la imagen.');}}finally{if(url)URL.revokeObjectURL(url);if(mounted.current)setBusy(false);}
+  };
+  const uploadLogo=async file=>{
+    if(!file||busy)return;const token=++uploadToken.current;setBusy(true);setLogoError('');setLogoProgress(2);let url;
+    const read=(mode='data')=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onprogress=e=>{if(e.lengthComputable&&mounted.current&&token===uploadToken.current)setLogoProgress(Math.max(3,Math.round(e.loaded/e.total*55)));};reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('No se pudo leer el archivo. Intentá nuevamente.'));mode==='text'?reader.readAsText(file):reader.readAsDataURL(file);});
+    try {
+      const extension=file.name.split('.').pop().toLowerCase(),isSvg=file.type==='image/svg+xml'||extension==='svg',allowed=['image/png','image/jpeg','image/webp','image/avif'];
+      if(file.size>10*1024*1024 || (!isSvg&&!allowed.includes(file.type)&&!['png','jpg','jpeg','webp','avif'].includes(extension)))throw new Error('Elegí un archivo SVG, PNG, JPG, WebP o AVIF de hasta 10 MB.');
+      let data,blob;
+      if(isSvg){
+        if(file.size>500*1024)throw new Error('El SVG supera 500 KB. Simplificalo antes de subirlo.');
+        const raw=await read('text');setLogoProgress(65);
+        const parsed=new DOMParser().parseFromString(raw,'image/svg+xml'),svg=parsed.documentElement;
+        if(parsed.querySelector('parsererror')||svg.localName.toLowerCase()!=='svg')throw new Error('El SVG no se pudo interpretar. Revisá el archivo.');
+        svg.querySelectorAll('script,foreignObject,iframe,object,embed,audio,video,link,meta').forEach(node=>node.remove());
+        svg.querySelectorAll('style').forEach(node=>{if(/@import|javascript:|url\(\s*["']?(?!#)/i.test(node.textContent))node.remove();});
+        svg.querySelectorAll('*').forEach(node=>Array.from(node.attributes).forEach(attr=>{const name=attr.name.toLowerCase(),value=attr.value.trim();if(name.startsWith('on')||name==='src'||((name==='href'||name==='xlink:href')&&!value.startsWith('#'))||/javascript:|data:text\/html|url\(\s*["']?(?!#)/i.test(value))node.removeAttribute(attr.name);}));
+        const clean=new XMLSerializer().serializeToString(svg);blob=new Blob([clean],{type:'image/svg+xml'});
+      }else{
+        const source=await read();setLogoProgress(62);url=source;const img=new Image();
+        await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('El logo tardó demasiado en abrirse. Intentá otra vez.')),15000);img.onload=()=>{clearTimeout(timer);resolve();};img.onerror=()=>{clearTimeout(timer);reject(new Error('No se pudo abrir el logo. Elegí otro archivo.'));};img.src=url;});
+        if(!img.width||!img.height||img.width*img.height>40000000)throw new Error('La imagen tiene dimensiones demasiado grandes.');
+        setLogoProgress(58);const scale=Math.min(1,1600/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.88));if(!blob)throw new Error('No se pudo optimizar el logo.');
+      }
+      data=await uploadAsset(blob,'logo',token,setLogoProgress);if(!FramePortfolio.safeLogo(data))throw new Error('El logo no pasó la validación de seguridad.');
+      if(mounted.current&&token===uploadToken.current){edit(d=>({...d,logo:{src:data,desktopWidth:d.logo?.desktopWidth||140,mobileWidth:d.logo?.mobileWidth||104}}));setLogoProgress(100);setNotice('Logo listo. Ajustá su tamaño y guardá el portfolio.');}
+    }catch(err){if(mounted.current){setLogoProgress(0);setLogoError(err?.code==='functions/resource-exhausted'?'Alcanzaste el límite de 1 GB de tu portfolio.':err.message||'No se pudo cargar el logo.');}}finally{if(url?.startsWith('blob:'))URL.revokeObjectURL(url);if(mounted.current)setBusy(false);}
+  };
+  if(initializing)return <PortfolioLoadingScreen profileName={profileName} onExit={onExit}/>;
+  const definitionList=FP_ORDER.map(t=>FramePortfolio.modules.find(m=>m.type===t));
+  const filtered=definitionList.filter(m=>m.label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(query.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()));
+  const index=item?section.content.items.findIndex(i=>i.id===itemId):draft.sections.findIndex(s=>s.id===selected);
+  const total=item?section.content.items.length:draft.sections.length;
+  const mediaType=section&&['gallery','image-text','hero','services','video'].includes(section.type);
+  const visibleSections=draft.sections.filter(s=>!s.hidden),leadingNavigation=visibleSections[0]?.type==='navigation'?visibleSections[0]:null;
+  return <section className="fp-editor" ref={rootRef} tabIndex="-1" aria-label="Editor de portfolio" data-preview={preview} data-pane={pane}>
+    <PortfolioFontLoader draft={draft}/>
+    <header className="fp-topbar">
+      <div className="fp-brand-group">{onExit?<FPButton icon="back" label="Volver a FRAME" onClick={onExit}/>:<span className="fp-mark"><FPIcon name="layout" size={22}/></span>}<div><span className="fp-brand">FRAME <span>Portfolio</span></span><span className="fp-document-name">{draft.title||'Sin título'}</span></div><span className={'fp-badge'+(publicationCurrent?' is-live':'')}>{publication.published?(publicationCurrent?'Publicado':'Cambios sin publicar'):'Borrador'}</span></div>
+      <div className="fp-devices" aria-label="Tamaño de vista previa"><FPButton icon="desktop" label="Escritorio" aria-pressed={device==='desktop'} onClick={()=>setDevice('desktop')}/><FPButton icon="phone" label="Móvil" aria-pressed={device==='mobile'} onClick={()=>setDevice('mobile')}/></div>
+      <div className="fp-top-actions">
+        <span className="fp-save-status" role="status">{saved?<><FPIcon name="check" size={14}/>Guardado</>:'Sin guardar'}</span>
+        <div className="fp-history"><FPButton icon="undo" label="Deshacer" disabled={!past.current.length||busy} onClick={()=>travel('undo')}/><FPButton icon="redo" label="Rehacer" disabled={!future.current.length||busy} onClick={()=>travel('redo')}/></div>
+        <FPButton icon={preview?'layout':'eye'} label={preview?'Volver al editor':'Vista previa'} aria-pressed={preview} onClick={()=>{setPreview(!preview);setPane('preview');}}><span className="fp-preview-word">{preview?'Editar':'Vista previa'}</span></FPButton>
+        <FPSaveButton revision={saveRevision} saved={saved} saving={saving} onClick={save} disabled={blocked||busy||saving}/>
+        <FPButton icon="external" className={'fp-publish-button'+(publicationCurrent?' fp-published':'')} disabled={publication.loading||(!canPublish&&!localPreview)} onClick={()=>setPublishOpen(true)}>{publication.loading?'Consultando…':publication.published?(publicationCurrent?'Publicado':'Actualizar'):(localPreview?'Publicar prueba':'Publicar')}</FPButton>
+        <details className="fp-more"><summary aria-label="Más opciones" title="Más opciones"><FPIcon name="more"/></summary><div><button className="fp-mobile-history" disabled={!past.current.length||busy} onClick={()=>travel('undo')}>Deshacer cambio</button><button className="fp-mobile-history" disabled={!future.current.length||busy} onClick={()=>travel('redo')}>Rehacer cambio</button><button onClick={exportDraft}>Exportar respaldo</button><button onClick={()=>importRef.current.click()}>Importar respaldo</button><p>{localPreview?'El borrador se guarda en este dispositivo.':'El borrador se sincroniza con tu cuenta de FRAME y mantiene una copia local de recuperación.'}<br/>La publicación crea una copia pública separada.</p></div></details>
+      </div>
+    </header>
+    <input hidden type="file" accept=".json,application/json" ref={importRef} onChange={importDraft}/>
+    {error&&<div className="fp-alert" role="alert">{error}<FPButton icon="close" label="Cerrar aviso" onClick={()=>setError('')}/></div>}
+    <div className="fp-workspace">
+      <aside className="fp-sidebar" aria-label="Estructura de la página">
+        <div className="fp-rail-tabs"><button aria-pressed={rail==='sections'} onClick={()=>setRail('sections')}><FPIcon name="layout"/>Secciones</button><button aria-pressed={rail==='theme'} onClick={()=>setRail('theme')}><FPIcon name="settings"/>Tema</button></div>
+        {rail==='theme'?<div className="fp-theme-panel">
+          <h2>Identidad del sitio</h2><p>Estos ajustes se aplican a toda la página.</p>
+          {!localPreview&&<div className="fp-account-storage"><div><span>Portfolio de {profileName||'tu cuenta'}</span><strong>{usage.loading?'Calculando…':fpBytes(usage.usedBytes+usage.reservedBytes)+' de 1 GB'}</strong></div><div role="progressbar" aria-label="Almacenamiento del portfolio" aria-valuemin="0" aria-valuemax={FP_STORAGE_LIMIT} aria-valuenow={Math.min(FP_STORAGE_LIMIT,usage.usedBytes+usage.reservedBytes)}><i style={{width:Math.min(100,(usage.usedBytes+usage.reservedBytes)/FP_STORAGE_LIMIT*100)+'%'}}/></div><p>Una página por usuario. Los archivos subidos cuentan para este límite.</p></div>}
+          <FPField label="Nombre del portfolio"><input maxLength={200} value={draft.title} onChange={e=>edit(d=>({...d,title:e.target.value}),'site-title')}/></FPField>
+          <FPLogoSettings draft={draft} edit={edit} busy={busy} error={logoError} progress={logoProgress} inputRef={logoRef} onUpload={uploadLogo}/>
+          <h3>Apariencia</h3><div className="fp-theme-options">{[['paper','Editorial'],['studio','Estudio'],['sand','Arena']].map(([id,label])=><button key={id} aria-pressed={(draft.theme||'paper')===id} onClick={()=>edit(d=>({...d,theme:id}))}><span style={FramePortfolio.themes[id]}>Aa</span>{label}{(draft.theme||'paper')===id&&<FPIcon name="check" size={14}/>}</button>)}</div><p className="fp-help">Cambiar la apariencia conserva tus colores personalizados.</p>
+          <FPSiteStyleSettings draft={draft} edit={edit}/>
+          <h3>Comportamiento de la página</h3><FPField label="Carga de módulos" hint="Se aplica en Vista previa. En el editor todos los módulos siguen disponibles."><select value={draft.loadingMode||'progressive'} onChange={e=>edit(d=>({...d,loadingMode:e.target.value}))}><option value="progressive">Progresivo al hacer scroll</option><option value="static">Página estática · cargar todo</option></select></FPField><p className="fp-help">Progresivo: renderiza al acercarte y anima al entrar en pantalla. Estática: muestra todo sin animaciones de entrada. Los videos siempre se reproducen al pulsar.</p><FPPalette draft={draft} edit={edit}/>
+        </div>:<>
+          <div className="fp-tree-heading"><span>Página de inicio</span><span>{draft.sections.length}</span></div>
+          <div className="fp-tree" aria-label="Secciones">
+            {draft.sections.map(s=><div className="fp-tree-section" key={s.id} data-selected={s.id===selected} data-hidden={s.hidden} data-dragging={dragging===s.id} onDragOver={e=>{if(dragging){e.preventDefault();e.dataTransfer.dropEffect='move';}}} onDrop={e=>{e.preventDefault();dropSection(s.id);}}>
+              <div className="fp-tree-row"><button className="fp-grip" draggable aria-label={'Arrastrar '+s.content.title} title="Arrastrar para reordenar" onDragStart={e=>{setDragging(s.id);e.dataTransfer.setData('text/plain',s.id);e.dataTransfer.effectAllowed='move';}} onDragEnd={()=>setDragging(null)}><FPIcon name="grip" size={14}/></button><button className="fp-tree-select" aria-pressed={selected===s.id&&!itemId} onClick={()=>choose(s.id)}><FPIcon name={FP_META[s.type][0]} size={17}/><span>{s.content.title||FramePortfolio.modules.find(m=>m.type===s.type).label}</span>{s.hidden&&<FPIcon name="hidden" size={14}/>}</button>{s.content.items.length>0&&<FPButton className="fp-collapse" icon={collapsed[s.id]?'back':'down'} label={(collapsed[s.id]?'Expandir ':'Plegar ')+s.content.title} aria-expanded={!collapsed[s.id]} onClick={()=>setCollapsed(c=>({...c,[s.id]:!c[s.id]}))}/>}</div>
+              {!collapsed[s.id]&&<div className="fp-tree-children">{s.content.items.map((i,n)=><div key={i.id} className="fp-tree-block-row" data-dragging={dragBlock?.id===i.id} onDragOver={e=>{if(dragBlock){e.stopPropagation();e.preventDefault();}}} onDrop={e=>{if(dragBlock){e.stopPropagation();e.preventDefault();dropBlock(s.id,i.id);}}}><button className="fp-block-grip" draggable aria-label={'Arrastrar bloque '+(i.title||n+1)} title="Arrastrar bloque" onDragStart={e=>{e.stopPropagation();setDragBlock({sid:s.id,id:i.id});e.dataTransfer.setData('text/plain',i.id);e.dataTransfer.effectAllowed='move';}} onDragEnd={()=>setDragBlock(null)}><FPIcon name="grip" size={12}/></button><button className="fp-tree-child" aria-label={'Seleccionar bloque '+(n+1)+' de '+s.content.title} aria-pressed={selected===s.id&&itemId===i.id} onClick={()=>choose(s.id,i.id)}><FPIcon name={['gallery','hero','image-text','video'].includes(s.type)?'image':'text'} size={14}/><span>{i.title||'Bloque sin título'}</span></button></div>)}{s.id===selected&&s.type!=='text'&&<button className="fp-tree-add" disabled={s.content.items.length>=100} onClick={()=>{setItemId(null);addItem();}}><FPIcon name="plus" size={14}/>Agregar bloque</button>}</div>}
+            </div>)}
+            {!draft.sections.length&&<p className="fp-help">Tu página comienza con una sección.</p>}
+            <FPButton icon="plus" className="fp-add-section" disabled={draft.sections.length>=50} onClick={openCatalog}>Agregar sección</FPButton>
+          </div><div className="fp-sidebar-foot"><FPIcon name="grip" size={14}/>Arrastrá las secciones para ordenarlas.</div>
+        </>}
+      </aside>
+      <main className="fp-stage" aria-label="Lienzo del portfolio">
+        <div className="fp-canvas-caption"><span>{preview?'Vista previa':'Página de inicio'}</span><span>{preview?'Así se verá tu página':'Seleccioná una sección para editar'}</span></div>
+        <div className={'fp-canvas-scroll '+(device==='mobile'?'fp-device-mobile':'')}><div className="fp-browser-frame"><div className="fp-browser-chrome"><span/><span/><span/><div>{draft.title||'Mi portfolio'}</div><FPIcon name="external" size={12}/></div>
+          <div className="frame-portfolio-page" style={FramePortfolio.pageStyle(draft)}>
+            {leadingNavigation?null:<PortfolioBrand draft={draft}/>} 
+            {visibleSections.map(s=><div id={'fp-section-'+s.id} key={s.id} className="fp-canvas-section" data-selected={!preview&&s.id===selected&&!itemId} role={preview?undefined:'button'} tabIndex={preview?undefined:0} aria-label={preview?undefined:'Editar sección '+s.content.title} onClick={preview?undefined:()=>choose(s.id,null,true)} onKeyDown={preview?undefined:e=>{if(e.target===e.currentTarget&&['Enter',' '].includes(e.key)){e.preventDefault();choose(s.id,null,true);}}}>
+              {!preview&&<span className="fp-selection-label">{FramePortfolio.modules.find(m=>m.type===s.type).label}</span>}
+              <PortfolioModule loadingMode={draft.loadingMode||'progressive'} section={s} brandDraft={s.id===leadingNavigation?.id?draft:null} mobile={device==='mobile'} editing={!preview} replayToken={motionReplay.id===s.id?motionReplay.token:0} selectedItem={s.id===selected?itemId:null} onSelectItem={preview?undefined:id=>choose(s.id,id,true)}/>
+            </div>)}
+            {!draft.sections.some(s=>!s.hidden)&&<div className="fp-empty-page"><FPIcon name="layout" size={36}/><h2>Un espacio para tu trabajo.</h2><p>Agregá una portada, una galería o una historia.</p>{!preview&&<FPButton icon="plus" onClick={openCatalog}>Agregar sección</FPButton>}</div>}
+            {!preview&&<button className="fp-canvas-add" disabled={draft.sections.length>=50} onClick={openCatalog}><FPIcon name="plus" size={16}/>Agregar sección</button>}
+          </div>
+        </div><div className="fp-canvas-end">FRAME Portfolio</div></div>
+      </main>
+      <aside className="fp-inspector" aria-label="Ajustes de la selección">
+        <div className="fp-inspector-head">{item&&<FPButton icon="back" label="Volver a la sección" onClick={()=>setItemId(null)}/>}<div><span>{item?'Bloque · '+definition.label:'Sección'}</span><h2 className="fp-inspector-title" tabIndex="-1">{item?(item.title||'Bloque sin título'):(section?.content.title||'Elegí una sección')}</h2></div><FPButton className="fp-close-panel" icon="close" label="Cerrar ajustes" onClick={()=>setPane('preview')}/></div>
+        {section?<>
+          {!item&&<div className="fp-inspector-tabs"><button aria-pressed={tab==='content'} onClick={()=>setTab('content')}>Contenido</button><button aria-pressed={tab==='design'} onClick={()=>setTab('design')}>Diseño</button></div>}
+          <div className="fp-inspector-scroll" key={(itemId||selected)+':'+tab}>
+            {item?<>
+              {mediaType&&<div className="fp-media-field" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();uploadImage(e.dataTransfer.files?.[0]);}} onPaste={e=>{const file=Array.from(e.clipboardData.items).find(i=>i.type.startsWith('image/'))?.getAsFile();if(file){e.preventDefault();uploadImage(file);}}}>
+                <span className="fp-field-title">{section.type==='video'?'Portada del video':'Imagen'}</span>
+                <button className="fp-upload" disabled={busy} onClick={()=>imageRef.current.click()}>{FramePortfolio.safeImage(item.image)?<PortfolioImage src={item.image} title={item.title}/>:<><FPIcon name="image" size={28}/><strong>Seleccionar imagen</strong><span>o arrastrá y soltá aquí</span></>}{busy&&<span className="fp-upload-busy">{uploadProgress>=60&&!localPreview?'Subiendo '+uploadProgress+'%':'Procesando imagen…'}</span>}</button>
+                <input hidden ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const file=e.target.files?.[0];e.target.value='';uploadImage(file);}}/>
+                {busy&&uploadProgress>0&&<div className="fp-upload-progress" role="progressbar" aria-label="Progreso de la imagen" aria-valuemin="0" aria-valuemax="100" aria-valuenow={uploadProgress}><span style={{width:uploadProgress+'%'}}/></div>}
+                {item.image&&<div className="fp-media-actions"><button onClick={()=>imageRef.current.click()} disabled={busy}>Cambiar</button><button onClick={()=>updateItem({image:''})}>Quitar imagen</button></div>}
+                <details className="fp-disclosure"><summary>Usar un enlace de imagen</summary><FPField label="Imagen (enlace HTTPS)"><input type="url" value={item.image?.startsWith('data:')?'':item.image||''} placeholder="https://" onChange={e=>updateItem({image:e.target.value},'image-'+itemId)}/></FPField>{item.image&&!FramePortfolio.safeImage(item.image)&&<p className="fp-field-error">Ingresá un enlace HTTPS válido.</p>}</details>
+                <p className="fp-help">JPG, PNG o WebP · Hasta 10 MB. También podés pegar una imagen aquí. FRAME conserva su proporción y optimiza el peso.</p>{uploadError&&<p role="alert" className="fp-field-error">{uploadError}</p>}
+              </div>}
+              {section.type==='video'&&<FPField label="Enlace de YouTube o Vimeo" hint="El video se reproduce desde su plataforma original."><input type="url" value={item.video||''} placeholder="https://vimeo.com/…" onChange={e=>updateItem({video:e.target.value},'video-'+itemId)}/>{item.video&&!FramePortfolio.video(item.video)&&<small className="fp-field-error">Usá un enlace original de YouTube o Vimeo.</small>}</FPField>}
+              <FPField label="Nombre"><input maxLength={200} value={item.title} placeholder="Título del bloque" onChange={e=>updateItem({title:e.target.value},'item-title-'+itemId)}/></FPField>
+              <FPField label="Descripción"><textarea maxLength={20000} rows="4" value={item.text} placeholder="Contá algo sobre este trabajo…" onChange={e=>updateItem({text:e.target.value},'item-text-'+itemId)}/></FPField>
+              {section.type==='prices'&&<><div className="fp-field-pair"><FPField label="Precio"><input inputMode="decimal" value={item.price||''} placeholder="0.00" onChange={e=>updateItem({price:e.target.value},'price-'+itemId)}/>{item.price&&!/^\d+(\.\d{1,2})?$/.test(item.price)&&<small className="fp-field-error">Usá un número, por ejemplo 250.00.</small>}</FPField><FPField label="Moneda"><select value={item.currency||'USD'} onChange={e=>updateItem({currency:e.target.value})}>{['USD','HNL','EUR','MXN'].map(c=><option key={c}>{c}</option>)}</select></FPField></div><label className="fp-check"><input type="checkbox" checked={!!item.from} onChange={e=>updateItem({from:e.target.checked})}/>Mostrar «Desde»</label><label className="fp-check"><input type="checkbox" checked={!!item.featured} onChange={e=>updateItem({featured:e.target.checked})}/>Destacar paquete</label><FPField label="Inclusiones (una por línea)"><textarea rows="5" value={item.inclusions||''} onChange={e=>updateItem({inclusions:e.target.value},'inclusions-'+itemId)}/></FPField></>}
+              <FPField label="Enlace" hint="Página web, correo o teléfono. Opcional."><input value={item.link||''} placeholder="https://" onChange={e=>updateItem({link:e.target.value},'link-'+itemId)}/>{item.link&&!FramePortfolio.safeLink(item.link)&&<small className="fp-field-error">Usá https://, mailto: o tel:.</small>}</FPField>
+            </>:tab==='design'?<>
+              <h3 className="fp-group-title">Composición</h3><div className="fp-variant-options">{definition.variants.map(v=><button key={v} aria-pressed={section.variant===v} onClick={()=>updateSection({variant:v})}><FPThumb type={section.type} variant={v}/><span>{FP_LABELS[v]}</span></button>)}</div>
+              <FPField label="Alineación"><select aria-label="Alineación" value={section.design?.align||(section.variant==='center'?'center':'left')} onChange={e=>updateDesign({align:e.target.value})}><option value="left">Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></FPField>
+              <FPField label="Espaciado"><select aria-label="Espaciado" value={section.design?.spacing||'normal'} onChange={e=>updateDesign({spacing:e.target.value})}><option value="compact">Compacto</option><option value="normal">Normal</option><option value="airy">Amplio</option></select></FPField>
+              {['gallery','services','prices'].includes(section.type)&&!['carousel','list'].includes(section.variant)&&<FPField label="Columnas en escritorio" hint="En pantallas pequeñas los bloques se acomodan en una columna."><div className="fp-segmented">{[1,2,3,4].map(n=><button key={n} aria-label={n+' columnas'} aria-pressed={(section.design?.columns||3)===n} onClick={()=>updateDesign({columns:n})}>{n}</button>)}</div></FPField>}
+              {['gallery','hero','image-text','services'].includes(section.type)&&<><h3 className="fp-group-title">Imágenes</h3><FPField label="Relación de aspecto" hint="«Original» muestra cada archivo con su proporción real. Los demás formatos recortan la vista sin deformar la imagen."><select aria-label="Relación de aspecto" value={section.design?.imageRatio||'landscape'} onChange={e=>updateDesign({imageRatio:e.target.value})}><option value="original">Original · sin recorte</option><option value="wide">Panorámica · 16:9</option><option value="landscape">Horizontal · 4:3</option><option value="square">Cuadrada · 1:1</option><option value="social">Retrato · 4:5</option><option value="portrait">Vertical · 3:4</option><option value="story">Historia · 9:16</option></select></FPField><FPField label="Esquinas"><div className="fp-segmented">{[[0,'Rectas'],[8,'Suaves'],[16,'Redondas']].map(([value,label])=><button key={value} aria-pressed={(section.design?.imageRadius||0)===value} onClick={()=>updateDesign({imageRadius:value})}>{label}</button>)}</div></FPField></>}
+              {!!FramePortfolio.motionOptions(section.type).length&&<div className="fp-motion-settings"><h3 className="fp-group-title">Animación de entrada</h3><FPField label="Efecto" hint="Se reproduce una vez cuando la sección entra en pantalla."><select aria-label="Efecto de animación" value={section.design?.animation||'none'} onChange={e=>updateDesign({animation:e.target.value})}><option value="none">Sin animación</option>{FramePortfolio.motionOptions(section.type).map(effect=><option key={effect} value={effect}>{{fade:'Aparecer suavemente',rise:'Subir suavemente',zoom:'Acercamiento sutil',stagger:'Bloques en secuencia'}[effect]}</option>)}</select></FPField>{section.design?.animation&&section.design.animation!=='none'&&<><FPField label="Velocidad"><select aria-label="Velocidad de animación" value={section.design.motionSpeed||'smooth'} onChange={e=>updateDesign({motionSpeed:e.target.value})}><option value="quick">Rápida</option><option value="smooth">Suave</option><option value="slow">Pausada</option></select></FPField><FPButton icon="play" disabled={reducedMotion} onClick={()=>{document.getElementById('fp-section-'+selected)?.scrollIntoView({block:'start',behavior:'auto'});setMotionReplay(r=>({id:selected,token:r.token+1}));}}>Probar animación</FPButton></>}<p className="fp-help">{reducedMotion?'Tu dispositivo tiene activado reducir movimiento. La página se muestra sin animaciones.':'Las personas que prefieran reducir movimiento verán la página sin animaciones.'}</p></div>}
+            </>:<>
+              <FPField label="Título"><input maxLength={200} value={section.content.title} onChange={e=>updateContent({title:e.target.value},'title-'+selected)}/></FPField><FPField label="Texto"><textarea rows="5" maxLength={20000} value={section.content.text} placeholder={section.type==='hero'?'Presentá lo que hacés y para quién.':'Escribí el contenido de esta sección…'} onChange={e=>updateContent({text:e.target.value},'text-'+selected)}/></FPField>
+              {section.type!=='text'&&<div className="fp-section-blocks"><h3>Bloques <span>{section.content.items.length}</span></h3>{section.content.items.map((i,n)=><button key={i.id} onClick={()=>choose(selected,i.id)}><FPIcon name={mediaType?'image':'text'} size={16}/><span>{i.title||'Bloque '+(n+1)}</span><FPIcon name="back" size={14}/></button>)}<FPButton icon="plus" disabled={section.content.items.length>=100} onClick={addItem}>Agregar bloque</FPButton></div>}
+              <label className="fp-check fp-visibility"><input type="checkbox" checked={!section.hidden} onChange={e=>updateSection({hidden:!e.target.checked})}/>Mostrar sección en la página</label>
+            </>}
+          </div>
+          <div className="fp-inspector-foot"><div><FPButton icon="up" label={item?'Subir bloque':'Subir sección'} disabled={index<=0} onClick={()=>move(-1)}/><FPButton icon="down" label={item?'Bajar bloque':'Bajar sección'} disabled={index>=total-1} onClick={()=>move(1)}/><FPButton icon="copy" label={item?'Duplicar bloque':'Duplicar sección'} disabled={total>=(item?100:50)} onClick={duplicate}/><FPButton className="fp-danger" icon="trash" label={item?'Quitar bloque':'Quitar sección'} onClick={remove}/></div><span>{item?'Bloque':'Sección'} {index+1} de {total}</span></div>
+        </>:<div className="fp-inspector-empty"><FPIcon name="layout" size={30}/><p>Seleccioná algo en tu página para empezar a editar.</p><FPButton icon="plus" onClick={openCatalog}>Agregar sección</FPButton></div>}
+      </aside>
+    </div>
+    {!preview&&<nav className="fp-mobile-nav" aria-label="Paneles del editor">{[['sections','layout','Secciones'],['preview','eye','Página'],['properties','settings','Ajustes']].map(([id,icon,label])=><button key={id} aria-pressed={pane===id} onClick={()=>setPane(id)}><FPIcon name={icon}/>{label}</button>)}</nav>}
+    {notice&&<div className="fp-toast" role="status"><FPIcon name="check" size={16}/>{notice}</div>}
+    {publishOpen&&<div className="fp-publish-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!publishing)setPublishOpen(false);}}><section className="fp-publish-dialog" role="dialog" aria-modal="true" aria-labelledby="fp-publish-title">
+      <header><div><span className="fp-overline">PÁGINA PÚBLICA</span><h2 id="fp-publish-title">{publication.published?'Administrar publicación':'Publicar portfolio'}</h2></div><FPButton icon="close" label="Cerrar" disabled={publishing} onClick={()=>setPublishOpen(false)}/></header>
+      <div className="fp-publish-body">
+        <span className={'fp-publication-state '+(publication.published?'is-live':'')}><i/>{publication.published?(publicationCurrent?'Publicado y actualizado':'Publicado · hay cambios pendientes'):'Todavía no está publicado'}</span>
+        <h3>{draft.title||'Mi portfolio'}</h3>
+        <p>{localPreview?'Esta copia de prueba solo existe en este navegador. En FRAME, el mismo flujo generará un enlace público real.':'Se publicarán únicamente las secciones visibles. Tu borrador, las tareas y los datos de clientes permanecen privados.'}</p>
+        {publication.published&&<div className="fp-public-link"><label htmlFor="fp-public-url">Enlace público</label><div><input id="fp-public-url" readOnly value={publicUrl} onFocus={e=>e.target.select()}/><FPButton icon="copy" label="Copiar enlace" onClick={copyPublicUrl}>Copiar</FPButton><FPButton icon="external" label="Abrir página" onClick={()=>window.open(publicUrl,'_blank','noopener')}>Abrir</FPButton></div></div>}
+        {publication.error&&<p className="fp-publish-error" role="alert">{publication.error}</p>}
+      </div>
+      <footer>{publication.published?<FPButton className="fp-publish-remove" disabled={publishing} onClick={unpublish}>Retirar página</FPButton>:<span/>}<div><FPButton disabled={publishing} onClick={()=>setPublishOpen(false)}>Cancelar</FPButton><FPButton className="fp-primary" icon={publication.published?'upload':'external'} disabled={publishing||blocked||!currentHash} onClick={publishRemote}>{publishing?'Publicando…':publication.published?'Actualizar publicación':localPreview?'Publicar prueba':'Publicar ahora'}</FPButton></div></footer>
+    </section></div>}
+    <dialog className="fp-catalog" ref={catalogRef} aria-labelledby="fp-catalog-title" onCancel={()=>setCatalog(false)} onClose={()=>setCatalog(false)}>
+      <header><div><span className="fp-overline">CONSTRUÍ TU PÁGINA</span><h2 id="fp-catalog-title">Agregar sección</h2></div><FPButton icon="close" label="Cerrar catálogo" onClick={()=>setCatalog(false)}/></header>
+      <div className="fp-catalog-body"><div className="fp-catalog-list"><label className="fp-search"><FPIcon name="search" size={16}/><input aria-label="Buscar módulos" autoFocus value={query} placeholder="Buscar una sección" onChange={e=>setQuery(e.target.value)}/></label>{filtered.map(m=><button key={m.type} aria-pressed={moduleType===m.type} onClick={()=>{setModuleType(m.type);setVariant(m.variants[0]);}}><FPIcon name={FP_META[m.type][0]}/>{m.label}<FPIcon name="back" size={14}/></button>)}{!filtered.length&&<p className="fp-help">No hay secciones con ese nombre.</p>}</div>
+      <div className="fp-catalog-preview"><h3>{FramePortfolio.modules.find(m=>m.type===moduleType).label}</h3><p>{FP_META[moduleType][1]}</p><FPThumb type={moduleType} variant={variant}/><h4>Elegí una presentación</h4><div className="fp-catalog-variants">{FramePortfolio.modules.find(m=>m.type===moduleType).variants.map(v=><button key={v} aria-pressed={v===variant} onClick={()=>setVariant(v)}>{FP_LABELS[v]}</button>)}</div></div></div>
+      <footer><span>Podés cambiar el diseño después.</span><FPButton className="fp-primary" icon="plus" disabled={draft.sections.length>=50} onClick={addSection}>Agregar a la página</FPButton></footer>
+    </dialog>
+  </section>;
+};
+
+const PortfolioImage=({src,title,loading='lazy'})=>{
+  const [failed,setFailed]=React.useState(false);React.useEffect(()=>setFailed(false),[src]);
+  return failed?<div className="fp-image-error"><FPIcon name="image" size={24}/><span>No se pudo cargar la imagen</span><button onClick={e=>{e.stopPropagation();setFailed(false);}}>Reintentar</button></div>:<img src={FramePortfolio.safeImage(src)} alt={title||''} loading={loading} referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>;
+};
+const PortfolioVideo=({item,vertical,editing,loading='lazy'})=>{
+  const [playing,setPlaying]=React.useState(false),src=FramePortfolio.video(item.video);
+  React.useEffect(()=>setPlaying(false),[item.video,editing]);
+  const cover=<>{FramePortfolio.safeImage(item.image)&&<PortfolioImage src={item.image} title="" loading={loading}/>}<span className="fp-play-mark"><FPIcon name="play" size={28}/></span><span>{src?'Reproducir video':'Agregá un enlace de YouTube o Vimeo'}</span></>;
+  return <div className="fp-video-player" data-vertical={vertical}>{playing&&!editing?<iframe title={item.title||'Video del portfolio'} src={src} loading="lazy" allow="fullscreen; picture-in-picture" allowFullScreen/>:editing||!src?<div className="fp-video-cover">{cover}</div>:<button className="fp-video-cover" onClick={()=>setPlaying(true)} aria-label={'Reproducir '+(item.title||'video')}>{cover}</button>}{src&&!editing&&<a href={item.video} target="_blank" rel="noopener noreferrer">Ver en plataforma original</a>}</div>;
+};
+// No CSS oculta contenido: sin observador/animaciones disponibles, la página sigue visible.
+const usePortfolioMotion=(ref,effect,speed,editing,replayToken)=>{
+  const lastReplay=React.useRef(0);
+  React.useEffect(()=>{
+    const replay=replayToken>lastReplay.current;lastReplay.current=replayToken;
+    const node=ref.current;
+    if(!node||!node.animate||effect==='none'||(editing&&!replay))return;
+    const media=window.matchMedia('(prefers-reduced-motion: reduce)');
+    let animations=[],observer;
+    const cancel=()=>{animations.forEach(a=>a.cancel());animations=[];};
+    const changed=()=>{if(media.matches){cancel();observer?.disconnect();}};
+    const play=()=>{
+      if(media.matches)return;
+      const items=Array.from(node.querySelectorAll(':scope > .fp-site-items > .fp-site-item'));
+      const targets=effect==='stagger'&&items.length?items:[node];
+      const duration={quick:320,smooth:550,slow:800}[speed]||550;
+      const transform=effect==='zoom'?'scale(.98)':effect==='rise'||effect==='stagger'?'translateY(14px)':'none';
+      animations=targets.map((target,index)=>target.animate([{opacity:0,transform},{opacity:1,transform:'none'}],{duration,delay:effect==='stagger'?Math.min(index*70,350):0,easing:'cubic-bezier(.2,.7,.2,1)',fill:'backwards'}));
+    };
+    media.addEventListener('change',changed);
+    if(replay)play();
+    else if('IntersectionObserver' in window){observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){observer.disconnect();play();}},{threshold:0});observer.observe(node);}
+    else play();
+    return()=>{observer?.disconnect();media.removeEventListener('change',changed);cancel();};
+  },[effect,speed,editing,replayToken]);
+};
+const PortfolioModule=({section:s,brandDraft,mobile,editing=false,selectedItem,onSelectItem,replayToken=0,loadingMode='progressive'})=>{
+  const motionRef=React.useRef(null);
+  const effect=FramePortfolio.motionOptions(s.type).includes(s.design?.animation)?s.design.animation:'none';
+  usePortfolioMotion(motionRef,!editing&&loadingMode==='static'?'none':effect,s.design?.motionSpeed||'smooth',editing,replayToken);
+  const media=['gallery','hero','image-text','services'].includes(s.type),Tag=s.type==='navigation'?'nav':s.type==='footer'?'footer':'section';
+  const align=s.design?.align||(s.variant==='center'?'center':'left'),sectionY={compact:16,normal:32,airy:64}[s.design?.spacing];
+  return <Tag aria-label={s.type==='navigation'?(s.content.title||'Navegación del portfolio'):undefined} data-module={s.type} data-variant={s.variant} data-align={align} data-has-items={s.content.items.length>0} data-loading-mode={editing?'editor':loadingMode} ref={motionRef} className={'fp-site-section fp-site-'+s.type+' fp-variant-'+s.variant+(mobile?' fp-site-narrow':'')} style={{'--fp-columns':s.design?.columns,'--fp-image-ratio':{original:'auto',wide:'16/9',landscape:'4/3',square:'1',social:'4/5',portrait:'3/4',story:'9/16'}[s.design?.imageRatio],'--fp-image-radius':s.design?.imageRadius===undefined?undefined:s.design.imageRadius+'px','--fp-mosaic-span':s.design?.columns===1?1:2,'--fp-section-y':sectionY===undefined?undefined:sectionY+'px',textAlign:align}}>
+    {s.type==='contact'&&s.variant==='banner'?<div className="fp-contact-intro">
+      {s.content.title&&<h2>{s.content.title}</h2>}
+      {s.content.text&&<p className="fp-site-copy">{s.content.text}</p>}
+    </div>:<>
+      {s.type==='navigation'&&brandDraft?<PortfolioNavigationBrand draft={brandDraft} label={s.content.title}/>:s.content.title&&<h2>{s.content.title}</h2>}
+      {s.content.text&&(s.type==='text'&&s.variant==='quote'?<blockquote className="fp-site-copy"><p>{s.content.text}</p></blockquote>:<p className="fp-site-copy">{s.content.text}</p>)}
+    </>}
+    {editing&&!s.content.text&&!s.content.items.length&&<div className="fp-site-placeholder">{['gallery','hero','image-text','video'].includes(s.type)?<><FPIcon name={FP_META[s.type][0]} size={32}/><span>{s.type==='gallery'?'Agregá tus proyectos a esta galería':'Tu contenido empieza aquí'}</span></>:<span>Seleccioná esta sección y agregá tu contenido.</span>}</div>}
+    {!!s.content.items.length&&<div className="fp-site-items" role={!editing&&s.variant==='carousel'?'region':undefined} aria-label={!editing&&s.variant==='carousel'?'Galería desplazable':undefined} tabIndex={!editing&&s.variant==='carousel'?0:undefined}>{s.content.items.map(i=><div key={i.id} className={'fp-site-item'+(i.featured?' fp-featured':'')} data-selected={editing&&selectedItem===i.id} role={editing?'button':undefined} tabIndex={editing?0:undefined} aria-label={editing?'Editar bloque '+(i.title||'sin título'):undefined} onClick={editing?e=>{e.stopPropagation();onSelectItem?.(i.id);}:undefined} onKeyDown={editing?e=>{if(e.target===e.currentTarget&&['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();onSelectItem?.(i.id);}}:undefined}>
+      {editing&&<span className="fp-block-label">Bloque</span>}
+      {s.type==='video'&&<PortfolioVideo loading={loadingMode==='static'?'eager':'lazy'} item={i} vertical={s.variant==='vertical'} editing={editing}/>}
+      {media&&(FramePortfolio.safeImage(i.image)?<PortfolioImage src={i.image} title={i.title} loading={loadingMode==='static'?'eager':'lazy'}/>:editing&&s.type!=='services'&&<div className="fp-media-placeholder"><FPIcon name="image" size={26}/><span>Agregar imagen</span></div>)}
+      <div className="fp-site-item-copy">{i.title&&<h3>{i.title}</h3>}{i.text&&<p className="fp-site-copy">{i.text}</p>}
+      {s.type==='prices'&&<><strong className="fp-price">{i.price?(i.from?'Desde ':'')+(i.currency||'USD')+' '+i.price:'Consultar precio'}</strong><ul>{(i.inclusions||'').split('\n').filter(Boolean).map((line,n)=><li key={n}><FPIcon name="check" size={14}/>{line}</li>)}</ul></>}
+      {FramePortfolio.safeLink(i.link)&&(editing?<span className="fp-site-link">{s.type==='prices'?'Solicitar cotización':i.title||'Ver más'} <FPIcon name="external" size={14}/></span>:<a className="fp-site-link" href={FramePortfolio.safeLink(i.link)} target="_blank" rel="noopener noreferrer">{s.type==='prices'?'Solicitar cotización':i.title||'Ver más'} <FPIcon name="external" size={14}/></a>)}</div>
+    </div>)}</div>}
+  </Tag>;
+};
+
+const PublishedPortfolioPage=({publicationId})=>{
+  const [state,setState]=React.useState({loading:true,draft:null,error:''});
+  React.useEffect(()=>{
+    let active=true;
+    const load=async()=>{
+      if(!/^[A-Za-z0-9_-]{10,100}$/.test(publicationId||'')||!window.db){setState({loading:false,draft:null,error:'Esta página no está disponible.'});return;}
+      try{
+        const root=window.db.collection('frame_portfolios').doc(publicationId),snapshot=await root.get(),data=snapshot.exists?snapshot.data():null;
+        if(!data||data.published!==true||!Number.isInteger(data.chunkCount)||data.chunkCount<1||data.chunkCount>FramePortfolio.PUBLIC_MAX_CHUNKS)throw new Error('unavailable');
+        const chunks=await Promise.all(Array.from({length:data.chunkCount},(_,index)=>root.collection('chunks').doc(String(index).padStart(2,'0')).get()));
+        if(chunks.some(chunk=>!chunk.exists||chunk.data().version!==data.version))throw new Error('incomplete');
+        const draft=FramePortfolio.decodePublication(chunks.map(chunk=>chunk.data().payload));
+        if(FramePortfolio.publicationHash(draft)!==data.contentHash)throw new Error('incomplete');
+        if(active)setState({loading:false,draft,error:''});
+      }catch(err){if(active)setState({loading:false,draft:null,error:err?.message==='incomplete'?'La página se está actualizando. Volvé a intentarlo en unos segundos.':'Esta página no está disponible.'});}
+    };
+    load();return()=>{active=false;};
+  },[publicationId]);
+  React.useEffect(()=>{if(!state.draft)return;const previous=document.title;document.title=state.draft.title+' — Portfolio';return()=>{document.title=previous;};},[state.draft]);
+  if(state.loading)return <main className="fp-public-status" aria-live="polite"><span className="fp-public-loader"/><p>Cargando portfolio…</p></main>;
+  if(!state.draft)return <main className="fp-public-status"><FPIcon name="layout" size={34}/><h1>Página no disponible</h1><p>{state.error}</p><button onClick={()=>window.location.reload()}>Intentar nuevamente</button></main>;
+  const draft=state.draft,leadingNavigation=draft.sections[0]?.type==='navigation'?draft.sections[0]:null;
+  return <main className="fp-public-shell" style={FramePortfolio.pageStyle(draft)}><PortfolioFontLoader draft={draft}/><div className="frame-portfolio-page" style={FramePortfolio.pageStyle(draft)}>{leadingNavigation?null:<PortfolioBrand draft={draft}/>} {draft.sections.map(section=><PortfolioModule key={section.id} section={section} brandDraft={section.id===leadingNavigation?.id?draft:null} loadingMode={draft.loadingMode||'progressive'}/>)}</div></main>;
+};

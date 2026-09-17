@@ -75,6 +75,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
 <script>
   // FRAME vive en su propio proyecto Firebase, separado de TOONED-OS.
   // Antes compartían proyecto y eso significaba compartir reglas: una regla
@@ -90,6 +91,7 @@
   });
   window.db      = firebase.firestore();
   window.storage = firebase.storage();
+  window.functions = firebase.functions('us-central1');
 </script>
 <script>
   tailwind.config = {
@@ -113,7 +115,7 @@
      Estaba inline acá y duplicado en el banco de pruebas: dos copias que se
      desactualizaban entre sí, con lo cual el banco mostraba algo distinto de
      la app y dejaba de servir para lo único que existe. -->
-<link rel="stylesheet" href="frame.css?v=20260823-ux-system" />
+<link rel="stylesheet" href="frame.css?v=20260916-portfolio-beta" />
 </head>
 <body class="noise">
   <div id="root"></div>
@@ -138,7 +140,9 @@
   <!-- Árbol de vistas del teléfono. Va antes de app.jsx porque <App> decide
        cuál de los dos renderiza. -->
   <script type="text/babel" src="mobile.jsx?v=20260903-workspace-rename"></script>
-  <script type="text/babel" src="app.jsx?v=20260903-workspace-rename"></script>
+  <script src="portfolio-model.js?v=20260916-portfolio-beta"></script>
+  <script type="text/babel" src="portfolio.jsx?v=20260916-portfolio-beta"></script>
+  <script type="text/babel" src="app.jsx?v=20260916-portfolio-beta"></script>
 
   <script>
     // El service worker no cachea nada (ver sw.js): está sólo para que el
