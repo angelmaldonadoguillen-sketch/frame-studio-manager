@@ -91,7 +91,7 @@
   });
   window.db      = firebase.firestore();
   window.storage = firebase.storage();
-  window.functions = firebase.functions('us-central1');
+  window.functions = firebase.app().functions('us-central1');
 </script>
 <script>
   tailwind.config = {
