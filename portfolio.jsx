@@ -442,8 +442,10 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
           <FPField label="Nombre del portfolio"><input maxLength={200} value={draft.title} onChange={e=>edit(d=>({...d,title:e.target.value}),'site-title')}/></FPField>
           <FPLogoSettings draft={draft} edit={edit} busy={busy} error={logoError} progress={logoProgress} inputRef={logoRef} onUpload={uploadLogo}/>
           <h3>Apariencia</h3><div className="fp-theme-options">{[['paper','Editorial'],['studio','Estudio'],['sand','Arena']].map(([id,label])=><button key={id} aria-pressed={(draft.theme||'paper')===id} onClick={()=>edit(d=>({...d,theme:id}))}><span style={FramePortfolio.themes[id]}>Aa</span>{label}{(draft.theme||'paper')===id&&<FPIcon name="check" size={14}/>}</button>)}</div>
+          {draft.colors&&<p className="fp-theme-note" role="status">Tus colores propios tienen prioridad sobre la apariencia. <button type="button" onClick={()=>edit(d=>{const next={...d};delete next.colors;return next;})}>Usar los del tema</button></p>}
+          <FPPalette draft={draft} edit={edit}/>
           <FPSiteStyleSettings draft={draft} edit={edit}/>
-          <h3>Comportamiento de la página</h3><FPSegmented label="Carga de módulos" value={draft.loadingMode||'progressive'} options={[['progressive','Progresiva'],['static','Estática']]} onChange={value=>edit(d=>({...d,loadingMode:value}))}/><FPPalette draft={draft} edit={edit}/>
+          <h3>Comportamiento de la página</h3><FPSegmented label="Carga de módulos" value={draft.loadingMode||'progressive'} options={[['progressive','Progresiva'],['static','Estática']]} onChange={value=>edit(d=>({...d,loadingMode:value}))}/>
         </div>:<>
           <div className="fp-tree-heading"><span>Página de inicio</span><span>{draft.sections.length}</span></div>
           <div className="fp-tree" aria-label="Secciones">
