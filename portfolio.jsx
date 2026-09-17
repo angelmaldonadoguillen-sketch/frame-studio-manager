@@ -39,8 +39,8 @@ const FPButton=({icon,label,children,className='',...props})=><button type="butt
 const FPSaveButton=({revision,saved,saving=false,...props})=>{
   const [confirmed,setConfirmed]=React.useState(false);
   React.useEffect(()=>{if(!revision){setConfirmed(false);return;}setConfirmed(true);const timer=setTimeout(()=>setConfirmed(false),2200);return()=>clearTimeout(timer);},[revision]);
-  const success=!saving&&confirmed&&saved;
-  return <FPButton {...props} className={'fp-primary fp-save-button'+(success?' fp-save-confirmed':'')} label={saving?'Guardando portfolio':'Guardar borrador'}><span key={saving?'saving':revision} className={success?'fp-save-feedback':''}>{success&&<FPIcon name="check" size={16}/>}<span>{saving?'Guardando…':success?'Guardado':'Guardar'}</span></span></FPButton>;
+  const success=!saving&&confirmed&&saved,idle=saved&&!saving;
+  return <FPButton {...props} className={'fp-save-button'+(idle?' fp-save-idle':' fp-primary')+(success?' fp-save-confirmed':'')} label={saving?'Guardando portfolio':'Guardar borrador'}><span key={saving?'saving':revision} className={success?'fp-save-feedback':''}>{idle&&<FPIcon name="check" size={16}/>}<span>{saving?'Guardando…':idle?'Guardado':'Guardar'}</span></span></FPButton>;
 };
 const FPShare=({url,title,onCopy})=>{
   const [open,setOpen]=React.useState(false),ref=React.useRef(null);
@@ -60,11 +60,12 @@ const FPShare=({url,title,onCopy})=>{
 const FPSegmented=({label,value,options,onChange})=><div className="fp-field" role="group" aria-label={label}><span>{label}</span><div className="fp-segmented">{options.map(([option,text,icon])=><button type="button" key={option} aria-label={icon?text:undefined} title={icon?text:undefined} aria-pressed={value===option} onClick={()=>onChange(option)}>{icon?<FPIcon name={icon} size={16}/>:text}</button>)}</div></div>;
 const FPInline=({as:Tag='span',value,placeholder,multiline=false,maxLength,onChange,onFocus,className=''})=>{
   const ref=React.useRef(null);
-  React.useLayoutEffect(()=>{const el=ref.current;if(el&&document.activeElement!==el&&el.textContent!==(value||''))el.textContent=value||'';},[value]);
+  const caretToEnd=el=>{if(document.activeElement!==el)return;const range=document.createRange();range.selectNodeContents(el);range.collapse(false);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);};
+  React.useLayoutEffect(()=>{const el=ref.current;if(!el||el.textContent===(value||''))return;el.textContent=value||'';caretToEnd(el);},[value]);
   return <Tag ref={ref} className={('fp-inline '+className).trim()} contentEditable="plaintext-only" suppressContentEditableWarning spellCheck aria-multiline={multiline} aria-placeholder={placeholder} data-placeholder={placeholder}
     onClick={e=>e.stopPropagation()} onFocus={onFocus}
-    onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'||(e.key==='Enter'&&!multiline)){e.preventDefault();e.currentTarget.blur();}}}
-    onInput={e=>{const el=e.currentTarget;let text=el.textContent;if(!multiline&&text.includes('\n'))text=text.replace(/\n/g,' ');if(maxLength&&text.length>maxLength)text=text.slice(0,maxLength);if(text!==el.textContent)el.textContent=text;onChange(text);}}/>;
+    onKeyDown={e=>{if(e.key==='Escape'||(e.key==='Enter'&&!multiline)){e.preventDefault();e.currentTarget.blur();}}}
+    onInput={e=>{const el=e.currentTarget;let text=el.textContent;if(!multiline&&text.includes('\n'))text=text.replace(/\n/g,' ');if(maxLength&&text.length>maxLength)text=text.slice(0,maxLength);if(text!==el.textContent){el.textContent=text;caretToEnd(el);}onChange(text);}}/>;
 };
 const FPInserter=({draft,onPick,onClose})=>{
   const ref=React.useRef(null),close=React.useRef(onClose);close.current=onClose;
@@ -118,17 +119,17 @@ const PortfolioLoadingScreen=({profileName,onExit})=><main className="fp-entry-l
 const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview=false,initialDraft,canPublish=true,profileName=''})=>{
   const key=localPreview?'frame_portfolio_v1_'+userId+'_'+legacyWorkspaceId:'frame_portfolio_v2_'+userId;
   const legacyKey='frame_portfolio_v1_'+userId+'_'+legacyWorkspaceId;
-  const pendingAtEntry=React.useRef(false);
+  const pendingAtEntry=React.useRef(false),baselineJSON=React.useRef(''),unsyncedAtEntry=React.useRef(false);
   const [draft,setDraft]=React.useState(()=>{
-    let pending=null,value=null;try{pending=JSON.parse(sessionStorage.getItem(key+'_pending'));}catch(_){}try{value=JSON.parse(localStorage.getItem(key));}catch(_){}
+    let pending=null,value=null;try{pending=JSON.parse(sessionStorage.getItem(key+'_pending'));}catch(_){}try{value=JSON.parse(localStorage.getItem(key));unsyncedAtEntry.current=!localPreview&&localStorage.getItem(key+'_unsynced')==='1';}catch(_){}
     if(FramePortfolio.valid(pending)){pendingAtEntry.current=!FramePortfolio.valid(value)||JSON.stringify(pending)!==JSON.stringify(value);return pending;}
-    if(FramePortfolio.valid(value))return value;
+    if(FramePortfolio.valid(value)){if(unsyncedAtEntry.current)pendingAtEntry.current=true;return value;}
     try{if(!localPreview){const legacy=JSON.parse(localStorage.getItem(legacyKey));if(FramePortfolio.valid(legacy))return legacy;}}catch(_){}
-    if(initialDraft&&FramePortfolio.valid(initialDraft))return initialDraft;
-    const fresh=FramePortfolio.create();if(profileName)fresh.title=profileName+' — Portfolio';return fresh;
+    if(initialDraft&&FramePortfolio.valid(initialDraft)){baselineJSON.current=JSON.stringify(initialDraft);return initialDraft;}
+    const fresh=FramePortfolio.create();if(profileName)fresh.title=profileName+' — Portfolio';baselineJSON.current=JSON.stringify(fresh);return fresh;
   });
   const draftRef=React.useRef(draft),past=React.useRef([]),future=React.useRef([]),group=React.useRef(null);
-  const [savedJSON,setSavedJSON]=React.useState(()=>{try{return localStorage.getItem(key)||'';}catch(_){return '';}});
+  const [savedJSON,setSavedJSON]=React.useState(()=>{try{return unsyncedAtEntry.current?'':localStorage.getItem(key)||baselineJSON.current;}catch(_){return baselineJSON.current;}});
   const saved=JSON.stringify(draft)===savedJSON;
   const [saveRevision,setSaveRevision]=React.useState(0),[saving,setSaving]=React.useState(false),[initializing,setInitializing]=React.useState(!localPreview);
   const [blocked,setBlocked]=React.useState(false),[error,setError]=React.useState(''),[notice,setNotice]=React.useState('');
@@ -180,7 +181,13 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   React.useEffect(()=>{if(itemId&&!item)setItemId(null);if(selected&&!section)setSelected(draft.sections[0]?.id);},[draft,itemId,selected]);
   React.useEffect(()=>{if(!initializing)requestAnimationFrame(()=>rootRef.current?.focus({preventScroll:true}));},[initializing]);
   React.useEffect(()=>{if(catalog)catalogRef.current.showModal();else catalogRef.current?.close();},[catalog]);
-  React.useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(timer);},[notice]);
+  React.useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),notice.undo?7000:4500);return()=>clearTimeout(timer);},[notice]);
+  // El menú ⋯ se cierra al tocar afuera o con Escape
+  React.useEffect(()=>{
+    const close=e=>{if(e.type==='keydown'&&e.key!=='Escape')return;rootRef.current?.querySelectorAll('details.fp-more[open]').forEach(menu=>{if(e.type==='keydown'||!menu.contains(e.target))menu.open=false;});};
+    document.addEventListener('mousedown',close);document.addEventListener('keydown',close);
+    return()=>{document.removeEventListener('mousedown',close);document.removeEventListener('keydown',close);};
+  },[]);
   React.useEffect(()=>{
     if(localPreview){try{const value=localStorage.getItem(key+'_published');setPublication({loading:false,published:!!value,contentHash:value?FramePortfolio.publicationHash(value):'',updatedAt:null,error:''});}catch(_){setPublication({loading:false,published:false,contentHash:'',updatedAt:null,error:''});}return;}
     if(!canPublish||!window.db||!userId){setPublication({loading:false,published:false,contentHash:'',updatedAt:null,error:''});return;}
@@ -212,32 +219,35 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   const travel=dir=>{
     const source=dir==='undo'?past:future,target=dir==='undo'?future:past;if(!source.current.length||busy)return;
     const next=source.current.pop();target.current=[...target.current,draftRef.current].slice(-30);group.current=null;
-    draftRef.current=next;setDraft(next);setNotice(dir==='undo'?'Cambio deshecho':'Cambio recuperado');
+    draftRef.current=next;setDraft(next);setNotice('');
   };
   const save=async()=>{
     if(blocked||busy||saving)return;
+    if(saved){setSaveRevision(n=>n+1);return;}
     if(!FramePortfolio.valid(draftRef.current)){setError('Revisá los enlaces y precios antes de guardar. Tu borrador sigue aquí.');return;}
-    setSaving(true);setError('');const json=JSON.stringify(draftRef.current);
-    try {localStorage.setItem(key,json);}
+    setSaving(true);setError('');group.current=null;const json=JSON.stringify(draftRef.current);
+    try {localStorage.setItem(key,json);if(!localPreview)localStorage.setItem(key+'_unsynced','1');}
     catch(_){setSaveRevision(0);setError('No se pudo crear la copia local. Exportá un respaldo para conservar tu trabajo.');setSaving(false);return;}
-    if(localPreview){sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);setNotice('Portfolio guardado en este dispositivo');setSaving(false);return;}
+    if(localPreview){sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);setSaving(false);return;}
     try{
       if(!window.db||!userId)throw new Error('offline');
       const prepared=FramePortfolio.encodeDraft(draftRef.current),version=crypto.randomUUID().replaceAll('-',''),batch=window.db.batch(),root=window.db.collection('frame_portfolio_drafts').doc(userId);
       prepared.payloads.forEach((payload,index)=>batch.set(root.collection('chunks').doc(String(index).padStart(2,'0')),{ownerId:userId,index,version,payload}));
       for(let index=prepared.payloads.length;index<FramePortfolio.PUBLIC_MAX_CHUNKS;index++)batch.delete(root.collection('chunks').doc(String(index).padStart(2,'0')));
       batch.set(root,{ownerId:userId,title:prepared.draft.title||'Portfolio',chunkCount:prepared.payloads.length,version,contentHash:prepared.hash,schemaVersion:1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-      await batch.commit();sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);setNotice('Portfolio guardado en tu cuenta');
+      await batch.commit();try{localStorage.removeItem(key+'_unsynced');}catch(_){}sessionStorage.removeItem(key+'_pending');setSavedJSON(json);setSaveRevision(n=>n+1);
     }catch(err){setSaveRevision(0);setError(err?.code==='permission-denied'?'Firebase todavía no permite guardar el portfolio en tu cuenta. Conservamos una copia local y los cambios pendientes.':'No se pudo sincronizar con tu cuenta. Conservamos una copia local para reintentar.');}
     finally{setSaving(false);}
   };
   React.useEffect(()=>{
     const warn=e=>{if(!saved){e.preventDefault();e.returnValue='';}};
     const keyboard=e=>{
-      if(!(e.ctrlKey||e.metaKey)||!rootRef.current?.contains(document.activeElement))return;
-      if(e.key.toLowerCase()==='s'){e.preventDefault();save();}
-      if(e.target.closest('input,textarea,[contenteditable="true"]'))return;
-      if(e.key.toLowerCase()==='z'){e.preventDefault();travel(e.shiftKey?'redo':'undo');}
+      const active=document.activeElement;
+      if(!(e.ctrlKey||e.metaKey)||e.altKey||(active&&active!==document.body&&!rootRef.current?.contains(active)))return;
+      const k=e.key.toLowerCase();
+      if(k==='s'){e.preventDefault();save();return;}
+      if(e.target.closest?.('input,textarea,select'))return;
+      if(k==='z'||k==='y'){e.preventDefault();travel(k==='y'||e.shiftKey?'redo':'undo');}
     };
     window.addEventListener('beforeunload',warn);window.addEventListener('keydown',keyboard);
     return()=>{window.removeEventListener('beforeunload',warn);window.removeEventListener('keydown',keyboard);};
@@ -248,10 +258,11 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   };
   const importDraft=async e=>{
     const file=e.target.files?.[0];e.target.value='';if(!file)return;
-    try {if(file.size>3000000)throw new Error('El respaldo supera 3 MB.');const value=JSON.parse(await file.text());
-      if(!FramePortfolio.valid(value))throw new Error('El respaldo contiene campos no compatibles.');
+    try {if(file.size>3000000)throw new Error('El respaldo supera 3 MB.');let value;
+      try{value=JSON.parse(await file.text());}catch(_){throw new Error('Ese archivo no es un respaldo de FRAME Portfolio.');}
+      if(!FramePortfolio.valid(value))throw new Error('El respaldo no es compatible con esta versión del portfolio.');
       const original=localStorage.getItem(key);if(original)localStorage.setItem(key+'_recovery',original);
-      uploadToken.current++;edit(()=>value);choose(value.sections[0]?.id);setBlocked(false);setError('');setNotice('Respaldo importado');
+      uploadToken.current++;edit(()=>value);setSelected(value.sections[0]?.id);setItemId(null);setBlocked(false);setError('');setNotice({text:'Respaldo importado',undo:true});
     }catch(err){setError(err.message);}
   };
   const publishTest=()=>{
@@ -313,8 +324,8 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
     setNotice('Copia agregada');
   };
   const remove=()=>{
-    if(item){updateContent({items:section.content.items.filter(i=>i.id!==itemId)});setItemId(null);setNotice('Bloque quitado');}
-    else if(section){edit(d=>({...d,sections:d.sections.filter(s=>s.id!==selected)}));setItemId(null);setSelected(draftRef.current.sections[0]?.id);setNotice('Sección quitada');}
+    if(item){updateContent({items:section.content.items.filter(i=>i.id!==itemId)});setItemId(null);setNotice({text:'Bloque quitado',undo:true});}
+    else if(section){edit(d=>({...d,sections:d.sections.filter(s=>s.id!==selected)}));setItemId(null);setSelected(draftRef.current.sections[0]?.id);setNotice({text:'Sección quitada',undo:true});}
   };
   const nudge=(e,sid,bid)=>{
     const offset={ArrowUp:-1,ArrowDown:1}[e.key];if(!offset)return;e.preventDefault();
@@ -395,13 +406,12 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
       <div className="fp-brand-group">{onExit?<FPButton icon="back" label="Volver a FRAME" onClick={onExit}/>:<span className="fp-mark"><FPIcon name="layout" size={22}/></span>}<div><span className="fp-brand">FRAME <span>Portfolio</span></span><span className="fp-document-name">{draft.title||'Sin título'}</span></div><span className={'fp-badge'+(publicationCurrent?' is-live':'')}>{publication.published?(publicationCurrent?'Publicado':'Cambios sin publicar'):'Borrador'}</span></div>
       <div className="fp-devices" aria-label="Tamaño de vista previa"><FPButton icon="desktop" label="Escritorio" aria-pressed={device==='desktop'} onClick={()=>setDevice('desktop')}/><FPButton icon="phone" label="Móvil" aria-pressed={device==='mobile'} onClick={()=>setDevice('mobile')}/></div>
       <div className="fp-top-actions">
-        <span className="fp-save-status" role="status">{saved?<><FPIcon name="check" size={14}/>Guardado</>:'Sin guardar'}</span>
         <div className="fp-history"><FPButton icon="undo" label="Deshacer" disabled={!past.current.length||busy} onClick={()=>travel('undo')}/><FPButton icon="redo" label="Rehacer" disabled={!future.current.length||busy} onClick={()=>travel('redo')}/></div>
         <FPButton icon={preview?'layout':'eye'} label={preview?'Volver al editor':'Vista previa'} aria-pressed={preview} onClick={()=>{setPreview(!preview);setPane('preview');}}><span className="fp-preview-word">{preview?'Editar':'Vista previa'}</span></FPButton>
-        <FPSaveButton revision={saveRevision} saved={saved} saving={saving} onClick={save} disabled={blocked||busy||saving}/>
+        <FPSaveButton revision={saveRevision} saved={saved} saving={saving} onClick={save} disabled={blocked||busy||saving||saved}/>
         {publication.published&&<FPShare url={publicUrl} title={draft.title||'Portfolio'} onCopy={copyPublicUrl}/>}
         <FPButton icon={publicationCurrent?'check':'upload'} className={'fp-publish-button'+(publicationCurrent?' fp-published':'')} disabled={publication.loading||publishing||publicationCurrent||blocked||!currentHash||(!canPublish&&!localPreview)} onClick={publishRemote}>{publication.loading?'Consultando…':publishing?'Publicando…':publication.published?(publicationCurrent?'Publicado':'Actualizar'):'Publicar'}</FPButton>
-        <details className="fp-more" onToggle={e=>{if(!e.currentTarget.open)setConfirmUnpublish(false);}}><summary aria-label="Más opciones" title="Más opciones"><FPIcon name="more"/></summary><div><button className="fp-mobile-history" disabled={!past.current.length||busy} onClick={()=>travel('undo')}>Deshacer cambio</button><button className="fp-mobile-history" disabled={!future.current.length||busy} onClick={()=>travel('redo')}>Rehacer cambio</button><button onClick={exportDraft}>Exportar respaldo</button><button onClick={()=>importRef.current.click()}>Importar respaldo</button>{publication.published&&(confirmUnpublish?<div className="fp-more-confirm"><span>¿Retirar la página pública?</span><div><button onClick={()=>setConfirmUnpublish(false)}>Cancelar</button><button className="fp-danger" disabled={publishing} onClick={async e=>{const menu=e.currentTarget.closest('details');await unpublish();setConfirmUnpublish(false);if(menu)menu.open=false;}}>Retirar</button></div></div>:<button className="fp-danger" onClick={()=>setConfirmUnpublish(true)}>Retirar página</button>)}</div></details>
+        <details className="fp-more" onToggle={e=>{if(!e.currentTarget.open)setConfirmUnpublish(false);}}><summary aria-label="Más opciones" title="Más opciones"><FPIcon name="more"/></summary><div><button className="fp-mobile-history" disabled={!past.current.length||busy} onClick={()=>travel('undo')}>Deshacer cambio</button><button className="fp-mobile-history" disabled={!future.current.length||busy} onClick={()=>travel('redo')}>Rehacer cambio</button><button onClick={e=>{e.currentTarget.closest('details').open=false;exportDraft();}}>Exportar respaldo</button><button onClick={e=>{e.currentTarget.closest('details').open=false;importRef.current.click();}}>Importar respaldo</button>{publication.published&&(confirmUnpublish?<div className="fp-more-confirm"><span>¿Retirar la página pública?</span><div><button onClick={()=>setConfirmUnpublish(false)}>Cancelar</button><button className="fp-danger" disabled={publishing} onClick={async e=>{const menu=e.currentTarget.closest('details');await unpublish();setConfirmUnpublish(false);if(menu)menu.open=false;}}>Retirar</button></div></div>:<button className="fp-danger" onClick={()=>setConfirmUnpublish(true)}>Retirar página</button>)}</div></details>
       </div>
     </header>
     <input hidden type="file" accept=".json,application/json" ref={importRef} onChange={importDraft}/>
@@ -484,7 +494,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
       </aside>
     </div>
     {!preview&&<nav className="fp-mobile-nav" aria-label="Paneles del editor">{[['sections','layout','Secciones'],['preview','eye','Página'],['properties','settings','Ajustes']].map(([id,icon,label])=><button key={id} aria-pressed={pane===id} onClick={()=>setPane(id)}><FPIcon name={icon}/>{label}</button>)}</nav>}
-    {notice&&<div className="fp-toast" role="status"><FPIcon name="check" size={16}/>{notice}</div>}
+    {notice&&<div className="fp-toast" role="status"><FPIcon name="check" size={16}/>{notice.text||notice}{notice.undo&&<button type="button" className="fp-toast-action" aria-label="Deshacer último cambio" onClick={()=>travel('undo')}>Deshacer</button>}</div>}
     <dialog className="fp-catalog" ref={catalogRef} aria-labelledby="fp-catalog-title" onCancel={()=>setCatalog(false)} onClose={()=>setCatalog(false)}>
       <header><div><h2 id="fp-catalog-title">Agregar sección</h2></div><FPButton icon="close" label="Cerrar catálogo" onClick={()=>setCatalog(false)}/></header>
       <div className="fp-catalog-body"><div className="fp-catalog-list"><label className="fp-search"><FPIcon name="search" size={16}/><input aria-label="Buscar módulos" autoFocus value={query} placeholder="Buscar una sección" onChange={e=>setQuery(e.target.value)}/></label>{filtered.map(m=><button key={m.type} aria-pressed={moduleType===m.type} onClick={()=>{setModuleType(m.type);setVariant(m.variants[0]);}}><FPIcon name={FP_META[m.type][0]}/>{m.label}<FPIcon name="back" size={14}/></button>)}{!filtered.length&&<p className="fp-help">No hay secciones con ese nombre.</p>}</div>

@@ -17,11 +17,12 @@ function createServer(){
         const params=new URLSearchParams(location.search);
         const accountMode=params.has('account');
         if(accountMode){
-          const records=new Map(),writes=[];
-          const makeDoc=path=>({path,get:async()=>({exists:records.has(path),data:()=>records.get(path)}),collection:name=>makeCollection(path+'/'+name),onSnapshot:(next)=>{next({exists:records.has(path),data:()=>records.get(path)});return()=>{};},update:async patch=>records.set(path,{...(records.get(path)||{}),...patch})});
+          const records=new Map(params.has('persist')?JSON.parse(localStorage.getItem('__frameRecords')||'[]'):[]),writes=[];
+          const persist=()=>{if(params.has('persist'))localStorage.setItem('__frameRecords',JSON.stringify([...records]));};
+          const makeDoc=path=>({path,get:async()=>({exists:records.has(path),data:()=>records.get(path)}),collection:name=>makeCollection(path+'/'+name),onSnapshot:(next)=>{next({exists:records.has(path),data:()=>records.get(path)});return()=>{};},update:async patch=>{records.set(path,{...(records.get(path)||{}),...patch});persist();}});
           const makeCollection=path=>({doc:id=>makeDoc(path+'/'+id)});
           window.__frameRecords=records;
-          window.db={collection:makeCollection,batch:()=>({set:(ref,data)=>writes.push(['set',ref.path,data]),delete:ref=>writes.push(['delete',ref.path]),commit:async()=>{writes.splice(0).forEach(([kind,path,data])=>kind==='set'?records.set(path,data):records.delete(path));}})};
+          window.db={collection:makeCollection,batch:()=>({set:(ref,data)=>writes.push(['set',ref.path,data]),delete:ref=>writes.push(['delete',ref.path]),commit:async()=>{writes.splice(0).forEach(([kind,path,data])=>kind==='set'?records.set(path,data):records.delete(path));persist();}})};
           window.firebase={firestore:{FieldValue:{serverTimestamp:()=>({seconds:1})}}};
           window.functions={httpsCallable:()=>async()=>({data:{assetId:'a'.repeat(32),path:'frame-portfolios/account-user/'+'a'.repeat(32)}})};
         }

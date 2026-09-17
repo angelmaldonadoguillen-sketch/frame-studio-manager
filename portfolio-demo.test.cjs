@@ -12,6 +12,9 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
   await page.goto(origin+'/?demo=full');
   assert.equal(await page.locator('.fp-site-section').count(),11);
   const save=page.getByRole('button',{name:'Guardar borrador',exact:true});
+  assert.equal(await save.isDisabled(),true,'abrir sin cambios no deja nada pendiente');
+  const rename=async title=>{await page.getByRole('button',{name:'Tema',exact:true}).click();await page.getByLabel('Nombre del portfolio',{exact:true}).fill(title);};
+  await rename('Demo 1');
   await save.click();await page.waitForFunction(()=>document.querySelector('.fp-save-confirmed'));
   assert.equal(await save.innerText(),'Guardado');
   const draft=await page.evaluate(()=>JSON.parse(localStorage.getItem('frame_portfolio_v1_demo-full_local')));
@@ -20,10 +23,10 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
   assert.ok(draft.sections.find(s=>s.type==='prices').content.items.some(i=>i.featured));
   assert.ok(draft.colors.accent);
   await page.screenshot({path:'test-results/portfolio-demo-save.png'});
-  await page.emulateMedia({reducedMotion:'reduce'});await save.click();
+  await page.emulateMedia({reducedMotion:'reduce'});await rename('Demo 2');await save.click();
   assert.equal(await page.locator('.fp-save-feedback').evaluate(e=>getComputedStyle(e).animationName),'none');
   await page.evaluate(()=>{Storage.prototype.setItem=function(){throw new DOMException('Quota','QuotaExceededError');};});
-  await save.click();await page.waitForFunction(()=>!document.querySelector('.fp-save-confirmed'));
+  await rename('Demo 3');await save.click();await page.waitForFunction(()=>!document.querySelector('.fp-save-confirmed'));
   assert.ok(await page.getByText('No se pudo crear la copia local.',{exact:false}).isVisible());
   await page.reload();assert.equal(await page.locator('.fp-site-section').count(),11);
   await page.getByRole('button',{name:'Vista previa',exact:true}).click();

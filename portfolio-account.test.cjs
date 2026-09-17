@@ -15,6 +15,9 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     await page.locator('.fp-editor').waitFor();
     await page.screenshot({path:'test-results/portfolio-account-beta.png',fullPage:true});
     assert.equal(await page.locator('.fp-document-name').innerText(),'Ana Creativa — Portfolio');
+    assert.equal(await page.getByRole('button',{name:'Guardar borrador'}).isDisabled(),true);
+    await page.getByRole('button',{name:'Tema',exact:true}).click();
+    await page.getByLabel('Nombre del portfolio',{exact:true}).fill('Ana Creativa — Portfolio 2026');
     await page.getByRole('button',{name:'Guardar borrador'}).click();
     await page.waitForFunction(()=>window.__frameRecords.has('frame_portfolio_drafts/account-user'));
     const root=await page.evaluate(()=>window.__frameRecords.get('frame_portfolio_drafts/account-user'));
