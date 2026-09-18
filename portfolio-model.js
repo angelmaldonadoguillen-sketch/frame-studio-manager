@@ -75,6 +75,7 @@
   const validDesign = design => design===undefined || (!!design && typeof design==='object' && !Array.isArray(design) &&
     ['left','center','right'].includes(design.align) && ['compact','normal','airy'].includes(design.spacing) &&
     (design.tone===undefined || ['none','soft','contrast'].includes(design.tone)) &&
+    (design.size===undefined || ['small','medium','large'].includes(design.size)) &&
     (design.columns===undefined || [1,2,3,4].includes(design.columns)) &&
     (design.imageRatio===undefined || ['original','wide','landscape','square','social','portrait','story'].includes(design.imageRatio)) &&
     (design.imageRadius===undefined || [0,8,16].includes(design.imageRadius)) &&
@@ -172,6 +173,8 @@
   };
   const designControls = (type, variant) => ({
     align: type!=='navigation',
+    // La navegación y el pie son barras de la página: siguen su ancho siempre.
+    size: !['navigation','footer'].includes(type),
     columns: (['gallery','services','prices'].includes(type) && !['carousel','list','table'].includes(variant)) || (type==='footer' && variant==='columns'),
     radius: ['gallery','hero','image-text','video'].includes(type) || (type==='services') || (type==='prices' && variant!=='list') || (type==='contact' && variant==='banner'),
     radiusDefault: ((type==='services' && variant==='cards') || (type==='prices' && variant!=='list') || type==='contact') ? 8 : 0,

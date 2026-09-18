@@ -16,6 +16,23 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     const design=async index=>{await page.locator('.fp-tree-select').nth(index).click();await page.getByRole('button',{name:'Diseño',exact:true}).click();};
     const pressed=group=>page.getByRole('group',{name:group}).locator('[aria-pressed="true"]');
 
+    // Tamaño: la galería ocupa menos o más lugar, y sus piezas acompañan
+    await design(1);
+    const galeria=()=>page.locator('.fp-site-gallery').evaluate(section=>{
+      const item=section.querySelector('.fp-site-item');
+      return {ancho:Math.round(section.getBoundingClientRect().width),margen:Math.round(parseFloat(getComputedStyle(section).paddingLeft)),pieza:Math.round(item.getBoundingClientRect().width)};
+    });
+    assert.equal(await pressed('Tamaño').innerText(),'Mediano','la galería arranca en Mediano');
+    const mediano=await galeria();
+    await page.getByRole('group',{name:'Tamaño'}).getByRole('button',{name:'Pequeño',exact:true}).click();
+    const pequeno=await galeria();
+    assert.ok(pequeno.ancho<mediano.ancho&&pequeno.pieza<mediano.pieza,'Pequeño achica la galería: '+JSON.stringify(pequeno));
+    await page.getByRole('group',{name:'Tamaño'}).getByRole('button',{name:'Grande',exact:true}).click();
+    const grande=await galeria();
+    assert.ok(grande.pieza>mediano.pieza&&grande.margen<mediano.margen,'Grande la lleva casi al borde: '+JSON.stringify(grande));
+    await page.getByRole('group',{name:'Tamaño'}).getByRole('button',{name:'Mediano',exact:true}).click();
+    assert.deepEqual(await galeria(),mediano,'volver a Mediano la deja como estaba');
+
     // Portada sin tocar: «Normal» es su espacio de siempre; tocar la alineación no lo cambia
     await design(0);
     const hero=await pad('.fp-site-hero');

@@ -37,6 +37,7 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
           const controls=FramePortfolio.designControls(module.type,variant);
           const offered=[['tone',['none','soft','contrast']],['spacing',['compact','normal','airy']]];
           if(controls.align)offered.push(['align',['left','center','right']]);
+          if(controls.size)offered.push(['size',['small','medium','large']]);
           if(controls.columns)offered.push(['columns',[1,2,3,4]]);
           if(controls.radius)offered.push(['imageRadius',[0,8,16]]);
           if(controls.ratio)offered.push(['imageRatio',['original','wide','landscape','square','social','portrait','story']]);
@@ -58,6 +59,8 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     // 2 · Coherencia de lo que ofrece el panel
     const controls=await page.evaluate(()=>({nav:FramePortfolio.designControls('navigation','left'),table:FramePortfolio.designControls('prices','table'),video:FramePortfolio.designControls('video','wide'),footer:FramePortfolio.designControls('footer','columns'),banner:FramePortfolio.designControls('contact','banner')}));
     assert.equal(controls.nav.align,false,'la navegación se alinea con su composición');
+    assert.equal(controls.nav.size||controls.footer.size,false,'las barras de la página siguen su ancho');
+    assert.equal(controls.video.size&&controls.table.size&&controls.banner.size,true,'el resto de las secciones eligen tamaño');
     assert.equal(controls.table.columns,false,'la comparación pone un plan por columna');
     assert.equal(controls.video.radius&&controls.video.motion,true,'el video tiene esquinas y animación como los demás');
     assert.equal(controls.footer.columns,true);
@@ -65,6 +68,7 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     await page.locator('.fp-tree-select').nth(0).click();await page.getByRole('button',{name:'Diseño',exact:true}).click();
     assert.equal(await page.getByRole('group',{name:'Alineación'}).count(),0);
     assert.equal(await page.getByRole('group',{name:'Fondo'}).count(),1);
+    assert.equal(await page.getByRole('group',{name:'Tamaño'}).count(),0,'la navegación no elige tamaño');
 
     // 3 · Miniaturas: cada módulo con su propia silueta
     await page.getByRole('button',{name:'Agregar sección',exact:true}).first().click();

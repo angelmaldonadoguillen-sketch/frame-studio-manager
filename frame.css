@@ -748,6 +748,12 @@
 .fp-site-logo { display:block; width:min(var(--fp-logo-desktop,140px),70%); max-height:96px; object-fit:contain; object-position:left center; }
 @container (max-width:500px) { .fp-site-logo { width:min(var(--fp-logo-mobile,104px),68%); max-height:72px; } }
 .fp-site-section { width:100%; max-width:var(--fp-page-width,1200px); margin-inline:auto; padding:calc(var(--fp-section-y,40px) * var(--fp-space,1)) var(--fp-page-gutter); }
+/* Tamaño de la sección: cuánto lugar ocupan sus piezas. Mediano es el ancho
+   de la página; Pequeño deja aire a los lados; Grande llega casi al borde.
+   No cambia cuántas columnas hay ni qué proporción tienen las imágenes: sólo
+   el ancho del bloque, así los controles no se pisan entre sí. */
+.fp-site-section[data-size="small"] { max-width:calc(var(--fp-page-width,1200px) * .66); --fp-slide-max:560px; }
+.fp-site-section[data-size="large"] { max-width:none; --fp-page-gutter:clamp(16px,2.4cqi,40px); --fp-slide-max:1000px; }
 .fp-site-section[data-tone] { background:var(--fp-tone-bg); box-shadow:0 0 0 100vmax var(--fp-tone-bg); clip-path:inset(0 -100vmax); }
 .fp-site-section[data-tone="soft"] { --fp-tone-bg:var(--fp-site-surface,#ffffff); --fp-card-bg:var(--fp-site-background,#fafafa); }
 .fp-site-section[data-tone="contrast"] { --fp-tone-bg:var(--fp-site-text,#20242a); --fp-card-bg:transparent; --fp-site-accent:currentColor; color:var(--fp-site-background,#fafafa); }
@@ -808,7 +814,7 @@
 .fp-variant-mosaic .fp-site-item:first-child { grid-column:1 / -1; }
 .fp-variant-mosaic .fp-site-item:first-child img { aspect-ratio:var(--fp-image-ratio,21/9); }
 .fp-variant-carousel .fp-site-items { display:flex; overflow-x:auto; overscroll-behavior-inline:contain; scroll-snap-type:x mandatory; scroll-padding-inline:2px; padding:2px 2px 16px; }
-.fp-variant-carousel .fp-site-item { flex:0 0 min(75%,760px); scroll-snap-align:start; }
+.fp-variant-carousel .fp-site-item { flex:0 0 min(75%,var(--fp-slide-max,760px)); scroll-snap-align:start; }
 .fp-carousel-nav { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
 .fp-site-section[data-align="center"] .fp-carousel-nav { justify-content:center; }
 .fp-site-section[data-align="left"] .fp-carousel-nav { justify-content:flex-start; }
