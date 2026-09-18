@@ -30,7 +30,8 @@ function createServer(){
           const source=(params.get('source')||'test_local').replace(/[^A-Za-z0-9_-]/g,'');
           let draft=null;try{draft=JSON.parse(localStorage.getItem('frame_portfolio_v1_'+source+'_published'));}catch(_){}
           const leadingNavigation=draft?.sections[0]?.type==='navigation'?draft.sections[0]:null;
-          ReactDOM.createRoot(document.getElementById('root')).render(draft&&FramePortfolio.valid(draft)?<div style={{height:'100dvh',overflow:'auto'}}><PortfolioFontLoader draft={draft}/><p>Copia publicada de prueba · solo este navegador</p><div className="frame-portfolio-page" style={FramePortfolio.pageStyle(draft)}>{leadingNavigation?null:<PortfolioBrand draft={draft}/>} {draft.sections.map(s=><PortfolioModule key={s.id} section={s} brandDraft={s.id===leadingNavigation?.id?draft:null} loadingMode={draft.loadingMode||'progressive'}/>)}</div></div>:<p>No hay una copia publicada de prueba.</p>);
+          document.documentElement.classList.add('fp-public-route');
+          ReactDOM.createRoot(document.getElementById('root')).render(draft&&FramePortfolio.valid(draft)?<main className="fp-public-shell" style={FramePortfolio.pageStyle(draft)}><PortfolioFontLoader draft={draft}/><div className="frame-portfolio-page" style={FramePortfolio.pageStyle(draft)}>{leadingNavigation?null:<PortfolioBrand draft={draft}/>} {draft.sections.map(s=><PortfolioModule key={s.id} section={s} brandDraft={s.id===leadingNavigation?.id?draft:null} loadingMode={draft.loadingMode||'progressive'}/>)}</div></main>:<p>No hay una copia publicada de prueba.</p>);
         }else {
           let example;
           if(params.has('demo')) {

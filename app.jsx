@@ -3169,4 +3169,6 @@ const App = () => {
 
 const portalToken = new URLSearchParams(window.location.search).get('portal');
 const publishedPortfolioId = new URLSearchParams(window.location.search).get('portfolio');
+// La página publicada se desplaza con la ventana, no por dentro como la app.
+if (publishedPortfolioId) document.documentElement.classList.add('fp-public-route');
 ReactDOM.createRoot(document.getElementById('root')).render(publishedPortfolioId ? <PublishedPortfolioPage publicationId={publishedPortfolioId} /> : portalToken ? <ClientPortal token={portalToken} /> : <App />);

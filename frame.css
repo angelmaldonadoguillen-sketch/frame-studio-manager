@@ -120,6 +120,15 @@
   }
   html, body, #root { height: 100%; }
 
+  /* La app ocupa la ventana exacta y hace su scroll por dentro (el tablero
+     se desplaza solo, el modal se desplaza solo). Una página publicada es lo
+     contrario: un documento largo que tiene que desplazarse con la ventana.
+     Sin esta excepción la página se cortaba en la primera pantalla.
+     app.jsx marca la ruta al arrancar. */
+  .fp-public-route,
+  .fp-public-route body,
+  .fp-public-route #root { height: auto; min-height: 100%; overflow: visible; }
+
   /* ── Movimiento reducido ──────────────────────────────────────
      Quien lo activa en su sistema suele hacerlo porque el movimiento le
      produce mareo o le dificulta seguir la pantalla. Se anula todo, no se

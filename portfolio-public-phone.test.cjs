@@ -51,6 +51,14 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
         return {problems:[...new Set(problems)],viewport,carouselItems,scrolls:track.scrollWidth>track.clientWidth,bannerLeft:banner.left,bannerRight:viewport-banner.right,linkGap:links[1].top-links[0].bottom};
       });
       assert.deepEqual(report.problems,[],width+'px');
+      // Lo primero de todo: la página tiene que desplazarse con el dedo. Se
+      // prueba con la rueda y no con window.scrollTo, porque con overflow:hidden
+      // el scroll por código igual funciona y taparía el problema.
+      await phone.mouse.wheel(0,900);await phone.waitForTimeout(150);
+      const desplazamiento=await phone.evaluate(()=>{const doc=document.documentElement;return {y:window.scrollY,alto:doc.scrollHeight,ventana:doc.clientHeight,overflow:getComputedStyle(document.body).overflow};});
+      assert.ok(desplazamiento.alto>desplazamiento.ventana,width+'px: la página no es más alta que la ventana');
+      assert.ok(desplazamiento.y>0,width+'px: la página publicada no hace scroll (body overflow: '+desplazamiento.overflow+')');
+      await phone.evaluate(()=>window.scrollTo(0,0));await phone.waitForTimeout(100);
       // Carrusel: tarjetas grandes que se deslizan, no cuatro columnas apretadas
       report.carouselItems.forEach(itemWidth=>assert.ok(itemWidth>=report.viewport*.7,width+'px: tarjeta del carrusel de '+Math.round(itemWidth)+'px'));
       assert.equal(report.scrolls,true);
@@ -63,6 +71,11 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
 
     // En computadora el carrusel también desliza (antes las tarjetas se encogían)
     const desktop=await context.newPage();await desktop.goto(url);await desktop.locator('.fp-variant-carousel .fp-site-item').first().waitFor();
+    // Y con el teclado se llega hasta el final de la página
+    for(let intento=0;intento<4;intento++){await desktop.keyboard.press('End');await desktop.waitForTimeout(250);}
+    const hastaElFinal=await desktop.evaluate(()=>{const doc=document.documentElement;return {y:Math.round(window.scrollY),tope:Math.round(doc.scrollHeight-doc.clientHeight)};});
+    assert.ok(hastaElFinal.y>0&&hastaElFinal.y>=hastaElFinal.tope-2,'en computadora no se llega al final: '+hastaElFinal.y+' de '+hastaElFinal.tope);
+    await desktop.evaluate(()=>window.scrollTo(0,0));await desktop.waitForTimeout(100);
     const trackWidth=await desktop.locator('.fp-variant-carousel .fp-site-items').evaluate(e=>e.clientWidth);
     assert.ok(await desktop.locator('.fp-variant-carousel .fp-site-item').first().evaluate(e=>e.getBoundingClientRect().width)>=trackWidth*.7);
 

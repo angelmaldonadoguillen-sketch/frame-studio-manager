@@ -8,8 +8,12 @@ const functions = fs.readFileSync('functions/index.js', 'utf8');
 const firestore = fs.readFileSync('firestore.rules.v2', 'utf8');
 const storage = fs.readFileSync('storage.rules', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
+const css = fs.readFileSync('frame.css', 'utf8');
 
 assert.match(app, /label="Mi portfolio"/);
+// La página publicada se desplaza con la ventana; la app, por dentro.
+assert.ok(app.includes("classList.add('fp-public-route')"), 'app.jsx no marca la ruta de la página publicada');
+assert.ok(css.includes('.fp-public-route #root { height: auto'), 'frame.css no le devuelve el scroll a la página publicada');
 assert.match(app, /key=\{state\.currentUserId\}/);
 assert.match(editor, /frame_portfolio_v2_'\+userId/);
 assert.match(editor, /frame_portfolio_drafts/);
