@@ -16,20 +16,26 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     const design=async index=>{await page.locator('.fp-tree-select').nth(index).click();await page.getByRole('button',{name:'Diseño',exact:true}).click();};
     const pressed=group=>page.getByRole('group',{name:group}).locator('[aria-pressed="true"]');
 
-    // Tamaño: la galería ocupa menos o más lugar, y sus piezas acompañan
+    // Tamaño: cambian las piezas, no el lugar de la sección
     await design(1);
     const galeria=()=>page.locator('.fp-site-gallery').evaluate(section=>{
-      const item=section.querySelector('.fp-site-item');
-      return {ancho:Math.round(section.getBoundingClientRect().width),margen:Math.round(parseFloat(getComputedStyle(section).paddingLeft)),pieza:Math.round(item.getBoundingClientRect().width)};
+      const izquierda=e=>Math.round(e.getBoundingClientRect().left);
+      return {titulo:izquierda(section.querySelector('h2')),pieza:Math.round(section.querySelector('.fp-site-item').getBoundingClientRect().width),bloque:izquierda(section.querySelector('.fp-site-items'))};
     });
+    const rail=await page.locator('.fp-site-brand').evaluate(e=>Math.round(e.getBoundingClientRect().left+parseFloat(getComputedStyle(e).paddingLeft)));
     assert.equal(await pressed('Tamaño').innerText(),'Mediano','la galería arranca en Mediano');
     const mediano=await galeria();
+    assert.equal(mediano.titulo,rail,'la galería arranca donde arranca la portada');
     await page.getByRole('group',{name:'Tamaño'}).getByRole('button',{name:'Pequeño',exact:true}).click();
     const pequeno=await galeria();
-    assert.ok(pequeno.ancho<mediano.ancho&&pequeno.pieza<mediano.pieza,'Pequeño achica la galería: '+JSON.stringify(pequeno));
+    assert.ok(pequeno.pieza<mediano.pieza,'Pequeño achica las piezas: '+JSON.stringify(pequeno));
+    assert.equal(pequeno.titulo,rail,'y no corre el título de lugar');
+    assert.equal(pequeno.bloque,mediano.bloque,'las piezas siguen empezando en la misma línea');
     await page.getByRole('group',{name:'Tamaño'}).getByRole('button',{name:'Grande',exact:true}).click();
     const grande=await galeria();
-    assert.ok(grande.pieza>mediano.pieza&&grande.margen<mediano.margen,'Grande la lleva casi al borde: '+JSON.stringify(grande));
+    assert.ok(grande.pieza>mediano.pieza,'Grande las agranda: '+JSON.stringify(grande));
+    assert.equal(grande.titulo,rail,'el título sigue en su lugar');
+    assert.ok(grande.bloque<mediano.bloque,'y las piezas se estiran hacia el borde');
     await page.getByRole('group',{name:'Tamaño'}).getByRole('button',{name:'Mediano',exact:true}).click();
     assert.deepEqual(await galeria(),mediano,'volver a Mediano la deja como estaba');
 

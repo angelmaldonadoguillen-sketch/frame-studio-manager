@@ -748,12 +748,24 @@
 .fp-site-logo { display:block; width:min(var(--fp-logo-desktop,140px),70%); max-height:96px; object-fit:contain; object-position:left center; }
 @container (max-width:500px) { .fp-site-logo { width:min(var(--fp-logo-mobile,104px),68%); max-height:72px; } }
 .fp-site-section { width:100%; max-width:var(--fp-page-width,1200px); margin-inline:auto; padding:calc(var(--fp-section-y,40px) * var(--fp-space,1)) var(--fp-page-gutter); }
-/* Tamaño de la sección: cuánto lugar ocupan sus piezas. Mediano es el ancho
-   de la página; Pequeño deja aire a los lados; Grande llega casi al borde.
-   No cambia cuántas columnas hay ni qué proporción tienen las imágenes: sólo
-   el ancho del bloque, así los controles no se pisan entre sí. */
-.fp-site-section[data-size="small"] { max-width:calc(var(--fp-page-width,1200px) * .66); --fp-slide-max:560px; }
-.fp-site-section[data-size="large"] { max-width:none; --fp-page-gutter:clamp(16px,2.4cqi,40px); --fp-slide-max:1000px; }
+/* Tamaño: cuánto lugar ocupan las piezas dentro de la sección.
+
+   La sección no cambia de ancho ni de margen: el título y el texto siguen
+   apoyados en la misma línea que el encabezado y que el resto de la página.
+   Achicar una galería la vuelve más chica, no la corre de lugar —cuando sí la
+   corría, la página entera parecía desalineada—. Lo que se mueve es el bloque
+   de piezas, y en el módulo de texto, que no tiene piezas, el cuerpo del texto.
+
+   No toca cuántas columnas hay ni qué proporción tienen las imágenes: cada
+   control sigue mandando sobre lo suyo. */
+.fp-site-section[data-size="small"] { --fp-slide-max:560px; }
+.fp-site-section[data-size="small"] > .fp-site-items { max-width:66%; }
+.fp-site-section[data-size="small"] > .fp-site-copy { max-width:min(68ch,66%); }
+.fp-site-section[data-size="small"][data-align="center"] > .fp-site-items { margin-inline:auto; }
+.fp-site-section[data-size="small"][data-align="right"] > .fp-site-items { margin-left:auto; margin-right:0; }
+.fp-site-section[data-size="large"] { --fp-slide-max:1000px; }
+.fp-site-section[data-size="large"] > .fp-site-items { margin-inline:calc(var(--fp-page-gutter) * -1); }
+.fp-site-section[data-size="large"] > .fp-site-copy { max-width:none; }
 .fp-site-section[data-tone] { background:var(--fp-tone-bg); box-shadow:0 0 0 100vmax var(--fp-tone-bg); clip-path:inset(0 -100vmax); }
 .fp-site-section[data-tone="soft"] { --fp-tone-bg:var(--fp-site-surface,#ffffff); --fp-card-bg:var(--fp-site-background,#fafafa); }
 .fp-site-section[data-tone="contrast"] { --fp-tone-bg:var(--fp-site-text,#20242a); --fp-card-bg:transparent; --fp-site-accent:currentColor; color:var(--fp-site-background,#fafafa); }
@@ -851,6 +863,8 @@
 .fp-site-contact.fp-variant-banner .fp-contact-intro > h2 { margin-top:0; }
 .fp-site-contact.fp-variant-banner .fp-contact-intro > .fp-site-copy { margin-bottom:0; }
 .fp-site-contact.fp-variant-banner > .fp-site-items { grid-column:2; align-self:center; margin:0; }
+.fp-site-contact.fp-variant-banner[data-size="small"] { grid-template-columns:minmax(0,1.5fr) minmax(220px,.6fr); }
+.fp-site-contact.fp-variant-banner[data-size="large"] { grid-template-columns:minmax(0,.75fr) minmax(320px,1.35fr); }
 .fp-site-contact.fp-variant-banner .fp-site-item { padding:18px 0; border:0; border-top:1px solid #8884; border-radius:0; background:transparent; }
 .fp-site-contact.fp-variant-banner .fp-site-item:last-child { border-bottom:1px solid #8884; }
 .fp-site-contact.fp-variant-banner .fp-site-item-copy { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 16px; align-items:center; }
