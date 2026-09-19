@@ -40,6 +40,7 @@ const FPIcon=({name,size=18})=>{
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]||paths.layout}/></svg>;
 };
+const FPPicked=()=><span className="fp-picked" aria-hidden="true"><FPIcon name="check" size={11}/></span>;
 const FPButton=({icon,label,children,className='',...props})=><button type="button" className={'fp-button '+className} aria-label={label} title={label} {...props}>{icon&&<FPIcon name={icon}/>} {children}</button>;
 const FPSaveButton=({revision,saved,saving=false,...props})=>{
   const [confirmed,setConfirmed]=React.useState(false);
@@ -154,7 +155,7 @@ const FPSiteStyleSettings=({draft,edit})=>{
   const style=draft.siteStyle||{},maxWidth=style.maxWidth||1200,previewStyle=FramePortfolio.pageStyle(draft);
   const width=FP_WIDTHS.reduce((best,option)=>Math.abs(option[0]-maxWidth)<Math.abs(best[0]-maxWidth)?option:best)[0];
   const update=patch=>edit(d=>({...d,siteStyle:{...d.siteStyle,...patch}}),Object.keys(patch)[0]);
-  return <div className="fp-site-style-settings"><h3>Tipografía y ancho</h3><div className="fp-field" role="group" aria-label="Ancho del contenido"><span>Ancho del contenido</span><div className="fp-width-options">{FP_WIDTHS.map(([value,label])=><button type="button" key={value} aria-pressed={width===value} onClick={()=>update({maxWidth:value})}><span className="fp-width-thumb" aria-hidden="true"><i style={{width:Math.round(value/1600*100)+'%'}}/></span>{label}</button>)}</div></div><FPFontSelect label="Fuente de títulos" value={style.headingFont} onChange={headingFont=>update({headingFont})}/><FPFontSelect label="Fuente de texto" value={style.bodyFont} onChange={bodyFont=>update({bodyFont})}/><div className="fp-font-preview" style={previewStyle} aria-label="Vista previa de tipografías"><strong>Ideas que toman forma.</strong><span>Diseño, dirección de arte y experiencias visuales.</span></div><FPButton disabled={!draft.siteStyle} onClick={()=>edit(d=>{const next={...d};delete next.siteStyle;return next;})}>Restablecer tipografía y ancho</FPButton></div>;
+  return <div className="fp-site-style-settings"><h3>Tipografía y ancho</h3><div className="fp-field" role="group" aria-label="Ancho del contenido"><span>Ancho del contenido</span><div className="fp-width-options">{FP_WIDTHS.map(([value,label])=><button type="button" key={value} aria-pressed={width===value} onClick={()=>update({maxWidth:value})}><span className="fp-width-thumb" aria-hidden="true"><i style={{width:Math.round(value/1600*100)+'%'}}/></span>{label}{width===value&&<FPPicked/>}</button>)}</div></div><FPFontSelect label="Fuente de títulos" value={style.headingFont} onChange={headingFont=>update({headingFont})}/><FPFontSelect label="Fuente de texto" value={style.bodyFont} onChange={bodyFont=>update({bodyFont})}/><div className="fp-font-preview" style={previewStyle} aria-label="Vista previa de tipografías"><strong>Ideas que toman forma.</strong><span>Diseño, dirección de arte y experiencias visuales.</span></div><FPButton disabled={!draft.siteStyle} onClick={()=>edit(d=>{const next={...d};delete next.siteStyle;return next;})}>Restablecer tipografía y ancho</FPButton></div>;
 };
 const FP_WIDTHS=[[760,'Angosto'],[1200,'Normal'],[1440,'Amplio']];
 const FP_STORAGE_LIMIT=1024*1024*1024;
@@ -230,11 +231,15 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
   React.useEffect(()=>{if(FramePortfolio.valid(draft)){try{const json=JSON.stringify(draft);if(json===savedJSON)sessionStorage.removeItem(key+'_pending');else sessionStorage.setItem(key+'_pending',json);}catch(_){}}},[draft,key,savedJSON]);
   React.useEffect(()=>{if(itemId&&!item)setItemId(null);if(selected&&!section)setSelected(draft.sections[0]?.id);},[draft,itemId,selected]);
   React.useEffect(()=>{if(!initializing)requestAnimationFrame(()=>rootRef.current?.focus({preventScroll:true}));},[initializing]);
+  // El lienzo dibuja la página al ancho con el que se va a publicar y la
+  // achica para que entre: antes mostraba 856px de una página de 1200, así que
+  // las proporciones que veías no eran las que salían.
+  const canvasWidth=preview?1440:(draft.siteStyle?.maxWidth||1200);
   React.useLayoutEffect(()=>{
-    const el=canvasRef.current;if(!el||!preview||device!=='desktop'){setCanvasZoom(1);return;}
-    const measure=()=>{const style=getComputedStyle(el);setCanvasZoom(Math.min(1,(el.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight))/1440));};
+    const el=canvasRef.current;if(!el||device!=='desktop'){setCanvasZoom(1);return;}
+    const measure=()=>{const style=getComputedStyle(el);setCanvasZoom(Math.min(1,(el.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight))/canvasWidth));};
     measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();
-  },[preview,device]);
+  },[preview,device,canvasWidth]);
   React.useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),notice.undo?7000:4500);return()=>clearTimeout(timer);},[notice]);
   // El menú ⋯ se cierra al tocar afuera o con Escape
   React.useEffect(()=>{
@@ -464,7 +469,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
         <FPButton icon={preview?'layout':'eye'} label={preview?'Volver al editor':'Vista previa'} aria-pressed={preview} onClick={()=>{setPreview(!preview);setPane('preview');}}><span className="fp-preview-word">{preview?'Editar':'Vista previa'}</span></FPButton>
         <FPSaveButton revision={saveRevision} saved={saved} saving={saving} onClick={save} disabled={blocked||busy||saving||saved}/>
         {publication.published&&<FPShare url={publicUrl} title={draft.title||'Portfolio'} onCopy={copyPublicUrl}/>}
-        <FPButton icon={publicationCurrent?'check':'upload'} className={'fp-publish-button'+(publicationCurrent?' fp-published':'')} disabled={publication.loading||publishing||saving||publicationCurrent||blocked||(!canPublish&&!localPreview)} onClick={publishRemote}>{publication.loading?'Consultando…':publishing?(saving?'Guardando…':'Publicando…'):publication.published?(publicationCurrent?'Publicado':'Actualizar'):'Publicar'}</FPButton>
+        <FPButton icon={publicationCurrent?'check':'upload'} className={'fp-publish-button'+(publicationCurrent?' fp-published':'')+(saved&&!publicationCurrent&&!publication.loading&&!blocked?' fp-primary':'')} disabled={publication.loading||publishing||saving||publicationCurrent||blocked||(!canPublish&&!localPreview)} onClick={publishRemote}>{publication.loading?'Consultando…':publishing?(saving?'Guardando…':'Publicando…'):publication.published?(publicationCurrent?'Publicado':'Actualizar'):'Publicar'}</FPButton>
         <details className="fp-more" onToggle={e=>{if(!e.currentTarget.open)setConfirmUnpublish(false);}}><summary aria-label="Más opciones" title="Más opciones"><FPIcon name="more"/></summary><div><button className="fp-mobile-history" disabled={!past.current.length||busy} onClick={()=>travel('undo')}>Deshacer cambio</button><button className="fp-mobile-history" disabled={!future.current.length||busy} onClick={()=>travel('redo')}>Rehacer cambio</button><button onClick={e=>{e.currentTarget.closest('details').open=false;exportDraft();}}>Exportar respaldo</button><button onClick={e=>{e.currentTarget.closest('details').open=false;importRef.current.click();}}>Importar respaldo</button>{publication.published&&(confirmUnpublish?<div className="fp-more-confirm"><span>¿Retirar la página pública?</span><div><button onClick={()=>setConfirmUnpublish(false)}>Cancelar</button><button className="fp-danger" disabled={publishing} onClick={async e=>{const menu=e.currentTarget.closest('details');await unpublish();setConfirmUnpublish(false);if(menu)menu.open=false;}}>Retirar</button></div></div>:<button className="fp-danger" onClick={()=>setConfirmUnpublish(true)}>Retirar página</button>)}</div></details>
       </div>
     </header>
@@ -479,7 +484,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
           {!localPreview&&<div className="fp-account-storage"><div><span>Portfolio de {profileName||'tu cuenta'}</span><strong>{usage.loading?'Calculando…':fpBytes(usage.usedBytes+usage.reservedBytes)+' de 1 GB'}</strong></div><div role="progressbar" aria-label="Almacenamiento del portfolio" aria-valuemin="0" aria-valuemax={FP_STORAGE_LIMIT} aria-valuenow={Math.min(FP_STORAGE_LIMIT,usage.usedBytes+usage.reservedBytes)}><i style={{width:Math.min(100,(usage.usedBytes+usage.reservedBytes)/FP_STORAGE_LIMIT*100)+'%'}}/></div></div>}
           <FPField label="Nombre del portfolio"><input maxLength={200} value={draft.title} onChange={e=>edit(d=>({...d,title:e.target.value}),'site-title')}/></FPField>
           <FPLogoSettings draft={draft} edit={edit} busy={busy} error={logoError} progress={logoProgress} inputRef={logoRef} onUpload={uploadLogo}/>
-          <h3>Apariencia</h3><div className="fp-theme-options">{[['paper','Editorial'],['studio','Estudio'],['sand','Arena']].map(([id,label])=><button key={id} aria-pressed={(draft.theme||'paper')===id} onClick={()=>edit(d=>({...d,theme:id}))}><span style={FramePortfolio.themes[id]}>Aa</span>{label}{(draft.theme||'paper')===id&&<FPIcon name="check" size={14}/>}</button>)}</div>
+          <h3>Apariencia</h3><div className="fp-theme-options">{[['paper','Editorial'],['studio','Estudio'],['sand','Arena']].map(([id,label])=><button key={id} aria-pressed={(draft.theme||'paper')===id} onClick={()=>edit(d=>({...d,theme:id}))}><span style={FramePortfolio.themes[id]}>Aa</span>{label}{(draft.theme||'paper')===id&&<FPPicked/>}</button>)}</div>
           {draft.colors&&<p className="fp-theme-note" role="status">Tus colores propios tienen prioridad sobre la apariencia. <button type="button" onClick={()=>edit(d=>{const next={...d};delete next.colors;return next;})}>Usar los del tema</button></p>}
           <FPPalette draft={draft} edit={edit}/>
           <FPSiteStyleSettings draft={draft} edit={edit}/>
@@ -497,7 +502,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
       </aside>
       <main className="fp-stage" aria-label="Lienzo del portfolio">
         
-        <div ref={canvasRef} className={'fp-canvas-scroll '+(device==='mobile'?'fp-device-mobile':'')}><div className="fp-browser-frame" style={preview&&device==='desktop'?{width:1440,maxWidth:'none',zoom:canvasZoom}:undefined}>
+        <div ref={canvasRef} className={'fp-canvas-scroll '+(device==='mobile'?'fp-device-mobile':'')}><div className="fp-browser-frame" style={device==='desktop'?{width:canvasWidth,maxWidth:'none',zoom:canvasZoom}:undefined}>
           <div className="frame-portfolio-page" style={FramePortfolio.pageStyle(draft)}>
             {leadingNavigation?null:<PortfolioBrand draft={draft}/>} 
             {visibleSections.map(s=>{const at=draft.sections.findIndex(x=>x.id===s.id);return <React.Fragment key={s.id}>
@@ -533,7 +538,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
               {section.type==='prices'&&<><FPField label="Precio"><input inputMode="decimal" value={item.price||''} placeholder="0.00" onChange={e=>updateItem({price:e.target.value},'price-'+itemId)} onBlur={e=>{const next=fpPrice(e.target.value);if(next!==e.target.value)updateItem({price:next},'price-'+itemId);}}/>{item.price&&!/^\d+(\.\d{1,2})?$/.test(item.price)&&<small className="fp-field-error">Usá un número, por ejemplo 250.00.</small>}</FPField><FPSegmented label="Moneda" value={item.currency||'USD'} options={['USD','HNL','EUR','MXN'].map(c=>[c,c])} onChange={currency=>updateItem({currency})}/><label className="fp-check"><input type="checkbox" role="switch" checked={!!item.from} onChange={e=>updateItem({from:e.target.checked})}/>Mostrar «Desde»</label><label className="fp-check"><input type="checkbox" role="switch" checked={!!item.featured} onChange={e=>updateItem({featured:e.target.checked})}/>Destacar paquete</label><FPField label="Inclusiones (una por línea)"><textarea rows="5" value={item.inclusions||''} onChange={e=>updateItem({inclusions:e.target.value},'inclusions-'+itemId)}/></FPField></>}
               <FPField label="Enlace"><input value={item.link||''} placeholder="https://" onChange={e=>updateItem({link:e.target.value},'link-'+itemId)} onBlur={e=>{const next=fpLink(e.target.value);if(next!==e.target.value)updateItem({link:next},'link-'+itemId);}}/>{item.link&&!FramePortfolio.safeLink(item.link)&&<small className="fp-field-error">Escribí una web, un correo o un teléfono.</small>}</FPField>
             </>:tab==='design'?<>
-              <h3 className="fp-group-title">Composición</h3><div className="fp-variant-options">{definition.variants.map(v=><button key={v} aria-pressed={section.variant===v} onClick={()=>updateSection(section.design?{variant:v,design:{...section.design,align:v==='center'?'center':'left'}}:{variant:v})}><FPThumb type={section.type} variant={v}/><span>{FP_LABELS[v]}</span></button>)}</div>
+              <h3 className="fp-group-title">Composición</h3><div className="fp-variant-options">{definition.variants.map(v=><button key={v} aria-pressed={section.variant===v} onClick={()=>updateSection(section.design?{variant:v,design:{...section.design,align:v==='center'?'center':'left'}}:{variant:v})}><FPThumb type={section.type} variant={v}/><span>{FP_LABELS[v]}</span>{section.variant===v&&<FPPicked/>}</button>)}</div>
               <FPSegmented label="Fondo" value={section.design?.tone||'none'} options={[['none','Página'],['soft','Suave'],['contrast','Contraste']]} onChange={tone=>updateDesign({tone})}/>
               {controls.align&&<FPSegmented label="Alineación" value={section.design?.align||(section.variant==='center'?'center':'left')} options={[['left','Izquierda','alignLeft'],['center','Centro','alignCenter'],['right','Derecha','alignRight']]} onChange={align=>updateDesign({align})}/>}
               {controls.size&&<FPSegmented label="Tamaño" value={section.design?.size||'medium'} options={[['small','Pequeño'],['medium','Mediano'],['large','Grande']]} onChange={size=>updateDesign({size})}/>}
@@ -547,7 +552,7 @@ const PortfolioEditor=({userId,workspaceId:legacyWorkspaceId,onExit,localPreview
               {section.type!=='text'&&<div className="fp-section-blocks"><h3>Bloques <span>{section.content.items.length}</span></h3>{section.content.items.map((i,n)=><button key={i.id} onClick={()=>choose(selected,i.id)}><FPIcon name={mediaType?'image':'text'} size={16}/><span>{i.title||'Bloque '+(n+1)}</span><FPIcon name="back" size={14}/></button>)}<FPButton icon="plus" disabled={section.content.items.length>=100} onClick={addItem}>Agregar bloque</FPButton></div>}
             </>}
           </div>
-          <div className="fp-inspector-foot"><div><FPButton icon="copy" label={item?'Duplicar bloque':'Duplicar sección'} disabled={total>=(item?100:50)} onClick={duplicate}/><FPButton className="fp-danger" icon="trash" label={item?'Quitar bloque':'Quitar sección'} onClick={remove}/></div></div>
+          <div className="fp-inspector-foot"><div><FPButton icon="copy" label={item?'Duplicar bloque':'Duplicar sección'} disabled={total>=(item?100:50)} onClick={duplicate}>Duplicar</FPButton><FPButton className="fp-danger" icon="trash" label={item?'Quitar bloque':'Quitar sección'} onClick={remove}>Quitar</FPButton></div></div>
         </>:<div className="fp-inspector-empty"><FPIcon name="layout" size={30}/><FPButton icon="plus" onClick={addAtEnd}>Agregar sección</FPButton></div>}
       </aside>
     </div>

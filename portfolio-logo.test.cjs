@@ -21,9 +21,11 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
   assert.equal(await page.getByLabel('Tamaño del logo en escritorio').inputValue(),'140');
   await page.getByLabel('Tamaño del logo en escritorio').fill('220');
   await page.getByLabel('Tamaño del logo en móvil').fill('76');
-  assert.equal(await page.locator('.fp-site-logo').evaluate(e=>getComputedStyle(e).width),'220px');
+  // El lienzo va a escala: se mide en píxeles del diseño, no de la pantalla.
+  const anchoLogo=()=>page.locator('.fp-site-logo').evaluate(e=>Math.round(parseFloat(getComputedStyle(e).width)));
+  assert.equal(await anchoLogo(),220);
   await page.getByRole('button',{name:'Móvil',exact:true}).click();
-  assert.equal(await page.locator('.fp-site-logo').evaluate(e=>getComputedStyle(e).width),'76px');
+  assert.equal(await anchoLogo(),76);
   await page.getByRole('button',{name:'Guardar borrador',exact:true}).click();await page.reload();
   await page.getByRole('button',{name:'Tema',exact:true}).click();
   assert.equal(await page.getByLabel('Tamaño del logo en escritorio').inputValue(),'220');

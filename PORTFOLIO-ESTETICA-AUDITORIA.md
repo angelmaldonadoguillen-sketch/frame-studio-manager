@@ -16,6 +16,36 @@ comportamiento, nada de la página publicada, nada de la versión de teléfono.
 
 ---
 
+## Estado: los diez, arreglados
+
+Medido otra vez después de los cambios, con el mismo método:
+
+| # | Hallazgo | Antes | Ahora |
+|---|---|---|---|
+| 1 | Ninguna acción pesa | 0 botones con relleno en reposo | Publicar con relleno; Guardar toma el relevo si hay cambios |
+| 2 | Escalas sin escala | 10 alturas · 6 radios · espaciados de 3, 7 y 9 | 4 alturas (24·28·32·36) · 3 radios (4·7·10) · todo múltiplo de 4 |
+| 3 | La tipografía no ordena | 5 tamaños · 4 pesos · grupo más pesado que el título | 4 tamaños (11·12·13·14) · 3 pesos · el grupo manda sobre sus etiquetas |
+| 4 | Tres maneras de marcar lo elegido | relleno / borde / tilde | borde + fondo + tilde, igual en los tres |
+| 5 | Selección igual al hover | 7 % vs 13 % de blanco | barra del editor y nombre en 600 |
+| 6 | La lista vive cortada | 7 de 11 nombres · 113 px para el nombre | 1 de 11 · 158 px, en un panel de 280 |
+| 7 | Color fuera del sistema | tres azules escritos a mano | tokens `--fp-edit-*`, y cambian con el tema |
+| 8 | Sombra invisible en oscuro | 13 % de negro sobre `#131315` | filo de luz + sombra al 55 %, y la de claro aparte |
+| 9 | Pie del inspector | dos íconos, uno rojo siempre | «Duplicar» y «Quitar», el rojo sólo al apuntarlo |
+| 10 | Lo que ves no es lo que publicás | 856 px de una página de 1200 | el lienzo dibuja 1200 (o 1440) a escala |
+
+Dos cosas salieron distintas de lo propuesto, y quedan dichas: la escala de
+letra terminó en cuatro tamaños y no tres —13 px es el de los campos y el
+cuerpo, y bajarlo a 12 los volvía incómodos de escribir—, y a las tres alturas
+se les sumó 24 px, que es lo que miden los botones de ícono dentro de una fila.
+En teléfono siguen creciendo a 44 px, como estaban.
+
+Lo cubre `portfolio-estetica.test.cjs`: mide la pantalla entera y falla si
+vuelve a aparecer una altura, un radio, un espaciado o un tamaño de letra fuera
+de escala, si hay dos acciones principales a la vez, si lo elegido deja de
+distinguirse o si vuelve a escribirse un color a mano.
+
+---
+
 ## Lo que está bien y no hay que tocar
 
 - **Contraste**: el texto peor parado de la pantalla da **5,95:1** (el mínimo
@@ -181,24 +211,19 @@ modo edición.
 
 ---
 
-## Escalas propuestas, todo junto
+## La escala, tal como quedó
 
-| | Hoy | Propuesta |
+Vive en tokens al principio de `.fp-editor`, en `frame.css`:
+
+| | Antes | Ahora |
 |---|---|---|
-| Alturas de control | 10 valores (30–43) | 28 · 32 · 36 · 44 táctil |
-| Radios | 6 valores (4–10) | 4 interno · 7 control · 10 flotante |
+| Alturas de control | 10 valores (30–43) | `--fp-h-sm` 28 · `--fp-h-md` 32 · `--fp-h-lg` 36, más 24 para íconos en fila (44 en teléfono) |
+| Radios | 6 valores (4–10) | `--fp-r-in` 4 · `--fp-r` 7 · `--fp-r-float` 10 |
 | Espaciado | 2,3,4,6,7,8,9,12,20 | múltiplos de 4 |
-| Tamaños de letra | 10,11,12,13,14 | 11 · 12 · 14 |
-| Pesos | 400,500,600,700 | 400 · 600 |
-| Colores de texto | 2 | 2 (se quedan) |
+| Tamaños de letra | 10,11,12,13,14 | 11 etiqueta · 12 interfaz · 13 campo · 14 título |
+| Pesos | 400,500,600,700 | 400 · 500 · 600 |
+| Colores de texto | 2 | 2 (no hacía falta tocarlos) |
+| Color del editor | 3 azules a mano | `--fp-edit-mark` · `--fp-edit-line` · `--fp-edit-guide` |
 
----
-
-## Si sólo se tocan tres cosas
-
-1. **Que Publicar pese** (hallazgo 1). Es lo que cambia la sensación de la
-   pantalla con menos código.
-2. **Que se vea qué sección estás editando** (hallazgo 5) y que el nombre entre
-   entero en la fila (hallazgo 6).
-3. **Una sola escala de alturas y radios** (hallazgo 2). Es invisible de a uno
-   y es exactamente lo que separa «prolijo» de «hecho a mano».
+Las tarjetas —apariencias, anchos, composiciones, zona de subida— crecen con su
+contenido: la escala de alturas es para los controles, no para ellas.

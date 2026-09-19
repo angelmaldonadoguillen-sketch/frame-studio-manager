@@ -22,7 +22,10 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
       const izquierda=e=>Math.round(e.getBoundingClientRect().left);
       return {titulo:izquierda(section.querySelector('h2')),pieza:Math.round(section.querySelector('.fp-site-item').getBoundingClientRect().width),bloque:izquierda(section.querySelector('.fp-site-items'))};
     });
-    const rail=await page.locator('.fp-site-brand').evaluate(e=>Math.round(e.getBoundingClientRect().left+parseFloat(getComputedStyle(e).paddingLeft)));
+    // Se mide el primer hijo del encabezado, no la caja más su relleno: con el
+    // lienzo a escala, el rectángulo viene en píxeles de pantalla y el relleno en
+    // píxeles CSS, y sumarlos mezclaba dos reglas distintas.
+    const rail=await page.locator('.fp-site-brand > *').first().evaluate(e=>Math.round(e.getBoundingClientRect().left));
     assert.equal(await pressed('Tamaño').innerText(),'Mediano','la galería arranca en Mediano');
     const mediano=await galeria();
     assert.equal(mediano.titulo,rail,'la galería arranca donde arranca la portada');

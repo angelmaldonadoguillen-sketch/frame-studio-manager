@@ -39,9 +39,11 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     await page.locator('.fp-toast').getByText('Logo listo').waitFor();
     await page.getByLabel('Tamaño del logo en móvil').fill('180');
     await page.getByRole('button',{name:'Móvil',exact:true}).click();
-    assert.equal(await page.locator('.frame-portfolio-page .fp-site-logo').first().evaluate(e=>Math.round(e.getBoundingClientRect().width)),180);
+    // En píxeles del diseño: el lienzo se dibuja a escala para mostrar el ancho real de la página.
+    const anchoLogo=()=>page.locator('.frame-portfolio-page .fp-site-logo').first().evaluate(e=>Math.round(parseFloat(getComputedStyle(e).width)));
+    assert.equal(await anchoLogo(),180);
     await page.getByRole('button',{name:'Escritorio',exact:true}).click();
-    assert.equal(await page.locator('.frame-portfolio-page .fp-site-logo').first().evaluate(e=>Math.round(e.getBoundingClientRect().width)),140);
+    assert.equal(await anchoLogo(),140);
 
     // El área para subir el logo se ve (la regla general de botones le borraba borde y fondo)
     await page.getByRole('button',{name:'Quitar logo',exact:true}).click();
@@ -63,7 +65,13 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     const desktop=await page.locator('.fp-browser-frame').evaluate(e=>({width:getComputedStyle(e).width,gutter:getComputedStyle(document.querySelectorAll('.fp-site-section')[2]).paddingLeft,fits:e.getBoundingClientRect().right<=document.querySelector('.fp-canvas-scroll').getBoundingClientRect().right+1}));
     assert.equal(desktop.width,'1440px');assert.ok(Math.abs(parseFloat(desktop.gutter)-86.4)<1,'márgenes de escritorio real: '+desktop.gutter);assert.equal(desktop.fits,true,'entra sin desplazarse de costado');
     await page.keyboard.press('Escape');
-    assert.equal(await page.locator('.fp-browser-frame').evaluate(e=>e.style.zoom||''),'','al editar el lienzo vuelve a tamaño real');
+    // Al editar, el lienzo sigue mostrando el ancho con el que se publica: la
+    // página no se dibuja más angosta de lo que es, se dibuja a escala. Antes
+    // editabas sobre 856px una página de 1440 y las proporciones no eran esas.
+    const editando=await page.locator('.fp-browser-frame').evaluate(e=>({ancho:Math.round(parseFloat(getComputedStyle(e).width)),zoom:parseFloat(e.style.zoom||1),margen:parseFloat(getComputedStyle(document.querySelectorAll('.fp-site-section')[2]).paddingLeft)}));
+    assert.equal(editando.ancho,1440,'el lienzo dibuja el ancho real de la página');
+    assert.ok(editando.zoom>.4&&editando.zoom<1,'y lo achica para que entre: '+editando.zoom);
+    assert.ok(Math.abs(editando.margen-86.4)<1,'con los márgenes que va a tener publicada: '+editando.margen);
 
     // Errores de subida en español, no «internal»
     const account=await browser.newPage({viewport:{width:1440,height:900}});account.on('pageerror',error=>errors.push(error.message));
