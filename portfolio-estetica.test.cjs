@@ -108,12 +108,29 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
     marcas.forEach(m=>assert.equal(m.tilde,true,m.sel+' sin tilde'));
     assert.equal(new Set(marcas.map(m=>m.borde+'|'+m.fondo)).size,1,'tres maneras distintas de marcar lo elegido: '+JSON.stringify(marcas));
 
-    // 9 · El lienzo dibuja el ancho con el que se publica
+    // 9 · Ningún botón se parte entre el ícono y su palabra, y los de agregar
+    // van centrados (Tailwind, que la app carga después, vuelve bloque cada svg)
+    await page.getByRole('button',{name:'Secciones',exact:true}).first().click();await page.waitForTimeout(250);
+    const botones=await page.evaluate(()=>{
+      const lienzo=document.querySelector('.fp-canvas-scroll');
+      return [...document.querySelectorAll('.fp-editor .fp-button')].filter(b=>!lienzo?.contains(b)&&b.querySelector('svg')&&[...b.childNodes].some(n=>n.nodeType===3&&n.textContent.trim())).map(b=>{
+        const caja=b.getBoundingClientRect(),icono=b.querySelector('svg').getBoundingClientRect();
+        const rango=document.createRange();rango.selectNodeContents([...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim()));
+        const texto=rango.getBoundingClientRect();
+        return {nombre:b.textContent.trim().slice(0,18),partido:Math.abs(icono.top-texto.top)>6,
+          izquierda:Math.round(icono.left-caja.left),derecha:Math.round(caja.right-texto.right)};
+      });
+    });
+    assert.deepEqual(botones.filter(b=>b.partido).map(b=>b.nombre),[],'botones partidos en dos renglones');
+    const agregar=botones.find(b=>b.nombre.startsWith('Agregar sección'));
+    assert.ok(agregar&&Math.abs(agregar.izquierda-agregar.derecha)<=2,'«Agregar sección» tiene que estar centrado: '+JSON.stringify(agregar));
+
+    // 10 · El lienzo dibuja el ancho con el que se publica
     const lienzo=await page.locator('.fp-browser-frame').evaluate(e=>({ancho:Math.round(parseFloat(getComputedStyle(e).width)),zoom:parseFloat(e.style.zoom||1)}));
     assert.equal(lienzo.ancho,1200,'el lienzo dibuja el ancho de la página, no el que le sobra');
     assert.ok(lienzo.zoom<1,'achicado para que entre');
 
-    // 10 · El color del editor vive en tokens y cambia con el tema
+    // 11 · El color del editor vive en tokens y cambia con el tema
     const colores=async()=>page.evaluate(()=>{
       const e=document.querySelector('.fp-editor'),v=n=>getComputedStyle(e).getPropertyValue(n).trim();
       return {marca:v('--fp-edit-mark'),linea:v('--fp-edit-line'),sombra:v('--fp-frame-shadow')};
@@ -131,6 +148,6 @@ const {chromium}=require(path.join(process.env.FRAME_TEST_DEPS||'C:/Users/ANGEL 
       'quedó '+color+' escrito a mano'));
 
     assert.deepEqual(errors,[]);
-    console.log('Portfolio estética: one scale for heights, radii, spacing and type; group titles outrank labels; a single primary action that takes turns; selection reads at a glance; one way to mark what is picked; canvas draws the published width; editor colours live in tokens');
+    console.log('Portfolio estética: one scale for heights, radii, spacing and type; group titles outrank labels; a single primary action that takes turns; selection reads at a glance; one way to mark what is picked; icon buttons never split across lines and add buttons sit centred; canvas draws the published width; editor colours live in tokens');
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});
