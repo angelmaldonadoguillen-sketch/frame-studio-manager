@@ -15,6 +15,13 @@ const FUENTES = ['icons.jsx', 'data.jsx', 'modal.jsx', 'views.jsx'];
 
 const MONTAJE = `
   const hoy = new Date();
+  // Con ?bandeja el banco simula Mi tablero: dos tableros, y tarjetas del otro
+  // metidas acá adentro —una con un estado que este tablero no tiene—.
+  const BANDEJA = new URLSearchParams(location.search).has('bandeja');
+  const NOMBRES = { wsA:'Mi tablero', wsB:'Estudio Norte' };
+  if (BANDEJA) window.__frameBoards = { activeId:'wsA', names:NOMBRES };
+  const MIAS = STATUSES.filter(s => s.id !== 'archived');
+  const AJENAS = { wsB: [...MIAS, { id:'rodaje', label:'Rodaje', color:'#f5a524' }] };
   const dia = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return localISO(d); };
   const lista = (n, hechos) => Array.from({length:n}, (_, i) => ({ id:'c'+i, text:'Paso '+(i+1), done: i < hechos }));
   window.__liveTeam = [
@@ -34,12 +41,27 @@ const MONTAJE = `
     { id:'p4', title:'Behind the scenes', client:'Interno', type:'reel', status:'briefing',
       priority:'low', assignees:[], deadline:dia(18), sessionDate:dia(2), budget:0, currency:'USD',
       tags:[], checklist:lista(10,1), cover:{type:'color',value:'#252527'}, description:[] },
-  ].map(normalizeProject);
+  ].map(p => ({ ...p, workspaceId:'wsA', workspaceIds:['wsA'] })).map(normalizeProject);
+
+  // Dos tarjetas del otro tablero: una en una columna que existe en los dos,
+  // y otra en una que sólo existe allá.
+  const AJENAS_TARJETAS = [
+    { id:'p5', title:'Spot — Estudio Norte', client:'Norte', type:'corp', status:'editing',
+      priority:'medium', assignees:['u2'], deadline:dia(4), sessionDate:dia(1), budget:0, currency:'USD',
+      tags:[], checklist:lista(6,2), cover:{type:'color',value:'#252527'}, description:[] },
+    { id:'p6', title:'Rodaje exteriores', client:'Norte', type:'reel', status:'rodaje',
+      priority:'high', assignees:['u2'], deadline:dia(6), sessionDate:dia(2), budget:0, currency:'USD',
+      tags:[], checklist:lista(4,1), cover:{type:'color',value:'#252527'}, description:[] },
+  ].map(p => ({ ...p, workspaceId:'wsB', workspaceIds:['wsB'] })).map(normalizeProject);
 
   const CAMPOS = { tipo:true, cliente:true, estado:true, prioridad:true, responsables:true, deadline:true, presupuesto:true, tags:true, progreso:true };
 
   const Banco = () => {
-    const [datos, setDatos] = React.useState(BASE);
+    const [datos, setDatos] = React.useState(BANDEJA ? [...BASE, ...AJENAS_TARJETAS] : BASE);
+    // Igual que la app: getStatus lee este global, así que la columna prestada
+    // tiene que estar ahí o la tarjeta ajena sale con el nombre de otra.
+    const COLUMNAS = BANDEJA ? boardColumns(MIAS, datos, AJENAS, NOMBRES) : MIAS;
+    window.FRAME_KANBAN_COLUMNS = COLUMNAS;
     const [vista, setVista] = React.useState(new URLSearchParams(location.search).get('vista') || 'tablero');
     // La prueba mueve tarjetas desde afuera, igual que haría soltar una.
     window.__moverEstado = (id, status) => setDatos(d => d.map(p => p.id === id ? { ...p, status } : p));
@@ -58,7 +80,7 @@ const MONTAJE = `
             ))}
           </div>
           <div style={{ flex:1, minHeight:0 }}>
-            {vista === 'tablero' && <KanbanView {...comunes} allProjects={datos} columns={STATUSES.filter(s => s.id !== 'archived')} onUpdateProject={p => setDatos(d => d.map(x => x.id===p.id ? p : x))} />}
+            {vista === 'tablero' && <KanbanView {...comunes} allProjects={datos} columns={COLUMNAS} onUpdateColumn={() => {}} onReorderColumns={() => {}} onUpdateProject={p => setDatos(d => d.map(x => x.id===p.id ? p : x))} />}
             {vista === 'calendario' && <CalendarView {...comunes} onUpdateProject={p => setDatos(d => d.map(x => x.id===p.id ? p : x))} />}
             {vista === 'galeria' && <GalleryView {...comunes} />}
             {vista === 'lista' && <ListView {...comunes} />}

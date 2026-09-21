@@ -959,7 +959,7 @@ const NotificationPanel = ({ notifications, team = [], onMarkRead, onMarkAllRead
 };
 
 // ── Header ──────────────────────────────────────────────────────
-const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject, onApproveUser, onRejectUser, onPinView }) => {
+const Header = ({ columns = [], state, dispatch, filteredCount, notifications, onMarkRead, onMarkAllRead, onOpenProject, onApproveUser, onRejectUser, onPinView }) => {
   // Se calcula acá y no se recibe de App: el filtro por responsable tiene que
   // ofrecer a los miembros del tablero abierto, no a los de la plataforma.
   const activeWs  = state.workspaces.find(w => w.id === state.activeWorkspaceId);
@@ -1092,7 +1092,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
         {/* Atajos en escritorio; el panel Más filtros contiene el juego
             completo y queda disponible también en pantallas pequeñas. */}
         <div className="hidden xl:flex items-center gap-1">
-          <FilterDropdown label="Estado"    icon="dot"       filterKey="status"   options={state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES} state={state} dispatch={dispatch} />
+          <FilterDropdown label="Estado"    icon="dot"       filterKey="status"   options={columns.length > 0 ? columns : STATUSES} state={state} dispatch={dispatch} />
           <FilterDropdown label="Tipo"      icon="film"      filterKey="type"     options={state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES} state={state} dispatch={dispatch} />
           <FilterDropdown label="Prioridad" icon="flag"      filterKey="priority" options={PRIORITIES} state={state} dispatch={dispatch} />
           {!soloYo && <FilterDropdown label="Equipo" icon="users" filterKey="assignee" options={(wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color }))} state={state} dispatch={dispatch} />}
@@ -1102,7 +1102,7 @@ const Header = ({ state, dispatch, filteredCount, notifications, onMarkRead, onM
           state={state}
           dispatch={dispatch}
           groups={[
-            { key: 'status', label: 'Estado', options: state.kanbanColumns.length > 0 ? state.kanbanColumns : STATUSES },
+            { key: 'status', label: 'Estado', options: columns.length > 0 ? columns : STATUSES },
             { key: 'type', label: 'Tipo', options: state.customTypes.length > 0 ? state.customTypes : PROJECT_TYPES },
             { key: 'priority', label: 'Prioridad', options: PRIORITIES },
             ...(!soloYo ? [{ key: 'assignee', label: 'Equipo', options: (wsMembers || []).map(u => ({ id: u.id, label: u.name, color: u.color })) }] : []),
@@ -1846,6 +1846,12 @@ const App = () => {
   // Lo que se ve y se asigna sale de acá: los miembros del tablero abierto.
   const activeWs = state.workspaces.find(w => w.id === wsId) || null;
   const activeWsReady = !!activeWs && !activeWs._hasPendingWrites;
+  // El tablero personal es la bandeja del usuario: junta las tarjetas de
+  // todos sus tableros. Las tarjetas no se copian ni cambian de dueño; cada
+  // una sigue viviendo en el suyo y se edita ahí.
+  const inbox = activeWs?.kind === 'personal';
+  const myBoardIds = state.workspaces.map(w => w.id).filter(Boolean);
+  const myBoardKey = myBoardIds.join('|');
   const wsMembers = useMemo(() => workspaceMembers(activeWs), [activeWs]);
 
   // getUser() y AvatarStack lo leen para resolver los avatares de los
@@ -1996,15 +2002,20 @@ const App = () => {
       if (!legacyReady && !sharedReady) return;
       const merged = new Map(legacy);
       shared.forEach((project, id) => {
-        if ((project.workspaceIds || []).includes(wsId)) merged.set(id, project);
+        if (inbox || (project.workspaceIds || []).includes(wsId)) merged.set(id, project);
       });
       dispatch({ type: 'set_projects', projects: [...merged.values()] });
     };
 
     // Documentos anteriores: siguen entrando por workspaceId y no se migran
-    // hasta que el usuario elige compartirlos con otro tablero.
-    const unsubLegacy = window.db.collection('frame_projects')
-      .where('workspaceId', '==', wsId)
+    // hasta que el usuario elige compartirlos con otro tablero. En la bandeja
+    // se piden los de todos los tableros propios, porque esos documentos no
+    // tienen viewerIds y no entran por la consulta compartida.
+    const legacyIds = inbox ? myBoardIds.slice(0, 10) : [wsId];
+    const legacyQuery = legacyIds.length > 1
+      ? window.db.collection('frame_projects').where('workspaceId', 'in', legacyIds)
+      : window.db.collection('frame_projects').where('workspaceId', '==', legacyIds[0] || wsId);
+    const unsubLegacy = legacyQuery
       .onSnapshot((snap) => {
         legacy.clear();
         snap.docs.forEach(d => legacy.set(d.id, normalizeProject({ ...d.data(), id: d.id })));
@@ -2034,7 +2045,32 @@ const App = () => {
       });
 
     return () => { unsubLegacy(); unsubShared(); };
-  }, [authUser?.uid, wsId]);
+  }, [authUser?.uid, wsId, inbox, myBoardKey]);
+
+  // Quién es quién, para que una tarjeta de otro tablero pueda decir de dónde
+  // viene sin que haya que arrastrar el dato por media docena de componentes.
+  useEffect(() => {
+    window.__frameBoards = {
+      activeId: wsId,
+      names: Object.fromEntries(state.workspaces.map(w => [w.id, w.name || 'Tablero'])),
+    };
+  }, [wsId, state.workspaces]);
+
+  // Columnas de los otros tableros: sólo se leen para poder mostrar sus
+  // tarjetas en la bandeja con el estado que de verdad tienen.
+  const [foreignColumns, setForeignColumns] = useState({});
+  useEffect(() => {
+    if (!authUser || !inbox) { setForeignColumns({}); return; }
+    const otros = myBoardIds.filter(id => id !== wsId);
+    if (!otros.length) { setForeignColumns({}); return; }
+    const unsubs = otros.map(id => window.db.collection('frame_workspaces').doc(id)
+      .collection('config').doc('kanban_columns')
+      .onSnapshot(
+        snap => setForeignColumns(prev => ({ ...prev, [id]: snap.exists ? (snap.data().columns || []) : [] })),
+        () => setForeignColumns(prev => ({ ...prev, [id]: [] }))
+      ));
+    return () => unsubs.forEach(unsub => unsub());
+  }, [authUser?.uid, inbox, wsId, myBoardKey]);
 
   // El portal guarda una proyección deliberadamente pequeña. Se regenera
   // cuando cambian tareas o clientes, sin abrir nunca frame_projects al
@@ -2042,7 +2078,9 @@ const App = () => {
   useEffect(() => {
     if (!authUser || !activeWsReady) return;
     state.clients.filter(client => client.portalPublished && client.portalToken).forEach(client => {
-      const document = buildClientPortalDocument(client, state.projects, activeWs, true, state.kanbanColumns);
+      // Las tarjetas de otros tableros que trae la bandeja no salen al
+      // portal: el cliente ve el tablero al que pertenece, nada más.
+      const document = buildClientPortalDocument(client, boardProjects(state.projects, wsId, false), activeWs, true, state.kanbanColumns);
       window.db.collection('frame_client_portals').doc(client.portalToken).set(document)
         .catch(err => console.error('[FRAME] Sincronizar portal:', err));
     });
@@ -2381,10 +2419,23 @@ const App = () => {
     saveColumns(updated);
   };
   const handleReorderColumns = (newOrder) => {
-    window.FRAME_KANBAN_COLUMNS = newOrder;
-    dispatch({ type: 'set_columns', columns: newOrder });
-    saveColumns(newOrder);
+    // Las columnas que vienen de otro tablero se ven pero no son de acá: no
+    // se guardan nunca en la configuración propia.
+    const propias = newOrder.filter(column => !column.fromBoard);
+    window.FRAME_KANBAN_COLUMNS = propias;
+    dispatch({ type: 'set_columns', columns: propias });
+    saveColumns(propias);
   };
+
+  // Lo que se dibuja: las columnas propias más las de las tarjetas que la
+  // bandeja trae de otros tableros. getStatus lee el global, así que también
+  // se actualiza ahí; si no, una tarjeta ajena saldría con el nombre de otra
+  // columna, que es peor que no salir.
+  const boardCols = useMemo(
+    () => boardColumns(state.kanbanColumns, state.projects, foreignColumns, window.__frameBoards?.names || {}),
+    [state.kanbanColumns, state.projects, foreignColumns]
+  );
+  useEffect(() => { window.FRAME_KANBAN_COLUMNS = boardCols; }, [boardCols]);
 
   // ── Firestore: notificaciones en tiempo real ────────────────
   useEffect(() => {
@@ -2931,7 +2982,7 @@ const App = () => {
     try {
       await window.db.collection('frame_clients').doc(client.id).set(stampWs(updated));
       await window.db.collection('frame_client_portals').doc(portalToken)
-        .set(buildClientPortalDocument({ ...updated, workspaceId: wsId }, state.projects, activeWs, published, state.kanbanColumns));
+        .set(buildClientPortalDocument({ ...updated, workspaceId: wsId }, boardProjects(state.projects, wsId, false), activeWs, published, state.kanbanColumns));
       dispatch({ type: 'update_client', client: updated });
       window.frameToast?.(published ? 'Portal del cliente publicado.' : 'Portal del cliente desactivado.');
       return updated;
@@ -3000,7 +3051,7 @@ const App = () => {
       workspaces={state.workspaces}
       activeWorkspaceId={wsId}
       customTypes={state.customTypes}
-      kanbanColumns={state.kanbanColumns}
+      kanbanColumns={boardCols}
       onCreateCustomType={handleCreateCustomType}
       onUpdateCustomType={handleUpdateCustomType}
       onDeleteCustomType={handleDeleteCustomType}
@@ -3047,7 +3098,7 @@ const App = () => {
         <ClientsSection
           clients={state.clients}
           projects={state.projects}
-          columns={state.kanbanColumns}
+          columns={boardCols}
           onCreateClient={handleCreateClient}
           onUpdateClient={handleUpdateClient}
           onDeleteClient={handleDeleteClient}
@@ -3104,6 +3155,7 @@ const App = () => {
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
           <Header
+            columns={boardCols}
             state={state}
             dispatch={dispatch}
             filteredCount={filtered.length}
@@ -3115,13 +3167,13 @@ const App = () => {
             onRejectUser={handleRejectUser}
             onPinView={handlePinView}
           />
-          {state.view === 'kanban' && <StatusStatsBar projects={filtered} columns={state.kanbanColumns} />}
+          {state.view === 'kanban' && <StatusStatsBar projects={filtered} columns={boardCols} />}
 
           <div className="flex-1 overflow-hidden">
             {filtered.length === 0 && state.view !== 'kanban' && state.view !== 'calendar' && state.view !== 'gallery' ? (
               <EmptyState />
             ) : (
-              <CardEditingContext.Provider value={{ columns: state.kanbanColumns, types: state.customTypes.length ? state.customTypes : PROJECT_TYPES, members: workspaceMembers(state.workspaces.find(w => w.id === wsId)), shared: state.workspaces.find(w => w.id === wsId)?.kind === 'team', update: (id, patch) => { const current = state.projects.find(p => p.id === id); if (current) handleUpdateProject({ ...current, ...patch }); } }}>
+              <CardEditingContext.Provider value={{ columns: boardCols, types: state.customTypes.length ? state.customTypes : PROJECT_TYPES, members: workspaceMembers(state.workspaces.find(w => w.id === wsId)), shared: state.workspaces.find(w => w.id === wsId)?.kind === 'team', update: (id, patch) => { const current = state.projects.find(p => p.id === id); if (current) handleUpdateProject({ ...current, ...patch }); } }}>
                 {state.view === 'kanban'   && <KanbanView
                   projects={filtered}
                   allProjects={state.projects}
@@ -3131,7 +3183,7 @@ const App = () => {
                   onDuplicateProject={handleDuplicateProject}
                   onToggleFavorite={handleToggleFavorite}
                   onQuickCreate={handleQuickCreate}
-                  columns={state.kanbanColumns}
+                  columns={boardCols}
                   onUpdateColumn={handleUpdateColumn}
                   onAddColumn={handleAddColumn}
                   onDeleteColumn={handleDeleteColumn}

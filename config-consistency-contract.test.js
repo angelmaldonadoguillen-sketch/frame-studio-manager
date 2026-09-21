@@ -10,7 +10,11 @@ const functions = fs.readFileSync('functions/index.js', 'utf8');
 assert.match(app, /filters: freshFilters\(\), search: '', sidebarFilter: 'all'/);
 assert.match(app, /status: initialStatus/);
 assert.match(app, /const availableTypes = customTypes\.length \? customTypes : PROJECT_TYPES/);
-assert.match(app, /kanbanColumns=\{state\.kanbanColumns\}/);
+// boardCols son las columnas del tablero más las que prestan las tarjetas que
+// la bandeja trae de otros tableros: el modal tiene que ofrecer esas también,
+// o una tarjeta ajena no podría quedarse en su propio estado.
+assert.match(app, /kanbanColumns=\{boardCols\}/);
+assert.match(app, /const boardCols = useMemo\(/);
 assert.match(modal, /allStatuses\.map/);
 assert.doesNotMatch(modal, /\(close\) => STATUSES\.map/);
 assert.match(views, /allProjects = projects/);

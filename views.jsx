@@ -148,6 +148,7 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
   const editing = React.useContext(CardEditingContext);
   const pf = editing && !editing.shared ? { ...previewFields, responsables: false, presupuesto: false } : previewFields;
   const t = getType(project.type);
+  const origen = boardOrigin(project);
   const progress = progressOf(project);
   const [confirmDel, setConfirmDel] = React.useState(false);
   const counter = deliveryCounter(project);
@@ -209,8 +210,12 @@ const ProjectCardMini = ({ project, onClick, draggable, onDragStart, onDragEnd, 
             {project.title}
           </div>
 
-          {(meta.length > 0 || pf.responsables !== false) && (
+          {(meta.length > 0 || pf.responsables !== false || origen) && (
             <div className="flex items-center gap-1.5 mt-1 text-[12px] min-w-0" style={{ color: 'var(--text-muted)' }}>
+              {origen && (
+                <span className="text-[10px] px-1.5 rounded flex-shrink-0 truncate" title={'Esta tarjeta vive en ' + origen}
+                  style={{ background: 'var(--surface-3)', color: 'var(--text-dim)', maxWidth: '55%' }}>{origen}</span>
+              )}
               {meta.map((m, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && <span style={{ color: 'var(--text-faint)' }}>·</span>}
@@ -603,6 +608,10 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
     if (!draggingId) return;
     const p = projects.find(x => x.id === draggingId);
     const target = baseCols.find(c => c.id === statusId);
+    if (p && !columnAccepts(target, p)) {
+      window.frameToast?.(`${target.label} es una columna de ${target.fromBoard}: sólo recibe tarjetas de ese tablero.`);
+      return resetDrag();
+    }
     const atLimit = target?.wipLimit && allProjects.filter(x => x.status === statusId).length >= target.wipLimit;
     if (p && p.status !== statusId && atLimit) {
       window.frameToast?.(`Límite de ${target.wipLimit} tareas alcanzado en ${target.label}. Terminá o mové una antes.`);
@@ -674,8 +683,8 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
               {/* Column header — draggable to reorder */}
               <div
                 className="flex items-center justify-between px-3 py-3 border-b border-app flex-shrink-0 select-none"
-                draggable={!!onReorderColumns}
-                style={{ cursor: onReorderColumns ? 'grab' : 'default' }}
+                draggable={!!onReorderColumns && !s.fromBoard}
+                style={{ cursor: onReorderColumns && !s.fromBoard ? 'grab' : 'default' }}
                 onDragStart={(e) => {
                   e.stopPropagation();
                   setTimeout(() => setDraggingColId(s.id), 0);
@@ -686,7 +695,7 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
                 onDragEnd={resetDrag}
               >
                 <div className="flex items-center gap-2">
-                  {onReorderColumns && (
+                  {onReorderColumns && !s.fromBoard && (
                     <Icon name="drag" size={12} className="text-[var(--text-muted)] opacity-40 flex-shrink-0" />
                   )}
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }}></span>
@@ -695,7 +704,14 @@ const KanbanView = ({ projects, allProjects = projects, onOpenProject, onUpdateP
                     {items.length}{items.length !== totalItems.length ? ` de ${totalItems.length}` : ''}{s.wipLimit ? `/${s.wipLimit}` : ''}
                   </span>
                 </div>
-                {onUpdateColumn && (
+                {/* La columna viene de otro tablero: se muestra para que sus
+                    tarjetas no desaparezcan, pero renombrarla o borrarla es
+                    cosa de ese tablero, no de este. */}
+                {s.fromBoard && (
+                  <span className="text-[10px] px-1.5 rounded flex-shrink-0 truncate" title={'Columna de ' + s.fromBoard}
+                    style={{ background: 'var(--surface-2)', color: 'var(--text-dim)', maxWidth: 110 }}>{s.fromBoard}</span>
+                )}
+                {onUpdateColumn && !s.fromBoard && (
                   <ColMenuBtn
                     col={s}
                     projectCount={totalItems.length}
@@ -1429,6 +1445,7 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
   const editing = React.useContext(CardEditingContext);
   const pf = editing && !editing.shared ? { ...previewFields, responsables: false, presupuesto: false } : previewFields;
   const t = getType(project.type);
+  const origen = boardOrigin(project);
   const progress = progressOf(project);
   const counter  = deliveryCounter(project);
   const [confirmDel, setConfirmDel] = React.useState(false);
@@ -1506,11 +1523,17 @@ const GalleryCard = ({ project, onClick, onDelete, onDuplicate, onToggleFavorite
       <div className="p-3.5">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            {pf.cliente !== false && project.client && (
-              <div className="text-[11px] uppercase tracking-wider mb-1 truncate" style={{ color: 'var(--text-muted)' }}>
-                {project.client}
+            {(pf.cliente !== false && project.client) || origen ? (
+              <div className="flex items-center gap-2 mb-1 min-w-0" style={{ color: 'var(--text-muted)' }}>
+                {pf.cliente !== false && project.client && (
+                  <span className="text-[11px] uppercase tracking-wider truncate">{project.client}</span>
+                )}
+                {origen && (
+                  <span className="text-[10px] px-1.5 rounded flex-shrink-0 ml-auto truncate" title={'Esta tarjeta vive en ' + origen}
+                    style={{ background: 'var(--surface-3)', color: 'var(--text-dim)', maxWidth: '55%' }}>{origen}</span>
+                )}
               </div>
-            )}
+            ) : null}
             <h3 className="font-semibold text-[15px] leading-snug balance" style={{ letterSpacing: '-0.012em' }}>
               {project.title}
             </h3>

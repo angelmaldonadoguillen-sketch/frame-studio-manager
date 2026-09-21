@@ -463,6 +463,48 @@ const getStatus = (id) => themed(
 );
 const getPrio   = (id) => themed(PRIORITIES.find(p => p.id === id) || PRIORITIES[0]);
 
+// ── Mi tablero: todo junto ──────────────────────────────────────
+// El tablero personal es la bandeja del usuario: muestra las tarjetas de
+// TODOS sus tableros, estén donde estén. No se copian ni se mueven — cada
+// tarjeta sigue viviendo en el suyo, y lo que se edita acá se edita allá.
+// Los tableros de equipo siguen mostrando lo suyo: ahí la lista es la del
+// equipo, no la de una persona.
+const boardOf = (project) => (project?.workspaceIds?.length ? project.workspaceIds : [project?.workspaceId]).filter(Boolean);
+
+const boardProjects = (projects, workspaceId, todo) =>
+  todo ? [...projects] : projects.filter(p => boardOf(p).includes(workspaceId));
+
+// Una tarjeta de otro tablero trae el estado de ese tablero, y este puede no
+// tener esa columna. Esconderla sería lo peor (la tarjeta desaparece sin
+// avisar) y pintarla con el nombre de otra columna, peor todavía: se agrega
+// la columna de donde viene, al final y sin poder editarla desde acá.
+const boardColumns = (columns, projects, ajenas = {}, nombres = {}) => {
+  const mias = new Set((columns || []).map(c => c.id));
+  const extra = [];
+  (projects || []).forEach(p => {
+    if (!p.status || mias.has(p.status) || extra.some(c => c.id === p.status)) return;
+    const origen = Object.keys(ajenas).find(id => (ajenas[id] || []).some(c => c.id === p.status));
+    const columna = origen ? ajenas[origen].find(c => c.id === p.status) : null;
+    extra.push({ ...(columna || { id: p.status, label: p.status, color: '#8a8a8e' }),
+      fromBoardId: origen || '', fromBoard: (origen && nombres[origen]) || 'otro tablero' });
+  });
+  return extra.length ? [...(columns || []), ...extra] : (columns || []);
+};
+
+// Una columna prestada sólo recibe tarjetas de su propio tablero: soltar una
+// tarjeta mía en la columna de otro le dejaría un estado que mi tablero no
+// tiene.
+const columnAccepts = (column, project) =>
+  !column?.fromBoardId || boardOf(project).includes(column.fromBoardId);
+
+// De qué tablero viene una tarjeta, cuando no es de este. Vacío si es de acá,
+// así la etiqueta sólo aparece donde hace falta.
+const boardOrigin = (project) => {
+  const info = window.__frameBoards;
+  if (!info || !project) return '';
+  return boardOf(project).includes(info.activeId) ? '' : (info.names?.[project.workspaceId] || 'Otro tablero');
+};
+
 const fmtMoney = (n, c = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(n);
 const fmtDate  = (iso) => {
   const dt = new Date(iso + 'T00:00');

@@ -62,6 +62,7 @@ Storage: `frame-covers/` y `frame-avatars/`
 - `getType(id)` en `data.jsx` busca **primero en `window.FRAME_CUSTOM_TYPES`**, luego en el array estático `PROJECT_TYPES`. Nunca invertir ese orden.
 - Los IDs de proyecto se generan como `'p' + Date.now()`.
 - Las escrituras a Firestore siempre van acompañadas de un dispatch optimista al reducer antes de la llamada async.
+- **El tablero personal (`kind: 'personal'`) es la bandeja**: muestra las tarjetas de todos los tableros del usuario, no sólo las suyas. Los de equipo siguen mostrando lo propio. Las tarjetas no se copian ni cambian de tablero — `boardProjects` / `boardColumns` / `boardOrigin` en `data.jsx` resuelven qué se ve y de dónde viene, y `boardCols` en `app.jsx` agrega las columnas prestadas.
 
 ## Cómo agregar algo nuevo
 
