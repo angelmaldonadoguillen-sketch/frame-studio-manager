@@ -1804,6 +1804,11 @@ const App = () => {
   // aprobarlo porque el admin no puede escribir tableros ajenos: las reglas
   // sólo dejan crear un tablero donde uno mismo es el dueño y único miembro.
   const creatingWsRef = useRef(false);
+  // El aviso de "no se pudieron cargar las tareas compartidas" se muestra una
+  // sola vez por sesión y sólo ante un fallo real de conexión: un
+  // permission-denied es lo esperado mientras las reglas por viewerIds no estén
+  // publicadas, y el tablero ya carga por workspaceId, así que no se alarma.
+  const sharedWarnRef = useRef(false);
   useEffect(() => {
     if (!authUser || state.workspacesLoading) return;
     if (state.workspaces.length > 0) return;
@@ -2039,7 +2044,15 @@ const App = () => {
         publish();
       }, (err) => {
         console.error('[FRAME] Tareas compartidas:', err);
-        window.frameToast?.('No se pudieron cargar las tareas compartidas. Revisá la conexión y los permisos del tablero.');
+        // El tablero ya se pintó con las consultas por workspaceId; las
+        // compartidas son un extra. Un permission-denied es lo normal mientras
+        // las reglas nuevas (viewerIds) no estén publicadas: se degrada en
+        // silencio, sin tocar lo que ya se ve. Sólo un fallo de conexión real
+        // merece aviso, y una vez.
+        if (err?.code !== 'permission-denied' && !sharedWarnRef.current) {
+          sharedWarnRef.current = true;
+          window.frameToast?.('No se pudieron cargar las tareas compartidas. Revisá la conexión.');
+        }
         sharedReady = true;
         publish();
       });
