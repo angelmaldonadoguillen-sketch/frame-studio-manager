@@ -29,7 +29,7 @@ const freshFilters = () => Object.fromEntries(
 const initialState = {
   // ── Tableros ──
   // Un usuario aprobado puede pertenecer a varios: su tablero personal
-  // (kind:'personal', él solo) y los de equipo (kind:'team', hasta 3).
+  // (kind:'personal', él solo) y los de equipo (kind:'team', hasta 6).
   // activeWorkspaceId decide qué datos se cargan: TODO lo demás del estado
   // pertenece al tablero activo y se vacía al cambiar de uno a otro.
   workspaces: [],
@@ -417,7 +417,7 @@ const WorkspaceSwitcher = ({ state, dispatch, onCreateTeam, onDeleteWorkspace, o
           </span>
           {w.kind === 'team' && (
             <span className="text-[10px] tnum flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-              {(w.memberIds || []).length}/3
+              {(w.memberIds || []).length}/6
             </span>
           )}
         </button>
@@ -1913,7 +1913,7 @@ const App = () => {
   const handleInvite = (email) => {
     const clean = (email || '').trim().toLowerCase();
     if (!clean || !activeWs || activeWs.kind !== 'team') return;
-    if ((activeWs.memberIds || []).length >= 3) return;
+    if ((activeWs.memberIds || []).length >= 6) return;
 
     const id = inviteId(activeWs.id, clean);
     return window.db.collection('frame_invites').doc(id).set({

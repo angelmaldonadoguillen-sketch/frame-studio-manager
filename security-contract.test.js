@@ -38,7 +38,7 @@ assert.match(firestore, /match \/frame_portfolio_usage\/\{uid\}/);
 assert.match(storage, /match \/frame-portfolios\/\{uid\}\/\{assetId\}/);
 assert.match(storage, /reservation\(\)\.status == 'reserved'/);
 assert.match(firestore, /data\.workspaceIds\.size\(\) <= 5/);
-assert.match(firestore, /data\.viewerIds\.size\(\) <= 15/);
+assert.match(firestore, /data\.viewerIds\.size\(\) <= 30/);
 assert.match(firestore, /function selectedWorkspaceMembers\(data\)/);
 assert.match(firestore, /data\.viewerIds\.toSet\(\) == selectedWorkspaceMembers\(data\)/);
 assert.match(firestore, /request\.resource\.data\.workspaceId == resource\.data\.workspaceId/);

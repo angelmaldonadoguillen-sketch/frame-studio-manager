@@ -765,7 +765,7 @@ const InviteMember = ({ canInvite, full, count, onInvite, sent = [], onCancel })
         <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>
           Invitar al tablero
         </span>
-        <span className="text-[10px] tnum" style={{ color: 'var(--text-muted)' }}>{count}/3</span>
+        <span className="text-[10px] tnum" style={{ color: 'var(--text-muted)' }}>{count}/6</span>
       </div>
 
       {full ? (
@@ -902,7 +902,7 @@ const TeamSection = ({ team, pending = [], projects, onUpdateMember, onDeleteMem
 
         <InviteMember
           canInvite={canInvite}
-          full={team.length >= 3}
+          full={team.length >= 6}
           count={team.length}
           onInvite={onInvite}
           sent={sentInvites}

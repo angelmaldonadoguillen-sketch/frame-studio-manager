@@ -23,9 +23,9 @@ rules_version = '2';
 //
 // ── Por qué memberIds es un array y no una subcolección ──
 // Las reglas de Firestore no pueden contar documentos de una subcolección,
-// así que el límite de 3 personas sería inaplicable desde el servidor y
+// así que el límite de 6 personas sería inaplicable desde el servidor y
 // quedaría sólo en la interfaz — es decir, se saltaría desde la consola del
-// navegador. Con un array se valida con memberIds.size() <= 3.
+// navegador. Con un array se valida con memberIds.size() <= 6.
 // ─────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
@@ -103,7 +103,7 @@ service cloud.firestore {
          && data.workspaceIds.size() >= 1
          && data.workspaceIds.size() <= 5
          && data.viewerIds.size() >= 1
-         && data.viewerIds.size() <= 15
+         && data.viewerIds.size() <= 30
          && data.workspaceId in data.workspaceIds
          && myUid() in data.viewerIds)
       );
@@ -155,7 +155,7 @@ service cloud.firestore {
                     && request.resource.data.kind in ['personal', 'team'];
 
       // Actualizar: cualquier miembro puede editar el tablero (nombre, etc.),
-      // pero el dueño no se puede cambiar y el límite de 3 es infranqueable.
+      // pero el dueño no se puede cambiar y el límite de 6 es infranqueable.
       // Los tableros personales no admiten un segundo miembro.
       // Dos caminos distintos, y por eso el OR:
       //
@@ -172,7 +172,7 @@ service cloud.firestore {
           && request.resource.data.ownerId == resource.data.ownerId
           && request.resource.data.kind    == resource.data.kind
           && request.resource.data.memberIds.size() <=
-             (resource.data.kind == 'personal' ? 1 : 3)
+             (resource.data.kind == 'personal' ? 1 : 6)
           // Sólo el dueño toca la lista de miembros; el resto puede editar
           // todo lo demás pero no invitar ni expulsar.
           && (request.resource.data.memberIds == resource.data.memberIds
@@ -189,7 +189,7 @@ service cloud.firestore {
           && request.resource.data.kind    == resource.data.kind
           // Exactamente él mismo, ni uno más.
           && request.resource.data.memberIds == resource.data.memberIds.concat([myUid()])
-          && request.resource.data.memberIds.size() <= 3
+          && request.resource.data.memberIds.size() <= 6
           && exists(/databases/$(database)/documents/frame_invites/$(wsId + '__' + request.auth.token.email)) )
       );
 
@@ -278,7 +278,7 @@ service cloud.firestore {
         && memberOfSelectedWorkspace(resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewerIds'])
         && request.resource.data.viewerIds == resource.data.viewerIds.concat([myUid()])
-        && request.resource.data.viewerIds.size() <= 15
+        && request.resource.data.viewerIds.size() <= 30
       );
 
       match /comments/{commentId} {
@@ -601,7 +601,7 @@ service cloud.firestore {
         // Los únicos avisos creados por el cliente son menciones y cambios de
         // estado de un proyecto compartido. Emisor y receptor deben ser
         // miembros del mismo tablero, y el proyecto debe pertenecer a él.
-        // El límite de tres miembros del tablero acota además los receptores.
+        // El límite de seis miembros del tablero acota además los receptores.
         allow create: if approved()
                       && uid != myUid()
                       && request.resource.data.senderId == myUid()
