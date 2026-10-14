@@ -22,9 +22,18 @@ assert.match(modal, /Guardar tableros/);
 assert.match(rules, /function hasProjectAccess\(data\)/);
 assert.match(rules, /myUid\(\) in data\.viewerIds/);
 assert.match(rules, /request\.resource\.data\.workspaceId == resource\.data\.workspaceId/);
-assert.match(rules, /Sólo un miembro del tablero principal cambia la ACL/);
 assert.match(rules, /request\.resource\.data\.viewerIds == resource\.data\.viewerIds\.concat\(\[myUid\(\)\]\)/);
 assert.match(storage, /request\.auth\.uid in projectDoc\.data\.viewerIds/);
 assert.doesNotMatch(app + modal, /handleMoveProject|onMoveWorkspace|Trasladar a otro tablero/);
 
-console.log('workspace-visibility-contract: 19 checks passed');
+// Editar una tarjeta se autoriza por la membresía viva del tablero, no por la
+// foto que quedó en viewerIds: cualquier miembro puede editar cualquier tarjeta
+// del tablero, incluso si se sumó después de crearse la tarjeta.
+assert.match(rules, /function memberOfAnyBoard\(data\)/);
+assert.match(rules, /function visibilityUnchanged\(\)/);
+assert.match(rules, /visibilityUnchanged\(\)\s*&& memberOfAnyBoard\(resource\.data\)/);
+// Y Storage ya cae en la membresía viva del tablero principal como alternativa
+// a la ACL, por el mismo motivo.
+assert.match(storage, /request\.auth\.uid in workspaceDoc\.data\.memberIds/);
+
+console.log('workspace-visibility-contract: 20 checks passed');
