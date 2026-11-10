@@ -91,4 +91,10 @@ L.PROVENANCE_KEYS.forEach(k => assert.ok(rules.includes(`'${k}'`), `regla sin ${
 assert.match(rules, /match \/loopa_sales\/\{saleId\}/);
 assert.match(rules, /match \/loopa_config\/\{doc\}/);
 
+// Un solo programa (tanda 3.9 de LOOPA): FRAME vive dentro de LOOPA.
+assert.match(html, /window\.FRAME_EMBEBIDO = embebido;/);
+assert.match(html, /const publica = q\.has\('portal'\) \|\| q\.has\('portfolio'\);/, 'el portal y el portfolio se siguen abriendo solos');
+assert.match(html, /if \(publicado && !embebido && !publica && q\.get\('solo'\) !== '1'\) \{\s*window\.location\.replace\('\.\.\/LOOPA-OS\/\?ruta=produccion'\);/);
+assert.ok(html.indexOf('FRAME_EMBEBIDO') < html.indexOf('firebase-app-compat'), 'decide antes de cargar nada');
+
 console.log('loopa-fusion: ok');

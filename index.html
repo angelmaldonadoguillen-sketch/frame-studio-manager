@@ -8,6 +8,23 @@
 <meta name="color-scheme" content="dark light" />
 <meta name="theme-color" content="#131315" />
 <script>
+  // FRAME ⇄ LOOPA: un solo programa. FRAME vive dentro de LOOPA (sección
+  // Producción). Abierto solo, en la versión publicada, lleva a LOOPA.
+  // Siguen abriéndose solos: el portal del cliente (?portal=), el portfolio
+  // publicado (?portfolio=) y, para emergencias, ?solo=1.
+  (() => {
+    let embebido = true;
+    try { embebido = window.self !== window.top; } catch (e) { embebido = true; }
+    window.FRAME_EMBEBIDO = embebido;
+    const q = new URLSearchParams(window.location.search);
+    const publica = q.has('portal') || q.has('portfolio');
+    const publicado = window.location.hostname === 'angelmaldonadoguillen-sketch.github.io';
+    if (publicado && !embebido && !publica && q.get('solo') !== '1') {
+      window.location.replace('../LOOPA-OS/?ruta=produccion');
+    }
+  })();
+</script>
+<script>
   (() => {
     const key = 'frame_theme';
     const normalize = value => value === 'light' ? 'light' : 'dark';
