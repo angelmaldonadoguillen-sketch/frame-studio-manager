@@ -91,10 +91,16 @@ L.PROVENANCE_KEYS.forEach(k => assert.ok(rules.includes(`'${k}'`), `regla sin ${
 assert.match(rules, /match \/loopa_sales\/\{saleId\}/);
 assert.match(rules, /match \/loopa_config\/\{doc\}/);
 
-// Un solo programa (tanda 3.9 de LOOPA): FRAME vive dentro de LOOPA.
-assert.match(html, /window\.FRAME_EMBEBIDO = embebido;/);
-assert.match(html, /const publica = q\.has\('portal'\) \|\| q\.has\('portfolio'\);/, 'el portal y el portfolio se siguen abriendo solos');
-assert.match(html, /if \(publicado && !embebido && !publica && q\.get\('solo'\) !== '1'\) \{\s*window\.location\.replace\('\.\.\/LOOPA-OS\/\?ruta=produccion'\);/);
+// FRAME retirado (fase 4.5 de LOOPA): el sitio publicado sólo redirige.
+// El portal pasa a LOOPA; el portfolio publicado sigue abriendo acá.
+assert.match(html, /window\.FRAME_EMBEBIDO = false;/);
+assert.match(html, /if \(!publicado \|\| q\.has\('portfolio'\)\) return;/, 'el portfolio publicado se sigue abriendo acá');
+assert.match(html, /'\.\.\/LOOPA-OS\/\?portal=' \+ encodeURIComponent\(portal\)/, 'el portal del cliente abre en LOOPA');
+assert.match(html, /: '\.\.\/LOOPA-OS\/\?ruta=produccion'\);/);
+assert.doesNotMatch(html, /q\.get\('solo'\)/, 'ya no hay modo FRAME solo');
 assert.ok(html.indexOf('FRAME_EMBEBIDO') < html.indexOf('firebase-app-compat'), 'decide antes de cargar nada');
+// Desde acá ya no se publica: reglas, storage y funciones salen de LOOPA-OS.
+const fb = JSON.parse(fs.readFileSync('firebase.json', 'utf8'));
+['functions', 'firestore', 'storage'].forEach(k => assert.match((fb[k].predeploy || []).join(' '), /FRAME esta retirado[\s\S]*process\.exit\(1\)/, `${k}: publicar desde FRAME tiene que fallar`));
 
 console.log('loopa-fusion: ok');
