@@ -1165,6 +1165,9 @@ const ProjectModal = ({ project, onClose, onUpdate, onDelete, onSetWorkspaceVisi
                   value={project.deadline}
                   // Opcional: conserva el compromiso aunque la sesión cambie.
                   onChange={(e) => updField('deadline')(e.target.value)}
+                  // Tarea de una venta de LOOPA: la entrega la fija la venta.
+                  disabled={!!window.FrameLoopa?.isFromSale(project)}
+                  title={window.FrameLoopa?.isFromSale(project) ? 'La entrega la fija la venta en LOOPA' : undefined}
                   className="text-sm hover:bg-[var(--surface-2)] rounded px-2 py-1 -mx-2 cursor-pointer"
                   style={{ colorScheme: 'var(--color-scheme)' }}
                 />

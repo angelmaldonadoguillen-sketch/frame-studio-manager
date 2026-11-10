@@ -270,11 +270,21 @@ const ToastStack = () => {
 // Traduce el error de Firestore a algo accionable. "Missing or insufficient
 // permissions" no le dice nada a nadie.
 const explainWriteError = (err, que) => {
+  if (err?.friendly) return err.friendly;
   const code = err?.code || '';
   if (code === 'permission-denied')  return `No tenés permiso para ${que}.`;
   if (code === 'unavailable')        return `Sin conexión. ${que} no se guardó — revisá tu internet.`;
   if (code === 'resource-exhausted') return `Se agotó la cuota de la base de datos. ${que} no se guardó.`;
   return `No se pudo guardar: ${que}. Recargá para ver el estado real.`;
+};
+
+// FRAME ⇄ LOOPA (fusión): sin loopa-fusion.js las escrituras que lo usan
+// no se intentan (las reglas nuevas rechazarían la forma vieja): se avisa.
+const fusionLista = () => {
+  if (window.FrameLoopa) return true;
+  console.error('[FRAME] Falta loopa-fusion.js');
+  window.frameToast?.('Falta un archivo de FRAME (loopa-fusion.js). Recargá la página.');
+  return false;
 };
 
 const notifyWriteError = (err, que) => {
@@ -2503,39 +2513,62 @@ const App = () => {
       window.frameToast?.('Sólo el tablero principal puede eliminar esta tarea.');
       return;
     }
+    if (!fusionLista()) return;
+    // Una tarea generada por una venta de LOOPA no se borra (las reglas lo
+    // impiden): se archiva, y su trabajo queda como historial de la venta.
+    if (window.FrameLoopa.isFromSale(project)) {
+      if (project.status !== 'archived') handleUpdateProject({ ...project, status: 'archived' });
+      window.frameToast?.('Las tareas de una venta de LOOPA no se eliminan: quedó archivada.');
+      return;
+    }
     // 2. Optimistic UI removal
     dispatch({ type: 'delete_project', id });
     const col = window.db.collection('frame_projects');
     try {
-      // 3. Move to frame_trash with deletedAt timestamp
+      // 3 y 4. Papelera y borrado en UN lote: si el borrado falla, no queda
+      // una copia fantasma en la papelera que al restaurarla pisaría la viva.
+      const batch = window.db.batch();
       if (project) {
         const trashItem = { ...project, deletedAt: new Date().toISOString() };
-        await window.db.collection('frame_trash').doc(id).set(trashItem);
-        console.log('[FRAME] Proyecto movido a papelera:', id);
+        batch.set(window.db.collection('frame_trash').doc(id), trashItem);
       }
-      // 4. Remove from frame_projects
       const snap = await col.doc(id).get();
       if (snap.exists) {
-        await col.doc(id).delete();
+        batch.delete(col.doc(id));
       } else {
         const q = await col.where('id', '==', id).get();
-        if (!q.empty) {
-          await Promise.all(q.docs.map(d => d.ref.delete()));
-        }
+        q.docs.forEach(d => batch.delete(d.ref));
       }
+      await batch.commit();
+      console.log('[FRAME] Proyecto movido a papelera:', id);
       await Promise.all((project?.workspaceIds || [project?.workspaceId]).filter(Boolean).map(workspaceId =>
         window.db.collection('frame_workspaces').doc(workspaceId).update({
           sharedTaskIds: firebase.firestore.FieldValue.arrayRemove(id),
         }).catch(err => console.error('[FRAME] Limpiar referencia de tarea:', err))
       ));
     } catch (err) {
-      console.error('[FRAME] Error al mover a papelera:', err);
+      notifyWriteError(err, 'la eliminación de la tarea');
     }
   };
 
+  // ¿La ficha existe y es del tablero? (si no, las reglas rechazan recrear la
+  // tarea con ese clientId). Con el estado, que escucha las fichas del
+  // tablero: un corte de red no deja una tarea sin ficha para siempre.
+  const clientOkFor = (clientId, workspaceId) => typeof clientId === 'string' && !!clientId
+    && state.clients.some(c => c.id === clientId && (c.workspaceId || wsId) === workspaceId);
+
   const restoreTrashItem = async (item) => {
-    const { deletedAt, ...storedProject } = item;
-    const originId = storedProject.workspaceId || wsId;
+    const { deletedAt, ...trashed } = item;
+    const originId = trashed.workspaceId || wsId;
+    if (!window.FrameLoopa) throw Object.assign(new Error('Falta loopa-fusion.js'), { friendly: 'Falta un archivo de FRAME (loopa-fusion.js). Recargá la página.' });
+    const check = window.FrameLoopa.restorableFromTrash(trashed, { originId, clientOk: clientOkFor(trashed.clientId, originId) });
+    if (!check.ok) throw Object.assign(new Error(check.reason), { code: 'loopa-sale', friendly: check.reason });
+    // 5. Una copia vieja de la papelera no pisa una tarea que sigue viva.
+    if (state.projects.some(p => p.id === trashed.id)) {
+      const viva = 'Esta tarea sigue en el tablero: la copia de la papelera es vieja y no se restaura.';
+      throw Object.assign(new Error(viva), { code: 'live-task', friendly: viva });
+    }
+    const storedProject = check.project;
     const originWorkspace = state.workspaces.find(workspace => workspace.id === originId);
     const primaryViewerIds = [...new Set((originWorkspace?.memberIds || []).filter(Boolean))];
     if (!originWorkspace || primaryViewerIds.length === 0) {
@@ -2619,16 +2652,17 @@ const App = () => {
     const restored = [];
     let failed = 0;
     let sharingFailed = 0;
+    let motivo = '';
     for (const item of state.trash) {
       try {
         const result = await restoreTrashItem(item);
         restored.push(result.project);
         if (result.sharingFailed) sharingFailed += 1;
       }
-      catch (err) { failed += 1; console.error('[FRAME] Restaurar todo:', item.id, err); }
+      catch (err) { failed += 1; motivo = motivo || err.friendly || ''; console.error('[FRAME] Restaurar todo:', item.id, err); }
     }
     if (restored.length) dispatch({ type: 'restore_projects', projects: restored });
-    if (failed) window.frameToast?.(`${restored.length} restauradas; ${failed} no se pudieron restaurar.`);
+    if (failed) window.frameToast?.(`${restored.length} restauradas; ${failed} no se pudieron restaurar.${motivo ? ` ${motivo}` : ''}`);
     else if (sharingFailed) window.frameToast?.(`${restored.length} restauradas; ${sharingFailed} quedaron sólo en su tablero principal.`);
     else window.frameToast?.(`${restored.length} ${restored.length === 1 ? 'tarea restaurada' : 'tareas restauradas'}.`);
   };
@@ -2651,19 +2685,18 @@ const App = () => {
 
   const handleDuplicateProject = (id) => {
     const original = state.projects.find(p => p.id === id);
-    if (!original) return;
+    if (!original || !fusionLista()) return;
     const newId  = 'p' + Date.now() + Math.random().toString(36).slice(2, 5);
-    const copy   = {
-      ...original,
-      id:        newId,
-      title:     original.title + ' (copia)',
-      // La copia nace independiente dentro del tablero actual; no hereda la
-      // visibilidad múltiple ni la ACL de la tarea original.
-      workspaceId: wsId,
-      workspaceIds: [wsId],
+    // La copia nace independiente dentro del tablero actual; no hereda la
+    // visibilidad múltiple ni la ACL de la tarea original. Es una tarea
+    // MANUAL: sin la procedencia de una venta de LOOPA, y sin ficha si la
+    // ficha no es de este tablero (las reglas rechazarían ambas cosas).
+    const copy   = window.FrameLoopa.duplicateOf(original, {
+      newId, wsId,
       viewerIds: [...new Set(activeWs?.memberIds || [state.currentUserId])],
-      createdAt: new Date().toISOString(),
-    };
+      now: new Date().toISOString(),
+      clientIdsInTarget: state.clients.filter(c => (c.workspaceId || wsId) === wsId).map(c => c.id),
+    });
     dispatch({ type: 'duplicate_project', project: copy });
     window.db.collection('frame_projects').doc(newId).set(stampWs(copy))
       .catch(err => notifyWriteError(err, 'la copia de la tarea'));
@@ -2920,7 +2953,9 @@ const App = () => {
     if (!project) return;
     const updated = { ...project, favorite: !project.favorite };
     dispatch({ type: 'update_project', project: updated });
-    window.db.collection('frame_projects').doc(id).set(stampWs(updated))
+    // Sólo el campo: un set() completo con una copia vieja revertiría lo que
+    // escribe el servidor (procedencia de una venta) y las reglas lo rechazan.
+    window.db.collection('frame_projects').doc(id).update({ favorite: updated.favorite })
       .catch(err => notifyWriteError(err, 'el favorito'));
   };
 
@@ -2967,20 +3002,38 @@ const App = () => {
 
   const handleDeleteClient = (id) => {
     const client = state.clients.find(item => item.id === id);
-    if (client?.portalToken) {
-      window.db.collection('frame_client_portals').doc(client.portalToken)
-        .set(buildClientPortalDocument(client, [], activeWs, false))
-        .catch(err => console.error('[FRAME] Desactivar portal eliminado:', err));
+    if (!fusionLista()) return;
+    if (window.FrameLoopa.clientHasSales(client)) {
+      window.frameToast?.('Esta ficha tiene ventas en LOOPA: no se elimina.');
+      return;
     }
     dispatch({ type: 'delete_client', id });
     window.db.collection('frame_clients').doc(id).delete()
-      .catch(err => console.error('Error al eliminar cliente:', err));
+      .then(() => {
+        if (!client?.portalToken) return;
+        return window.db.collection('frame_client_portals').doc(client.portalToken)
+          .set(buildClientPortalDocument(client, [], activeWs, false))
+          .catch(err => console.error('[FRAME] Desactivar portal eliminado:', err));
+      })
+      .catch(err => notifyWriteError(err, 'la eliminación del cliente'));
   };
 
   const handleUpdateClient = (client) => {
+    if (!fusionLista()) return;
+    const prev = state.clients.find(item => item.id === client.id);
     dispatch({ type: 'update_client', client });
-    window.db.collection('frame_clients').doc(client.id).set(stampWs(client))
-      .catch(err => notifyWriteError(err, 'el cliente'));
+    // Con update y sólo lo que cambió: lo comercial que escribe LOOPA en la
+    // ficha queda intacto aunque esta copia esté desactualizada.
+    const write = prev
+      ? (() => {
+        const next = stampWs(client);
+        const patch = window.FrameLoopa.clientUpdatePatch(prev, next);
+        window.FrameLoopa.clientRemovedKeys(prev, next).forEach(k => { patch[k] = firebase.firestore.FieldValue.delete(); });
+        return Object.keys(patch).length ? window.db.collection('frame_clients').doc(client.id).update(patch) : Promise.resolve();
+      })()
+      // Sin copia en pantalla: merge, para no borrar lo que la ficha ya tenga.
+      : window.db.collection('frame_clients').doc(client.id).set(stampWs(client), { merge: true });
+    write.catch(err => notifyWriteError(err, 'el cliente'));
   };
 
   const handleCreateClient = (client) => {
@@ -2990,10 +3043,12 @@ const App = () => {
   };
 
   const handleSetClientPortal = async (client, published) => {
+    if (!fusionLista()) throw new Error('Falta loopa-fusion.js');
     const portalToken = client.portalToken || createClientPortalToken();
     const updated = { ...client, portalToken, portalPublished: published === true };
     try {
-      await window.db.collection('frame_clients').doc(client.id).set(stampWs(updated));
+      const portalPatch = window.FrameLoopa.clientUpdatePatch(client, stampWs(updated));
+      if (Object.keys(portalPatch).length) await window.db.collection('frame_clients').doc(client.id).update(portalPatch);
       await window.db.collection('frame_client_portals').doc(portalToken)
         .set(buildClientPortalDocument({ ...updated, workspaceId: wsId }, boardProjects(state.projects, wsId, false), activeWs, published, state.kanbanColumns));
       dispatch({ type: 'update_client', client: updated });
@@ -3059,7 +3114,7 @@ const App = () => {
       onCreateClient={handleCreateClient}
       onClose={() => dispatch({ type: 'close_project' })}
       onUpdate={handleUpdateProject}
-      onDelete={openProject.workspaceId === wsId ? handleDeleteProject : undefined}
+      onDelete={openProject.workspaceId === wsId && !window.FrameLoopa?.isFromSale(openProject) ? handleDeleteProject : undefined}
       onSetWorkspaceVisibility={openProject.workspaceId === wsId ? handleSetProjectWorkspaces : undefined}
       workspaces={state.workspaces}
       activeWorkspaceId={wsId}

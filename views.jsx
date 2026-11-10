@@ -20,7 +20,8 @@ const CardQuickFields = ({ project, previewFields = {} }) => {
   const stop = e => e.stopPropagation();
   return <div className="frame-quick-fields" onClick={stop} onPointerDown={stop} onKeyDown={stop} draggable={false} onDragStart={e => { e.preventDefault(); e.stopPropagation(); }}>
     {previewFields.deadline !== false && <label>Entrega
-      <input aria-label="Fecha de entrega" type="date" value={project.deadline || ''} onChange={e => set('deadline', e.target.value)} />
+      <input aria-label="Fecha de entrega" type="date" value={project.deadline || ''} onChange={e => set('deadline', e.target.value)}
+        disabled={!!window.FrameLoopa?.isFromSale(project)} title={window.FrameLoopa?.isFromSale(project) ? 'La entrega la fija la venta en LOOPA' : undefined} />
       {!project.deadline && <span>Sin fecha</span>}
     </label>}
     <div className="frame-quick-pair">

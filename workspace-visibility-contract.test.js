@@ -15,7 +15,9 @@ assert.match(app, /const handleSetProjectWorkspaces = async \(project, requested
 assert.match(app, /workspaceIds, viewerIds/);
 assert.match(app, /sharedTaskIds:[\s\S]*firebase\.firestore\.FieldValue\.arrayUnion\(project\.id\)/);
 assert.match(app, /viewerIds: firebase\.firestore\.FieldValue\.arrayUnion\(authUser\.uid\)/);
-assert.match(app, /workspaceIds: \[wsId\]/);
+// La copia de «Duplicar» nace en un solo tablero (desde la fusión con LOOPA
+// la arma loopa-fusion.js → duplicateOf).
+assert.match(app + fs.readFileSync('loopa-fusion.js', 'utf8'), /workspaceIds: \[wsId\]/);
 assert.match(app, /Sólo el tablero principal puede eliminar esta tarea/);
 assert.match(modal, /Mostrar esta tarea en/);
 assert.match(modal, /Guardar tableros/);
