@@ -81,4 +81,14 @@ assert.match(fs.readFileSync('views.jsx', 'utf8'), /disabled=\{!!window\.FrameLo
 assert.match(fs.readFileSync('modal.jsx', 'utf8'), /disabled=\{!!window\.FrameLoopa\?\.isFromSale\(project\)\}/, 'entrega de venta: sólo lectura (detalle)');
 assert.match(html, /app\.jsx\?v=20261110-fusion/);
 
+// Punto A: las reglas de este repo son las de la fusión (generadas desde
+// LOOPA-OS con reglas-para-frame.cjs). Un deploy de reglas desde acá no
+// revierte lo que protege las ventas.
+const rules = fs.readFileSync('firestore.rules.v2', 'utf8');
+assert.doesNotMatch(rules, /NO PUBLICAR/);
+assert.match(rules, /function provenanceKeys\(\)/);
+L.PROVENANCE_KEYS.forEach(k => assert.ok(rules.includes(`'${k}'`), `regla sin ${k}`));
+assert.match(rules, /match \/loopa_sales\/\{saleId\}/);
+assert.match(rules, /match \/loopa_config\/\{doc\}/);
+
 console.log('loopa-fusion: ok');

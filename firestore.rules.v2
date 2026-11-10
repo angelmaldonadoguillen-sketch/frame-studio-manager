@@ -11,6 +11,27 @@ rules_version = '2';
 // Antes de publicar, correr las pruebas de contrato (node security-contract.test.js
 // y las demás *-contract*), que leen este archivo.
 //
+// Incluye la fusión con LOOPA OS (las ventas generan tareas). Las partes
+// de LOOPA van marcadas «LOOPA:». Su fuente es el repo LOOPA-OS
+// (integracion/reglas/firestore.rules.borrador, probado en el emulador) y
+// este archivo se genera con integracion/puesta-en-marcha/reglas-para-frame.cjs:
+// un cambio acá se hace allá y se vuelve a generar.
+//
+// Lo que agrega la fusión:
+//   · loopa_sales: sólo lectura para el equipo comercial (D15); se escribe
+//     sólo desde el servidor (createSale/updateSale/addPayment, D9).
+//   · loopa_integration_events, loopa_counters, loopa_migrations: cerradas
+//     a los clientes (sólo el Admin SDK, que no pasa por reglas).
+//   · frame_projects: la procedencia de una tarea (venta, evento, plan) la
+//     escribe sólo el servidor; en una tarea generada por una venta la
+//     entrega (deadline) es el compromiso de la venta y no se borra la
+//     tarea (cancelar nunca borra; se archiva, D14). clientId se asigna
+//     una sola vez, a una ficha del mismo tablero. Los ids loopa_* quedan
+//     reservados al servidor y el campo id sólo puede ser el del documento.
+//   · frame_clients: los datos comerciales, los ids de LOOPA y la marca de
+//     ventas (hasSales) los escribe sólo el servidor; una ficha con
+//     cualquiera de ellos no se borra (migrada o con ventas nuevas).
+//
 // ── El modelo ──
 // Dos niveles de permiso, que hoy están mezclados en uno solo:
 //
@@ -164,6 +185,50 @@ service cloud.firestore {
              );
     }
 
+    // ── LOOPA: procedencia de las tareas ─────────────────────────
+    // Lo que sólo escribe el servidor (functions/production-plan). Un cliente
+    // no puede crear una tarea con estos campos ni cambiarlos después: así
+    // nadie fabrica una tarjeta "de una venta" ni la desvincula a mano.
+    function provenanceKeys() {
+      return ['sourceSystem', 'sourceSaleId', 'sourceSaleNumber', 'sourceSaleStatus', 'sourceLineIds',
+              'sourceEventId', 'sourceTemplateVersions', 'sourceWorkItems', 'idempotencyKey', 'integration'];
+    }
+    function fromSale(data) {
+      return data.get('sourceSystem', '') == 'loopa';
+    }
+    function clientOf(clientId) {
+      return get(/databases/$(database)/documents/frame_clients/$(clientId)).data;
+    }
+    // clientId apunta a una ficha que existe en el mismo tablero de la tarea.
+    function validClientLink(data) {
+      return data.clientId is string
+             && data.clientId.size() > 0
+             && data.clientId.size() <= 128
+             && exists(/databases/$(database)/documents/frame_clients/$(data.clientId))
+             && clientOf(data.clientId).workspaceId == data.workspaceId;
+    }
+    function projectEditAllowed() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return !changed.hasAny(provenanceKeys())
+             // La entrega de una tarea de venta la fija la venta.
+             && (!fromSale(resource.data) || !changed.hasAny(['deadline']))
+             // clientId: sólo se asigna una vez (enlazar una tarea vieja a su
+             // ficha) y nunca se cambia ni se quita.
+             && (!changed.hasAny(['clientId'])
+                 || (!resource.data.keys().hasAny(['clientId'])
+                     && validClientLink(request.resource.data)));
+    }
+
+    // ── LOOPA: equipo comercial (D15) ────────────────────────────
+    // Quién ve ventas: una lista de uids que mantiene el admin de plataforma
+    // en loopa_config/access.commercialUids. Las ventas no viven en un
+    // tablero de producción: los montos no se mezclan con el calendario (D8).
+    function isCommercial() {
+      return approved()
+             && exists(/databases/$(database)/documents/loopa_config/access)
+             && myUid() in get(/databases/$(database)/documents/loopa_config/access).data.commercialUids;
+    }
+
     // ── Tableros ─────────────────────────────────────────────────
     match /frame_workspaces/{wsId} {
 
@@ -275,8 +340,16 @@ service cloud.firestore {
       allow read: if hasProjectAccess(resource.data);
       // El borrado completo permanece reservado al tablero principal. Desde
       // otro tablero se puede dejar de mostrar, pero no destruir para todos.
-      allow delete: if memberOfExisting();
+      // LOOPA: una tarea generada por una venta no se borra (se archiva).
+      allow delete: if memberOfExisting() && !fromSale(resource.data);
       allow create: if memberOfIncoming()
+                    // LOOPA: la procedencia la escribe sólo el servidor, y los
+                    // ids loopa_* son suyos (ids.taskDocId): ocuparlos antes
+                    // frenaría la producción de una venta.
+                    && !request.resource.data.keys().hasAny(provenanceKeys())
+                    && !doc.matches('loopa_.*')
+                    && request.resource.data.get('id', doc) == doc
+                    && (!request.resource.data.keys().hasAny(['clientId']) || validClientLink(request.resource.data))
                     && validProjectVisibility(request.resource.data)
                     && validVisibilitySelection(request.resource.data)
                     && request.resource.data.keys().hasAll(['workspaceIds', 'viewerIds'])
@@ -288,18 +361,24 @@ service cloud.firestore {
       // no podía tocar nada, y cada cambio de equipo dejaba esa foto vieja, así
       // que terminaba bloqueando a todos. Ahora manda la membresía de hoy.
       allow update: if (
-        // A) Contenido: miembro de un tablero de la tarjeta, sin cambiar en qué
-        //    tableros se ve.
-        visibilityUnchanged()
-        && memberOfAnyBoard(resource.data)
-      ) || (
-        // B) Cambiar en qué tableros se ve: miembro del tablero principal, y la
-        //    selección nueva es válida (acá sí se materializa la ACL).
-        request.resource.data.workspaceId == resource.data.workspaceId
-        && hasProjectAccess(request.resource.data)
-        && validProjectVisibility(request.resource.data)
-        && memberOfExisting()
-        && validVisibilitySelection(request.resource.data)
+        // LOOPA: procedencia, entrega de venta y clientId (ver projectEditAllowed).
+        projectEditAllowed()
+        // LOOPA: el campo id, si cambia, sólo puede ser el id del documento.
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['id']) || request.resource.data.id == doc)
+        && ((
+          // A) Contenido: miembro de un tablero de la tarjeta, sin cambiar en qué
+          //    tableros se ve.
+          visibilityUnchanged()
+          && memberOfAnyBoard(resource.data)
+        ) || (
+          // B) Cambiar en qué tableros se ve: miembro del tablero principal, y la
+          //    selección nueva es válida (acá sí se materializa la ACL).
+          request.resource.data.workspaceId == resource.data.workspaceId
+          && hasProjectAccess(request.resource.data)
+          && validProjectVisibility(request.resource.data)
+          && memberOfExisting()
+          && validVisibilitySelection(request.resource.data)
+        ))
       ) || (
         // C) Al entrar una persona nueva a un tablero compartido, puede agregarse
         //    únicamente a sí misma a la ACL de las tareas ya vinculadas allí.
@@ -351,9 +430,85 @@ service cloud.firestore {
     }
 
     match /frame_clients/{doc} {
-      allow read, delete: if memberOfExisting();
-      allow create:       if memberOfIncoming();
-      allow update:       if memberOfExisting() && memberOfIncoming();
+      // LOOPA: «commercial» (contacto y datos que traía LOOPA),
+      // «legacyLoopaIds» (vínculo con las ventas migradas) y «hasSales» (la
+      // marca que pone createSale/updateSale al vender a esta ficha) los
+      // escribe sólo el servidor. Una ficha con cualquiera de ellos no se
+      // borra: ventas y tareas la referencian por id, y ese id no puede
+      // quedar libre para que otro tablero lo ocupe.
+      function serverOwnedClientKeys() {
+        return ['commercial', 'legacyLoopaIds', 'hasSales'];
+      }
+      allow read:   if memberOfExisting();
+      allow delete: if memberOfExisting() && !resource.data.keys().hasAny(serverOwnedClientKeys());
+      // Auditoría: quién creó o editó desde LOOPA lo escribe sólo el servidor.
+      // createdAt sí puede venir al crear (FRAME crea así sus fichas), pero
+      // después no cambia.
+      function clientAuthorKeys() {
+        return ['createdBy', 'updatedBy'];
+      }
+      allow create: if memberOfIncoming()
+                    && !request.resource.data.keys().hasAny(serverOwnedClientKeys().concat(clientAuthorKeys()))
+                    && request.resource.data.get('id', doc) == doc;
+      allow update: if memberOfExisting() && memberOfIncoming()
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(serverOwnedClientKeys().concat(clientAuthorKeys()).concat(['createdAt']))
+                    // El campo id, si cambia (fichas viejas sin id o con otro),
+                    // sólo puede pasar a ser el id del documento.
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['id']) || request.resource.data.id == doc)
+                    // Mover una ficha de tablero dejaría tareas apuntando a
+                    // una ficha ajena (clientId se valida contra el tablero).
+                    && request.resource.data.workspaceId == resource.data.workspaceId;
+    }
+
+    // ── LOOPA: ventas e integración ──────────────────────────────
+    // Ventas: el navegador sólo LEE (equipo comercial). Crear, editar y
+    // cobrar pasa por funciones del servidor (D9): el correlativo, la
+    // versión, el outbox y la revisión de producción no se pueden falsear
+    // desde la consola del navegador.
+    match /loopa_sales/{saleId} {
+      allow read: if isCommercial();
+      allow create, update, delete: if false;
+    }
+
+    // Catálogo: el equipo comercial lo lee; se escribe sólo desde el servidor
+    // (loopaSaveService), que nunca acepta la plantilla de producción.
+    match /loopa_services/{serviceId} {
+      allow read: if isCommercial();
+      allow create, update, delete: if false;
+    }
+
+    // Quién es comercial: lo administra sólo el admin de plataforma.
+    match /loopa_config/{doc} {
+      // El equipo comercial lee la lista y qué tableros son de producción
+      // (sólo ids: la app los necesita para pedir las fichas de cliente).
+      // Producción en LOOPA (tanda 3.5): un miembro del tablero de producción
+      // también lee cuál es (no ve ventas: eso sigue siendo del equipo comercial).
+      allow read: if isPlatformAdmin() || ((doc == 'access' || doc == 'production') && isCommercial())
+                  || (doc == 'production' && resource.data.defaultWorkspaceId is string && isMember(resource.data.defaultWorkspaceId));
+      allow create, update: if isPlatformAdmin()
+                            && (doc != 'access'
+                                || (request.resource.data.keys().hasOnly(['commercialUids'])
+                                    && request.resource.data.commercialUids is list
+                                    && request.resource.data.commercialUids.size() <= 50))
+                            // production la lee el equipo comercial: sólo ids
+                            // de tableros, nada más (forma cerrada).
+                            && (doc != 'production'
+                                || (request.resource.data.keys().hasOnly(['defaultWorkspaceId', 'allowedWorkspaceIds'])
+                                    && request.resource.data.defaultWorkspaceId is string
+                                    && request.resource.data.allowedWorkspaceIds is list
+                                    && request.resource.data.allowedWorkspaceIds.size() <= 20));
+      allow delete: if false;
+    }
+
+    // Outbox, correlativo y corridas de migración: sólo el servidor.
+    match /loopa_integration_events/{doc} {
+      allow read, create, update, delete: if false;
+    }
+    match /loopa_counters/{doc} {
+      allow read, create, update, delete: if false;
+    }
+    match /loopa_migrations/{doc=**} {
+      allow read, create, update, delete: if false;
     }
 
     // ── Portfolio personal ──────────────────────────────────────
@@ -667,3 +822,4 @@ service cloud.firestore {
     // una regla mal escrita acá no pueda tocar el sistema de ventas.
   }
 }
+
